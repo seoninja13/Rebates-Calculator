@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>California Rebate Programs</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="js/openai-analyzer.js"></script>
+  <style>
+    /* General Styles */
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f7fa;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Form Styles */
+    .search-form {
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+    }
+
+    select, button {
+      padding: 12px 20px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-right: 10px;
+    }
+
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #357abd;
+    }
+
+    /* Programs Section Styles */
+    .programs-section {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 30px;
+      overflow: hidden;
+    }
+
+    .programs-header {
+      display: flex;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 2px solid #f0f2f5;
+      background: #fff;
+    }
+
+    .programs-header i {
+      font-size: 24px;
+      margin-right: 15px;
+    }
+
+    .programs-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c3e50;
+      flex-grow: 1;
+    }
+
+    .programs-date {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .programs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+
+    .program-card {
+      background: #fff;
+      border: 1px solid #e1e4e8;
+      border-radius: 8px;
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .program-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .program-header {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 15px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f2f5;
+    }
+
+    .program-amount {
+      font-size: 16px;
+      color: #2ecc71;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .program-requirements {
+      margin: 15px 0;
+    }
+
+    .requirements-title {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+
+    .requirement-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 8px;
+      padding: 8px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .requirement-item i {
+      color: #4a90e2;
+      margin-top: 4px;
+    }
+
+    .program-deadline {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #f0f2f5;
+      color: #e74c3c;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .programs-note {
+      margin: 20px;
+      padding: 15px;
+      background: #fff8dc;
+      border-radius: 6px;
+      font-size: 14px;
+      color: #856404;
+      text-align: center;
+    }
+
+    /* Loading Spinner */
+    .spinner {
+      display: none;
+      width: 40px;
+      height: 40px;
+      margin: 20px auto;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #4a90e2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .programs-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .program-card {
+        margin: 10px;
+      }
+
+      .programs-header {
+        flex-direction: column;
+        text-align: center;
+      }
+
+      .programs-header i {
+        margin: 0 0 10px 0;
+      }
+
+      .programs-date {
+        margin-top: 10px;
+      }
+    }
+
+    .ca-rebates {
+      --primary: #0ea5e9;
+      --primary-dark: #0284c7;
+      --secondary: #64748b;
+      --success: #22c55e;
+      --background: #f8fafc;
+      --white: #ffffff;
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: var(--gray-700);
+      line-height: 1.5;
+    }
+
+    .ca-rebates * {
+      box-sizing: border-box;
+    }
+
+    .ca-rebates .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+
+    .ca-rebates .hero {
+      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+      color: var(--white);
+      padding: 4rem 1rem;
+      margin-bottom: 3rem;
+      border-radius: 0.75rem;
+      text-align: center;
+    }
+
+    .ca-rebates .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 0 0 1rem 0;
+      line-height: 1.2;
+    }
+
+    .ca-rebates .hero p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .ca-rebates .card {
+      background: var(--white);
+      border-radius: 1rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      padding: 2rem;
+      margin-bottom: 2rem;
+      transition: all 0.3s ease;
+    }
+
+    .ca-rebates .card:hover {
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .ca-rebates .card-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .ca-rebates .icon {
+      font-size: 1.75rem;
+      margin-right: 1rem;
+    }
+
+    .ca-rebates .card h2 {
+      font-size: 1.5rem;
+      color: var(--gray-900);
+      margin: 0;
+    }
+
+    .ca-rebates .program-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .ca-rebates .program-list li {
+      padding: 1.25rem;
+      border-radius: 0.75rem;
+      background: var(--gray-50);
+      margin-bottom: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .ca-rebates .program-list li:hover {
+      background: var(--gray-100);
+    }
+
+    .ca-rebates .program-list h3 {
+      font-size: 1.125rem;
+      color: var(--gray-900);
+      margin: 0 0 0.5rem 0;
+    }
+
+    .ca-rebates .program-list p {
+      color: var(--gray-600);
+      margin: 0 0 0.75rem 0;
+      font-size: 0.925rem;
+    }
+
+    .ca-rebates .btn-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.925rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    .ca-rebates .btn-link:hover {
+      color: var(--primary-dark);
+      transform: translateX(4px);
+    }
+
+    .ca-rebates .search-container {
+      margin-bottom: 2rem;
+    }
+
+    .ca-rebates .search-input {
+      width: 100%;
+      padding: 0.875rem 1.25rem;
+      border: 2px solid var(--gray-200);
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+
+    .ca-rebates .search-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    }
+
+    .ca-rebates .county-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .ca-rebates .county-item {
+      background: var(--gray-50);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      transition: all 0.2s ease;
+    }
+
+    .ca-rebates .county-item:hover {
+      background: var(--gray-100);
+    }
+
+    .ca-rebates .county-item h3 {
+      color: var(--gray-900);
+      font-size: 1.125rem;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .ca-rebates .county-item p {
+      color: var(--gray-600);
+      font-size: 0.925rem;
+      margin: 0;
+    }
+
+    .ca-rebates .county-item .details {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .ca-rebates .programs-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .ca-rebates .rebate-item {
+      background: var(--white);
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .ca-rebates .rebate-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .ca-rebates .rebate-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .ca-rebates .category-icon {
+      margin-right: 0.5rem;
+      width: 1.5rem;
+      height: 1.5rem;
+      color: var(--primary);
+    }
+
+    .ca-rebates .rebate-title {
+      flex-grow: 1;
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--gray-900);
+      margin: 0;
+    }
+
+    .ca-rebates .rebate-description {
+      color: var(--gray-600);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      margin: 0 0 1rem 0;
+    }
+
+    .ca-rebates .rebate-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--gray-200);
+    }
+
+    .ca-rebates .rebate-source {
+      display: flex;
+      align-items: center;
+      color: var(--secondary);
+      font-size: 0.875rem;
+    }
+
+    .ca-rebates .rebate-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      background: var(--primary);
+      color: var(--white);
+      text-decoration: none;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: background 0.2s ease;
+    }
+
+    .ca-rebates .rebate-link:hover {
+      background: var(--primary-dark);
+    }
+
+    .search-queries {
+      display: none;
+    }
+
+    .results-section {
+      background-color: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .results-section h3 {
+      color: #2d3748;
+      font-size: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e2e8f0;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .results-section h3 i {
+      color: #4299e1;
+    }
+
+    .results-section h3 i.fa-globe {
+      margin-right: 0.5rem;
+    }
+
+    .results-section h3 i.fa-map-pin {
+      margin-right: 0.5rem;
+    }
+
+    .rebate-item {
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      background-color: #f8fafc;
+      transition: all 0.3s ease;
+      border: 1px solid #e2e8f0;
+    }
+
+    .rebate-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      border-color: #cbd5e0;
+    }
+
+    .rebate-item h4 {
+      margin: 0 0 0.75rem 0;
+      font-size: 1.1rem;
+    }
+
+    .rebate-item a {
+      color: #4299e1;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.3s ease;
+    }
+
+    .rebate-item a:hover {
+      color: #3182ce;
+      text-decoration: underline;
+    }
+
+    .rebate-item p {
+      color: #4a5568;
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .rebates-loading-spinner {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      padding: 2rem;
+      color: #4a5568;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4299e1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .rebates-loading-spinner p {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .analysis-section {
+      background-color: #ebf8ff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid #bee3f8;
+    }
+
+    .analysis-section h3 {
+      color: #2c5282;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .analysis-section .program {
+      background: white;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+
+    .analysis-section .program h4 {
+      color: #2b6cb0;
+      margin: 0 0 0.5rem 0;
+    }
+
+    .analysis-section .program ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .analysis-section .program li {
+      padding: 0.25rem 0;
+      color: #4a5568;
+    }
+
+    .analysis-section .disclaimer {
+      font-size: 0.9rem;
+      color: #718096;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #bee3f8;
+    }
+
+    .timestamp {
+      font-size: 0.8rem;
+      color: #718096;
+      margin-top: 0.5rem;
+    }
+
+    /* Error Styles */
+    .error-section {
+      background: #fff3f3;
+      border: 1px solid #ffcdd2;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 10px 0;
+      color: #d32f2f;
+    }
+
+    .error-section p {
+      margin: 5px 0;
+    }
+
+    /* Loading Spinner */
+    #rebatesLoadingSpinner {
+      display: none;
+      width: 50px;
+      height: 50px;
+      margin: 20px auto;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4a90e2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1rem;
+      }
+
+      .search-wrapper {
+        flex-direction: column;
+      }
+
+      #countySelect {
+        width: 100%;
+      }
+
+      .btn-primary {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="ca-rebates">
+    <div class="container">
+      <!-- Hero Section -->
+      <div class="hero">
+        <h1>California Energy Rebate Programs</h1>
+        <p>Discover available rebates and incentives for energy-efficient home improvements in your area</p>
+      </div>
+
+    <div id="rebates-finder-widget">
+      <div class="rebates-container">
+        <h2 class="mb-4">Find Energy Rebates</h2>
+        <div class="search-box mb-4">
+          <form id="rebatesSearchForm">
+            <div class="search-wrapper">
+              <select id="countySelect" required>
+                <option value="">Select County</option>
+                <option value="Alameda">Alameda</option>
+                <option value="Alpine">Alpine</option>
+                <option value="Amador">Amador</option>
+                <option value="Butte">Butte</option>
+                <option value="Calaveras">Calaveras</option>
+                <option value="Colusa">Colusa</option>
+                <option value="Contra Costa">Contra Costa</option>
+                <option value="Del Norte">Del Norte</option>
+                <option value="El Dorado">El Dorado</option>
+                <option value="Fresno">Fresno</option>
+                <option value="Glenn">Glenn</option>
+                <option value="Humboldt">Humboldt</option>
+                <option value="Imperial">Imperial</option>
+                <option value="Inyo">Inyo</option>
+                <option value="Kern">Kern</option>
+                <option value="Kings">Kings</option>
+                <option value="Lake">Lake</option>
+                <option value="Lassen">Lassen</option>
+                <option value="Los Angeles">Los Angeles</option>
+                <option value="Madera">Madera</option>
+                <option value="Marin">Marin</option>
+                <option value="Mariposa">Mariposa</option>
+                <option value="Mendocino">Mendocino</option>
+                <option value="Merced">Merced</option>
+                <option value="Modoc">Modoc</option>
+                <option value="Mono">Mono</option>
+                <option value="Monterey">Monterey</option>
+                <option value="Napa">Napa</option>
+                <option value="Nevada">Nevada</option>
+                <option value="Orange">Orange</option>
+                <option value="Placer">Placer</option>
+                <option value="Plumas">Plumas</option>
+                <option value="Riverside">Riverside</option>
+                <option value="Sacramento">Sacramento</option>
+                <option value="San Benito">San Benito</option>
+                <option value="San Bernardino">San Bernardino</option>
+                <option value="San Diego">San Diego</option>
+                <option value="San Francisco">San Francisco</option>
+                <option value="San Joaquin">San Joaquin</option>
+                <option value="San Luis Obispo">San Luis Obispo</option>
+                <option value="San Mateo">San Mateo</option>
+                <option value="Santa Barbara">Santa Barbara</option>
+                <option value="Santa Clara">Santa Clara</option>
+                <option value="Santa Cruz">Santa Cruz</option>
+                <option value="Shasta">Shasta</option>
+                <option value="Sierra">Sierra</option>
+                <option value="Siskiyou">Siskiyou</option>
+                <option value="Solano">Solano</option>
+                <option value="Sonoma">Sonoma</option>
+                <option value="Stanislaus">Stanislaus</option>
+                <option value="Sutter">Sutter</option>
+                <option value="Tehama">Tehama</option>
+                <option value="Trinity">Trinity</option>
+                <option value="Tulare">Tulare</option>
+                <option value="Tuolumne">Tuolumne</option>
+                <option value="Ventura">Ventura</option>
+                <option value="Yolo">Yolo</option>
+                <option value="Yuba">Yuba</option>
+              </select>
+              <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+          </form>
+        </div>
+        <div class="rebates-loading-spinner" id="rebatesLoadingSpinner" style="display: none;">
+          <div class="spinner"></div>
+          <p>Searching for rebates...</p>
+        </div>
+        <div class="rebates-results" id="rebatesResultsSection">
+          <div id="rebatesResults"></div>
+        </div>
+      </div>
+
+      <script>
+        // Initialize the rebate programs handler
+        const rebatePrograms = new RebatePrograms();
+
+        document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
+          event.preventDefault();
+          const county = document.getElementById('countySelect').value;
+          const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
+          const resultsContainer = document.getElementById('rebatesResults');
+
+          // Show loading spinner
+          loadingSpinner.style.display = 'block';
+          resultsContainer.innerHTML = '';
+
+          try {
+            // Google Custom Search API configuration
+            const apiKey = 'AIzaSyD0k6vrMlYwCXlzKC-iqCOp2O-X6xT-gkU';
+            const searchEngineId = '50cffa222875141dd';
+
+            // Construct search queries
+            const queries = {
+              'Federal': 'federal energy rebate program california',
+              'State': 'california state energy rebate program',
+              'County': `${county} county california energy rebate program`
+            };
+
+            async function searchGoogle(query) {
+              console.log('Searching for:', query);
+              const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}`;
+              const response = await fetch(url);
+              if (!response.ok) {
+                throw new Error(`Google Search failed: ${response.status}`);
+              }
+              const data = await response.json();
+              console.log('Search results:', data);
+              return data.items || [];
+            }
+
+            // Fetch results for each category
+            const results = await Promise.all(
+              Object.entries(queries).map(async ([category, query]) => {
+                const searchResults = await searchGoogle(query);
+                if (searchResults.length > 0) {
+                  try {
+                    const analysis = await rebatePrograms.fetchPrograms(searchResults, category);
+                    return { category, results: searchResults, analysis };
+                  } catch (error) {
+                    console.error(`Analysis error for ${category}:`, error);
+                    return { category, results: searchResults, error };
+                  }
+                }
+                return { category, results: [], error: 'No results found' };
+              })
+            );
+
+            // Display results
+            results.forEach(({ category, results, analysis, error }) => {
+              if (error) {
+                console.error(`Error in ${category}:`, error);
+                const errorSection = document.createElement('div');
+                errorSection.className = 'error-section';
+                errorSection.innerHTML = `<p>Error loading ${category} programs: ${error}</p>`;
+                resultsContainer.appendChild(errorSection);
+              } else if (analysis) {
+                rebatePrograms.displayPrograms(analysis, resultsContainer);
+              }
+            });
+
+          } catch (error) {
+            console.error('Search error:', error);
+            resultsContainer.innerHTML = `
+              <div class="error-section">
+                <p>An error occurred while searching for rebate programs. Please try again.</p>
+                <p>Error details: ${error.message}</p>
+              </div>
+            `;
+          } finally {
+            // Hide loading spinner
+            loadingSpinner.style.display = 'none';
+          }
+        });
+      </script>
+
+    </div>
+ 
+  </div>
+</body>
+</html>
