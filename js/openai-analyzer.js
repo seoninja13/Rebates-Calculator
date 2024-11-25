@@ -1,7 +1,7 @@
 class RebatePrograms {
     constructor() {
         this.cache = new Map();
-        // Always use local server for development
+        // Always use local server during development
         this.apiEndpoint = 'http://localhost:3000/api/analyze';
     }
 
