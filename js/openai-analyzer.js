@@ -1,8 +1,12 @@
 class RebatePrograms {
     constructor() {
         this.cache = new Map();
-        // Always use local server during development
-        this.apiEndpoint = 'http://localhost:3000/api/analyze';
+        // Use production endpoint or fallback to local during development
+        this.apiEndpoint = 'https://rebates-calculator.netlify.app/.netlify/functions/analyze';
+        // Fallback to local if in development
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            this.apiEndpoint = 'http://localhost:3000/api/analyze';
+        }
     }
 
     async fetchPrograms(results, category) {
@@ -34,9 +38,15 @@ class RebatePrograms {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server response:', errorText);
-                throw new Error(`Request failed: ${response.status} - ${errorText}`);
+                let errorMessage = 'Failed to fetch analysis';
+                try {
+                    const errorText = await response.text();
+                    console.error('Server response:', errorText);
+                    errorMessage += `: ${response.status} - ${errorText}`;
+                } catch (e) {
+                    console.error('Error reading error response:', e);
+                }
+                throw new Error(errorMessage);
             }
 
             const analysis = await response.json();
@@ -46,7 +56,14 @@ class RebatePrograms {
 
         } catch (error) {
             console.error('Error fetching analysis:', error);
-            throw new Error('Failed to fetch analysis: ' + error.message);
+            // Provide more descriptive error message
+            if (!navigator.onLine) {
+                throw new Error('Failed to fetch analysis: No internet connection');
+            } else if (error.message.includes('Failed to fetch')) {
+                throw new Error('Failed to fetch analysis: Server may be unavailable');
+            } else {
+                throw error;
+            }
         }
     }
 
