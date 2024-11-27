@@ -42,29 +42,64 @@ async function analyzeResults(results, category) {
 
     try {
         const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-        const prompt = `Analyze these ${category} rebate programs and extract information about the top 3 programs. For each program include:
+        const prompt = `Analyze these ${category} rebate programs and extract detailed information about all programs. For each program, provide the following information in this exact format:
 
-1. Program Name
-2. Summary (320 characters max, focus on key benefits and eligibility)
-3. Rebate Amount (format as "Up to $X,XXX" or "Fixed $X,XXX")
-4. Key Requirements (2-3 bullet points)
-5. Application Deadline (if mentioned)
+Title: [Program Name]
 
-Format each program as:
+Summary: Provide a concise 320-character summary focusing on the program's key benefits and eligibility criteria.
 
-[Program Name]
-Summary: [320 char summary]
-Amount: [Rebate amount]
-Requirements:
-- [Requirement 1]
-- [Requirement 2]
-- [Requirement 3]
-Deadline: [Extract deadline if mentioned, otherwise "Ongoing"]
+Program Type: Specify if it's a rebate, grant, tax credit, or low-interest loan. This helps categorize the program.
 
-If specific values are not found in the text, use these defaults:
+Amount: Format as exact amount (e.g., "$5,000") or range (e.g., "Up to $X,XXX"). Always include dollar signs and commas.
+
+Eligible Projects: List specific projects that qualify, such as:
+- Solar panels
+- HVAC systems
+- Insulation
+- Electric vehicles
+- Energy-efficient appliances
+- Home improvements
+
+Eligible Recipients: Specify who can apply, including:
+- Type of applicant (homeowners, businesses, municipalities)
+- Income requirements if any
+- Other qualifying criteria
+
+Geographic Scope: Specify the exact coverage area:
+- Nationwide
+- State-specific (specify which state)
+- County or city-specific
+- Utility service area
+
+Requirements: List all required documents and conditions, such as:
+- Application forms
+- Proof of purchase/installation
+- Contractor requirements
+- Energy audits
+- Income verification
+- Property documentation
+
+Application Process: Provide a clear 1-2 line description of how to apply (e.g., "Apply online through government portal" or "Submit application to local utility company")
+
+Deadline: Specify the application deadline or if it's ongoing. Include exact date if available.
+
+Website Link: Provide the official program URL for more information or application.
+
+Contact Information: Include phone numbers, email addresses, or office locations for support.
+
+Processing Time: Specify how long it typically takes to receive funds or approval (e.g., "6-8 weeks" or "30 days after approval")
+
+If any field's information is not found in the source text, use these defaults:
+- Summary: "This program offers financial incentives for energy-efficient home improvements. Contact program administrator for specific details."
+- Program Type: "Rebate"
 - Amount: "Amount varies"
-- Deadline: "Ongoing"
+- Eligible Projects: "Contact administrator for eligible projects"
+- Eligible Recipients: "Contact administrator for eligibility requirements"
+- Geographic Scope: "Contact administrator for coverage area"
 - Requirements: ["Contact program administrator for specific requirements"]
+- Application Process: "Contact administrator for application details"
+- Deadline: "Ongoing"
+- Processing Time: "Contact administrator for processing time details"
 
 Here are the programs to analyze:
 
@@ -75,7 +110,7 @@ ${resultsText}`;
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs. Always format amounts with dollar signs and commas (e.g., '$1,000' or 'Up to $8,000'). Keep requirements concise and actionable. Return exactly 3 programs if available."
+                    content: "You are a helpful assistant that analyzes rebate programs. Extract and format information exactly as requested, focusing on accuracy and completeness. Always include specific details when available, and use the default values only when information is not provided. Format all amounts with dollar signs and commas. Keep summaries informative and within 320 characters."
                 },
                 {
                     role: "user",
@@ -83,24 +118,33 @@ ${resultsText}`;
                 }
             ],
             temperature: 0.7,
-            max_tokens: 1000
+            max_tokens: 1500
         });
 
         const content = completion.choices[0].message.content;
         console.log('OpenAI Response:', content);
 
         // Split content into program sections and parse
-        const sections = content.split(/\n\n(?=[A-Z])/g).filter(Boolean);
+        const sections = content.split(/\n\n(?=Title:)/g).filter(Boolean);
         const programs = sections.map(section => {
             const lines = section.split('\n');
             return {
-                name: lines[0].trim(),
-                summary: lines.find(l => l.startsWith('Summary:'))?.replace('Summary:', '').trim(),
+                name: lines.find(l => l.startsWith('Title:'))?.replace('Title:', '').trim(),
+                summary: lines.find(l => l.startsWith('Summary:'))?.replace('Summary:', '').trim() ||
+                    'This program offers financial incentives for energy-efficient home improvements. Contact program administrator for specific details.',
+                programType: lines.find(l => l.startsWith('Program Type:'))?.replace('Program Type:', '').trim() || 'Rebate',
                 amount: lines.find(l => l.startsWith('Amount:'))?.replace('Amount:', '').trim() || 'Amount varies',
+                eligibleProjects: lines.find(l => l.startsWith('Eligible Projects:'))?.replace('Eligible Projects:', '').trim(),
+                eligibleRecipients: lines.find(l => l.startsWith('Eligible Recipients:'))?.replace('Eligible Recipients:', '').trim(),
+                geographicScope: lines.find(l => l.startsWith('Geographic Scope:'))?.replace('Geographic Scope:', '').trim(),
                 requirements: lines
-                    .filter(l => l.startsWith('-'))
+                    .filter(l => l.trim().startsWith('-'))
                     .map(l => l.replace('-', '').trim()),
-                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Ongoing'
+                applicationProcess: lines.find(l => l.startsWith('Application Process:'))?.replace('Application Process:', '').trim(),
+                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Ongoing',
+                websiteLink: lines.find(l => l.startsWith('Website Link:'))?.replace('Website Link:', '').trim(),
+                contactInfo: lines.find(l => l.startsWith('Contact Information:'))?.replace('Contact Information:', '').trim(),
+                processingTime: lines.find(l => l.startsWith('Processing Time:'))?.replace('Processing Time:', '').trim() || 'Processing time varies'
             };
         });
 

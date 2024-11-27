@@ -33,6 +33,7 @@
     padding: 1.25rem;
     margin-bottom: 1rem;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .program-card:hover {
@@ -40,45 +41,162 @@
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
+.program-card h3 {
+    color: #2c3e50;
+    margin: 0 0 12px 0;
+    font-size: 1.4em;
+}
+
 .program-header {
+    margin: 1rem 0;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.program-info {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.program-type, .program-amount {
+    display: flex;
     align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.program-title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--primary);
-    margin: 0 0 1rem 0;
-}
-
-.program-title i {
-    color: #10b981;
-    margin-right: 8px;
-}
-
-.program-summary {
-    color: var(--gray-600);
-    margin-bottom: 1rem;
-    line-height: 1.5;
-    font-size: 0.95rem;
+    color: var(--gray-700);
 }
 
 .program-amount {
     color: var(--success);
-    font-weight: 500;
-    margin: 0.75rem 0;
-    padding: 0.5rem;
-    background-color: var(--gray-50);
-    border-radius: 4px;
 }
 
-.program-amount i {
-    margin-right: 4px;
+.program-type i, .program-amount i {
+    margin-right: 0.75rem;
+    min-width: 16px;
+    text-align: center;
+}
+
+.program-eligibility {
+    margin: 1rem 0;
+}
+
+.eligibility-item {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+    color: var(--gray-700);
+}
+
+.eligibility-item i {
+    margin-right: 0.75rem;
+    min-width: 16px;
+    text-align: center;
+}
+
+.requirements-title {
+    margin: 1.5rem 0 1rem;
+    color: var(--gray-900);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    font-size: 1.1em;
+}
+
+.requirements-title i {
+    margin-right: 0.75rem;
+    min-width: 16px;
+    text-align: center;
+}
+
+.requirements-list {
+    margin-left: 1.5rem;
+    padding-left: 0;
+}
+
+.requirement-item {
+    margin: 0.75rem 0;
+    display: flex;
+    align-items: flex-start;
+    color: var(--gray-700);
+    line-height: 1.4;
+}
+
+.requirement-item i {
+    color: var(--success);
+    margin: 0.25rem 1rem 0 0;
+    min-width: 16px;
+    font-size: 0.9em;
+}
+
+.program-card i {
+    color: var(--primary);
+}
+
+.program-title {
+    color: var(--gray-900);
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.program-summary {
+    color: var(--gray-700);
+    margin: 0.75rem 0;
+    line-height: 1.6;
+    font-size: 0.95rem;
+    padding: 0.75rem;
+    background-color: var(--gray-50);
+    border-radius: 4px;
+    border-left: 3px solid var(--primary);
+}
+
+.application-process {
+    margin: 1rem 0;
+    padding: 0.75rem;
+    background-color: var(--gray-50);
+    border-radius: 4px;
+    color: var(--gray-700);
+    display: flex;
+    align-items: center;
+}
+
+.program-timing {
+    margin: 1.5rem 0;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.deadline, .processing-time {
+    display: flex;
+    align-items: center;
+    margin: 0.75rem 0;
+    color: var(--gray-700);
+}
+
+.deadline i, .processing-time i {
+    margin-right: 1rem;
+    min-width: 16px;
+    text-align: center;
+}
+
+.program-contact {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.website, .contact-info {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0;
+}
+
+.website a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.website a:hover {
+    text-decoration: underline;
 }
 
 .program-requirements {
@@ -103,7 +221,7 @@
 }
 
 .program-requirements li:before {
-    content: "•";
+    content: "";
     position: absolute;
     left: 0;
     color: var(--primary);
@@ -122,10 +240,47 @@
 }
 
 .requirement-item:before {
-    content: "•";
+    content: "";
     position: absolute;
     left: -1rem;
     color: var(--primary);
+}
+
+.eligibility-section,
+.requirements-section,
+.application-info,
+.contact-section {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.requirements-section ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.requirements-section li {
+    margin-bottom: 6px;
+    color: #34495e;
+}
+
+.application-info {
+    display: grid;
+    gap: 8px;
+}
+
+.contact-section {
+    margin-top: 8px;
+}
+
+.contact-section a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.contact-section a:hover {
+    text-decoration: underline;
 }
 
 .program-deadline {
@@ -179,7 +334,6 @@
     margin-bottom: 2rem;
 }
 
-.program-card i {
-    margin-right: 0.5rem;
-    color: var(--primary);
+strong {
+    color: #2c3e50;
 }
