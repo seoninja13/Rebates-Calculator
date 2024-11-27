@@ -38,69 +38,83 @@ class RebatePrograms {
             });
 
             if (!response.ok) {
-                let errorMessage = 'Failed to fetch analysis';
-                try {
-                    const errorText = await response.text();
-                    console.error('Server response:', errorText);
-                    errorMessage += `: ${response.status} - ${errorText}`;
-                } catch (e) {
-                    console.error('Error reading error response:', e);
-                }
-                throw new Error(errorMessage);
+                throw new Error('Failed to fetch analysis');
             }
 
             const analysis = await response.json();
+            
+            // Validate the response format
+            if (!this._isValidAnalysis(analysis)) {
+                throw new Error('Invalid analysis format');
+            }
+
             console.log('Received analysis:', analysis);
             this.cache.set(cacheKey, analysis);
             return analysis;
 
         } catch (error) {
             console.error('Error fetching analysis:', error);
-            // Provide more descriptive error message
-            if (!navigator.onLine) {
-                throw new Error('Failed to fetch analysis: No internet connection');
-            } else if (error.message.includes('Failed to fetch')) {
-                throw new Error('Failed to fetch analysis: Server may be unavailable');
-            } else {
-                throw error;
-            }
+            throw new Error('Oops..., we are busy right now. Please come back later.');
         }
     }
 
+    _isValidAnalysis(analysis) {
+        return analysis && 
+               typeof analysis.content === 'string' && 
+               typeof analysis.timestamp === 'string' && 
+               typeof analysis.disclaimer === 'string' &&
+               analysis.content.includes('Program') &&
+               analysis.content.includes('Requirements');
+    }
+
     displayPrograms(analysis, container) {
-        // Create programs section
-        const section = document.createElement('section');
-        section.className = 'programs-section';
+        try {
+            // Create programs section
+            const section = document.createElement('section');
+            section.className = 'programs-section';
 
-        // Add header
-        const header = document.createElement('div');
-        header.className = 'programs-header';
-        header.innerHTML = `
-            <i class="fas fa-award"></i>
-            <h2 class="programs-title">${analysis.category}</h2>
-            <span class="programs-date">Updated ${new Date(analysis.timestamp).toLocaleDateString()}</span>
-        `;
-        section.appendChild(header);
+            // Add header
+            const header = document.createElement('div');
+            header.className = 'programs-header';
+            header.innerHTML = `
+                <i class="fas fa-award"></i>
+                <h2 class="programs-title">${analysis.category || 'Rebate Programs'}</h2>
+                <span class="programs-date">Updated ${new Date(analysis.timestamp).toLocaleDateString()}</span>
+            `;
+            section.appendChild(header);
 
-        // Parse the content into program cards
-        const programs = this._parsePrograms(analysis.content);
-        const grid = document.createElement('div');
-        grid.className = 'programs-grid';
+            // Parse the content into program cards
+            const programs = this._parsePrograms(analysis.content);
+            
+            if (programs.length === 0) {
+                throw new Error('No valid programs found');
+            }
 
-        programs.forEach(program => {
-            const card = this._createProgramCard(program);
-            grid.appendChild(card);
-        });
+            const grid = document.createElement('div');
+            grid.className = 'programs-grid';
 
-        section.appendChild(grid);
+            programs.forEach(program => {
+                const card = this._createProgramCard(program);
+                grid.appendChild(card);
+            });
 
-        // Add disclaimer
-        const note = document.createElement('div');
-        note.className = 'programs-note';
-        note.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
-        section.appendChild(note);
+            section.appendChild(grid);
 
-        container.appendChild(section);
+            // Add disclaimer
+            const note = document.createElement('div');
+            note.className = 'programs-note';
+            note.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
+            section.appendChild(note);
+
+            container.appendChild(section);
+        } catch (error) {
+            console.error('Error displaying programs:', error);
+            container.innerHTML = `
+                <div class="error-section">
+                    <p><i class="fas fa-exclamation-circle"></i> Oops..., we are busy right now. Please come back later.</p>
+                </div>
+            `;
+        }
     }
 
     _parsePrograms(content) {

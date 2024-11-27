@@ -55,11 +55,26 @@ async function analyzeResults(results, category) {
     }
 }
 
-exports.handler = async function(event, context) {
-    // Only allow POST requests
+exports.handler = async (event, context) => {
+    // Add CORS headers
+    const headers = {
+        'Access-Control-Allow-Origin': 'https://green-rebates-calculator.netlify.app',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    };
+
+    // Handle preflight request
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers
+        };
+    }
+
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
+            headers,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
@@ -70,6 +85,7 @@ exports.handler = async function(event, context) {
         if (!results || !category) {
             return {
                 statusCode: 400,
+                headers,
                 body: JSON.stringify({ error: 'Missing required parameters' })
             };
         }
@@ -78,17 +94,15 @@ exports.handler = async function(event, context) {
         
         return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
+            headers,
             body: JSON.stringify(analysis)
         };
     } catch (error) {
         console.error('Analysis Error:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Analysis failed' })
+            headers,
+            body: JSON.stringify({ error: 'Internal server error' })
         };
     }
 };

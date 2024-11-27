@@ -10,3 +10,10 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "https://green-rebates-calculator.netlify.app"
+    Access-Control-Allow-Headers = "Content-Type"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
