@@ -60,7 +60,7 @@ async function analyzeResults(results, category) {
 exports.handler = async function(event, context) {
     // Set CORS headers
     const headers = {
-        'Access-Control-Allow-Origin': 'https://green-rebates-calculator.netlify.app',
+        'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
         'Access-Control-Allow-Methods': 'POST, OPTIONS',
     };

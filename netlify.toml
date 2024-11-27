@@ -9,7 +9,7 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    Access-Control-Allow-Origin = "https://green-rebates-calculator.netlify.app"
+    Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "OPTIONS, POST, GET"
     Access-Control-Allow-Headers = "Origin, Content-Type"
 

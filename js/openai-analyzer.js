@@ -2,7 +2,7 @@ class RebatePrograms {
     constructor() {
         this.cache = new Map();
         // Use production endpoint or fallback to local during development
-        this.apiEndpoint = 'https://green-rebates-calculator.netlify.app/.netlify/functions/analyze';
+        this.apiEndpoint = 'https://rebates-calculator.netlify.app/.netlify/functions/analyze';
         // Fallback to local if in development
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
             this.apiEndpoint = 'http://localhost:3001/api/analyze';
