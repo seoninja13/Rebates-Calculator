@@ -55,8 +55,7 @@ async function analyzeResults(results, category) {
         return {
             category: category,
             programs: parsedContent.programs || [],
-            timestamp: new Date().toISOString(),
-            disclaimer: "Note: Please verify all information with the official program websites. Terms and conditions may have changed."
+            timestamp: new Date().toISOString()
         };
     } catch (error) {
         console.error('OpenAI API Error:', error);

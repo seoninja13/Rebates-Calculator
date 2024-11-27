@@ -82,17 +82,3 @@
 .program-deadline i {
     margin-right: 8px;
 }
-
-.program-disclaimer {
-    margin-top: 20px;
-    padding: 15px;
-    background: #FFF3E0;
-    border-radius: 4px;
-    color: #666;
-    font-size: 14px;
-}
-
-.program-disclaimer i {
-    color: #FF9800;
-    margin-right: 8px;
-}

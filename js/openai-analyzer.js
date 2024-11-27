@@ -30,15 +30,15 @@ class RebatePrograms {
                     'Content-Type': 'application/json'
                 },
                 mode: 'cors',
-                body: JSON.stringify({ 
-                    results: results.map(r => ({
-                        title: r.title,
-                        snippet: r.snippet,
-                        link: r.link
-                    })), 
-                    category 
-                })
-            });
+            body: JSON.stringify({ 
+                results: results.map(r => ({
+                    title: r.title,
+                    snippet: r.snippet,
+                    link: r.link
+                })), 
+                category 
+            })
+        });
 
             if (!response.ok) {
                 throw new Error('Failed to fetch analysis');
@@ -138,14 +138,6 @@ class RebatePrograms {
 
             section.appendChild(card);
         });
-
-        // Add disclaimer if available
-        if (analysis.disclaimer) {
-            const disclaimer = document.createElement('div');
-            disclaimer.className = 'program-disclaimer';
-            disclaimer.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
-            section.appendChild(disclaimer);
-        }
 
         container.appendChild(section);
     }
