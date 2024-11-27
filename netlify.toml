@@ -7,7 +7,7 @@
   publish = "."
 
 [[headers]]
-  for = "/*"
+  for = "/.netlify/functions/*"
   [headers.values]
     Access-Control-Allow-Origin = "*"
     Access-Control-Allow-Methods = "OPTIONS, POST, GET"
@@ -27,6 +27,11 @@
 [[redirects]]
   from = "/js/*"
   to = "/js/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
   status = 200
 
 [[redirects]]

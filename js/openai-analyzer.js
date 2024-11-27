@@ -1,12 +1,15 @@
 class RebatePrograms {
     constructor() {
         this.cache = new Map();
+        // Get the current hostname
+        const hostname = window.location.hostname;
         // Use production endpoint or fallback to local during development
-        this.apiEndpoint = 'https://rebates-calculator.netlify.app/.netlify/functions/analyze';
+        this.apiEndpoint = `${window.location.protocol}//${hostname}/.netlify/functions/analyze`;
         // Fallback to local if in development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
             this.apiEndpoint = 'http://localhost:3001/api/analyze';
         }
+        console.log('Using API endpoint:', this.apiEndpoint);
     }
 
     async fetchPrograms(results, category) {
