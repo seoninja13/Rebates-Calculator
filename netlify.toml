@@ -6,33 +6,15 @@
   functions = "netlify/functions"
   publish = "."
 
-# Handle CORS preflight requests
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, OPTIONS", Access-Control-Allow-Headers = "Origin, Content-Type, Accept"}
-  methods = ["OPTIONS"]
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "https://green-rebates-calculator.netlify.app"
+    Access-Control-Allow-Methods = "OPTIONS, POST, GET"
+    Access-Control-Allow-Headers = "Origin, Content-Type"
 
-# Handle actual requests
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, OPTIONS", Access-Control-Allow-Headers = "Origin, Content-Type, Accept"}
-
-# SPA redirect
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Headers = "Content-Type, Accept, Origin"
-    Access-Control-Allow-Methods = "GET, POST, OPTIONS"
-    Access-Control-Max-Age = "86400"
+  force = true

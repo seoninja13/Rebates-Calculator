@@ -24,11 +24,8 @@ class RebatePrograms {
             const response = await fetch(this.apiEndpoint, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Origin': 'https://green-rebates-calculator.netlify.app'
+                    'Content-Type': 'application/json'
                 },
-                credentials: 'omit',
                 mode: 'cors',
                 body: JSON.stringify({ 
                     results: results.map(r => ({
