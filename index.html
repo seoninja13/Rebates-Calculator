@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>California Rebate Programs</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <script src="js/openai-analyzer.js"></script>
   <style>
     /* General Styles */
     body {
@@ -817,107 +816,108 @@
         </div>
       </div>
 
-      <script>
-        // Initialize the rebate programs handler
-        const rebatePrograms = new RebatePrograms();
-
-        // Function to replace placeholder amounts
-        function replacePlaceholderAmounts() {
-          const amounts = document.querySelectorAll('.program-amount');
-          amounts.forEach(amount => {
-            if (amount.textContent.includes('Up to $X,XXX')) {
-              amount.textContent = 'Amount varies by program';
-            }
-          });
-        }
-
-        document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
-          event.preventDefault();
-          const county = document.getElementById('countySelect').value;
-          const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
-          const resultsContainer = document.getElementById('rebatesResults');
-
-          // Show loading spinner
-          loadingSpinner.style.display = 'block';
-          resultsContainer.innerHTML = '';
-
-          try {
-            // Google Custom Search API configuration
-            const apiKey = 'AIzaSyD0k6vrMlYwCXlzKC-iqCOp2O-X6xT-gkU';
-            const searchEngineId = '50cffa222875141dd';
-
-            // Construct search queries
-            const queries = {
-              'Federal': 'federal energy rebate program california',
-              'State': 'california state energy rebate program',
-              'County': `${county} county california energy rebate program`
-            };
-
-            async function searchGoogle(query) {
-              console.log('Searching for:', query);
-              const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}`;
-              const response = await fetch(url);
-              if (!response.ok) {
-                throw new Error(`Google Search failed: ${response.status}`);
-              }
-              const data = await response.json();
-              console.log('Search results:', data);
-              return data.items || [];
-            }
-
-            // Fetch results for each category
-            const results = await Promise.all(
-              Object.entries(queries).map(async ([category, query]) => {
-                const searchResults = await searchGoogle(query);
-                if (searchResults.length > 0) {
-                  try {
-                    const analysis = await rebatePrograms.fetchPrograms(searchResults, category);
-                    return { category, results: searchResults, analysis };
-                  } catch (error) {
-                    console.error(`Analysis error for ${category}:`, error);
-                    return { category, results: searchResults, error };
-                  }
-                }
-                return { category, results: [], error: 'No results found' };
-              })
-            );
-
-            // Display results
-            // Clear previous results once before displaying new ones
-            resultsContainer.innerHTML = '';
-            
-            results.forEach(({ category, results, analysis, error }) => {
-              if (error) {
-                console.error(`Error in ${category}:`, error);
-                const errorSection = document.createElement('div');
-                errorSection.className = 'error-section';
-                errorSection.innerHTML = `<p>Error loading ${category} programs: ${error}</p>`;
-                resultsContainer.appendChild(errorSection);
-              } else if (analysis) {
-                // Use the existing displayPrograms method without clearing the container
-                rebatePrograms.displayPrograms(analysis, resultsContainer);
-                // Replace placeholder amounts after rendering results
-                replacePlaceholderAmounts();
-              }
-            });
-
-          } catch (error) {
-            console.error('Search error:', error);
-            resultsContainer.innerHTML = `
-              <div class="error-section">
-                <p>An error occurred while searching for rebate programs. Please try again.</p>
-                <p>Error details: ${error.message}</p>
-              </div>
-            `;
-          } finally {
-            // Hide loading spinner
-            loadingSpinner.style.display = 'none';
-          }
-        });
-      </script>
-
     </div>
  
   </div>
+  <script type="module">
+    import RebatePrograms from './js/openai-analyzer.js';
+    
+    // Initialize the rebate programs handler
+    const rebatePrograms = new RebatePrograms();
+
+    // Function to replace placeholder amounts
+    function replacePlaceholderAmounts() {
+      const amounts = document.querySelectorAll('.program-amount');
+      amounts.forEach(amount => {
+        if (amount.textContent.includes('Up to $X,XXX')) {
+          amount.textContent = 'Amount varies by program';
+        }
+      });
+    }
+
+    document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
+      event.preventDefault();
+      const county = document.getElementById('countySelect').value;
+      const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
+      const resultsContainer = document.getElementById('rebatesResults');
+
+      // Show loading spinner
+      loadingSpinner.style.display = 'block';
+      resultsContainer.innerHTML = '';
+
+      try {
+        // Google Custom Search API configuration
+        const apiKey = 'AIzaSyD0k6vrMlYwCXlzKC-iqCOp2O-X6xT-gkU';
+        const searchEngineId = '50cffa222875141dd';
+
+        // Construct search queries
+        const queries = {
+          'Federal': 'federal energy rebate program california',
+          'State': 'california state energy rebate program',
+          'County': `${county} county california energy rebate program`
+        };
+
+        async function searchGoogle(query) {
+          console.log('Searching for:', query);
+          const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}`;
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`Google Search failed: ${response.status}`);
+          }
+          const data = await response.json();
+          console.log('Search results:', data);
+          return data.items || [];
+        }
+
+        // Fetch results for each category
+        const results = await Promise.all(
+          Object.entries(queries).map(async ([category, query]) => {
+            const searchResults = await searchGoogle(query);
+            if (searchResults.length > 0) {
+              try {
+                const analysis = await rebatePrograms.fetchPrograms(searchResults, category);
+                return { category, results: searchResults, analysis };
+              } catch (error) {
+                console.error(`Analysis error for ${category}:`, error);
+                return { category, results: searchResults, error };
+              }
+            }
+            return { category, results: [], error: 'No results found' };
+          })
+        );
+
+        // Display results
+        // Clear previous results once before displaying new ones
+        resultsContainer.innerHTML = '';
+        
+        results.forEach(({ category, results, analysis, error }) => {
+          if (error) {
+            console.error(`Error in ${category}:`, error);
+            const errorSection = document.createElement('div');
+            errorSection.className = 'error-section';
+            errorSection.innerHTML = `<p>Error loading ${category} programs: ${error}</p>`;
+            resultsContainer.appendChild(errorSection);
+          } else if (analysis) {
+            // Use the existing displayPrograms method without clearing the container
+            rebatePrograms.displayPrograms(analysis, resultsContainer);
+            // Replace placeholder amounts after rendering results
+            replacePlaceholderAmounts();
+          }
+        });
+
+      } catch (error) {
+        console.error('Search error:', error);
+        resultsContainer.innerHTML = `
+          <div class="error-section">
+            <p>An error occurred while searching for rebate programs. Please try again.</p>
+            <p>Error details: ${error.message}</p>
+          </div>
+        `;
+      } finally {
+        // Hide loading spinner
+        loadingSpinner.style.display = 'none';
+      }
+    });
+  </script>
 </body>
 </html>
