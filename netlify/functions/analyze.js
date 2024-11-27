@@ -8,37 +8,33 @@ const openai = new OpenAI({
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. You MUST find and extract a rebate amount for each program, even if it requires inference. Additionally, provide a brief summary of about 320 characters for each program, highlighting the main points. Return a JSON object with this exact structure:
+    const prompt = `CRITICAL TASK: Analyze these ${category} rebate programs and extract comprehensive information.
+
+    MANDATORY REQUIREMENTS:
+    1. Generate a precise, informative summary for EACH program
+    2. Summary MUST be exactly 320 characters long
+    3. Capture the core purpose, key benefits, and primary eligibility criteria
+    4. Write in clear, concise language
+    5. Avoid technical jargon
+    6. Focus on what makes each program unique and valuable
+
+    Return a JSON object with this EXACT structure:
     {
         "programs": [
             {
                 "name": "Program Name",
-                "summary": "Brief summary of the program (about 320 characters)",
-                "amount": "REQUIRED - Use one of these formats:
-                          - Exact amount: '$500', '$1,000', etc.
-                          - Range: 'Up to $2,000', '$500-$1,500'
-                          - Percentage: '30% of cost', 'Up to 80%'
-                          - Variable: '$X per square foot', '$X per kW'
-                          - If amount unclear: 'Contact for details'",
-                "requirements": ["List each key requirement as a separate item"],
-                "deadline": "Extract specific deadline if mentioned"
+                "summary": "REQUIRED: Exactly 320-character summary capturing program's essence. Must include core purpose, key benefits, and primary eligibility.",
+                "amount": "Exact rebate amount",
+                "requirements": ["Key requirements"],
+                "deadline": "Program deadline"
             }
         ]
     }
 
-    Important instructions for amount field:
-    1. The amount field is REQUIRED for each program
-    2. Always include the dollar sign ($) for monetary values
-    3. If multiple amounts are mentioned, list the highest or most comprehensive one
-    4. Look for keywords like 'rebate', 'incentive', 'savings', 'credit', 'reimbursement'
-    5. If amount is mentioned as a range, include both ends (e.g., '$500-$2,500')
-    6. For percentage-based rebates, clearly state the percentage
-    7. For variable amounts, explain the calculation basis
-    8. Only use 'Contact for details' if no amount information can be inferred
+    Programs to analyze:
+    ${resultsText}
 
-    Here are the programs to analyze:
-
-    ${resultsText}`;
+    IMPORTANT: If you CANNOT generate a 320-character summary, provide the most comprehensive summary possible, but NEVER return an empty summary.`;
 
     try {
         const completion = await openai.chat.completions.create({
@@ -46,7 +42,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. You must ALWAYS find and include a rebate amount for each program. Be thorough in searching for amount information and format it consistently. If the exact amount isn't stated, provide the best approximation based on available information. Additionally, provide a concise summary for each program, capturing the main points in about 320 characters."
+                    content: "You are a precise, detail-oriented assistant specializing in extracting and summarizing rebate program information. Your summaries must be informative, concise, and exactly 320 characters. Focus on clarity, key benefits, and unique program features."
                 },
                 {
                     role: "user",
@@ -61,10 +57,10 @@ async function analyzeResults(results, category) {
         // Parse the response content as JSON
         const parsedContent = JSON.parse(completion.choices[0].message.content);
 
-        // Validate that each program has an amount and required fields
+        // Validate that each program has a summary
         const validatedPrograms = (parsedContent.programs || []).map(program => ({
             name: program.name || 'Program Name Not Available',
-            summary: program.summary || 'No summary available',
+            summary: (program.summary || 'No summary available').slice(0, 320),
             amount: program.amount || 'Contact for details',
             requirements: Array.isArray(program.requirements) ? program.requirements : [],
             deadline: program.deadline || 'Ongoing'
