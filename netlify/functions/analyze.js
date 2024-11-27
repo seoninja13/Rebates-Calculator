@@ -60,10 +60,12 @@ async function analyzeResults(results, category) {
         // Parse the response content as JSON
         const parsedContent = JSON.parse(completion.choices[0].message.content);
 
-        // Validate that each program has an amount
-        const validatedPrograms = parsedContent.programs.map(program => ({
-            ...program,
-            amount: program.amount || 'Contact for details'
+        // Validate that each program has an amount and required fields
+        const validatedPrograms = (parsedContent.programs || []).map(program => ({
+            name: program.name || 'Program Name Not Available',
+            amount: program.amount || 'Contact for details',
+            requirements: Array.isArray(program.requirements) ? program.requirements : [],
+            deadline: program.deadline || 'Ongoing'
         }));
 
         return {

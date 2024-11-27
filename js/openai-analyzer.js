@@ -103,15 +103,16 @@ class RebatePrograms {
             // Program name
             const name = document.createElement('h3');
             name.className = 'program-name';
-            name.textContent = program.name;
+            name.textContent = program.name || 'Program Name Not Available';
             card.appendChild(name);
 
             // Amount - now always displayed since it's required
             const amount = document.createElement('div');
             amount.className = 'program-amount';
-            // Check if it's a percentage or dollar amount
-            const icon = program.amount.includes('%') ? 'fa-percent' : 'fa-dollar-sign';
-            amount.innerHTML = `<i class="fas ${icon}"></i> ${program.amount}`;
+            // Default to dollar sign if amount is missing or doesn't specify percentage
+            const amountText = program.amount || 'Contact for details';
+            const icon = (amountText && amountText.includes('%')) ? 'fa-percent' : 'fa-dollar-sign';
+            amount.innerHTML = `<i class="fas ${icon}"></i> ${amountText}`;
             card.appendChild(amount);
 
             // Requirements if available
