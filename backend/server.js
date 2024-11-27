@@ -19,8 +19,16 @@ const limiter = rateLimit({
     max: 100 // limit each IP to 100 requests per windowMs
 });
 
+// CORS configuration
+const corsOptions = {
+    origin: ['http://127.0.0.1:3000', 'http://localhost:3000', 'https://green-rebates-calculator.netlify.app'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json());
 
@@ -74,7 +82,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs. Always format the price as a dollar amount with commas and dollar signs (e.g., '$1,000' or 'Up to $8,000'). Keep requirements concise and actionable. Only include deadline if specifically mentioned."
+                    content: "You are a helpful assistant that analyzes rebate programs. Always format the price as a dollar amount with commas and dollar signs (e.g., '$1,000' or 'Up to $8,000'). Keep requirements concise and actionable. Only include deadline if specifically mentioned. Return the analysis in a structured format with exactly 3 programs."
                 },
                 {
                     role: "user",
@@ -85,10 +93,30 @@ async function analyzeResults(results, category) {
             max_tokens: 500
         });
 
+        // Parse the OpenAI response into structured format
+        const content = completion.choices[0].message.content;
+        const programs = [];
+        
+        // Split content into program sections
+        const sections = content.split(/\d+\.\s+/).filter(Boolean);
+        
+        for (const section of sections) {
+            const lines = section.trim().split('\n').map(line => line.trim());
+            const program = {
+                name: lines[0],
+                price: lines.find(l => l.startsWith('Price:'))?.replace('Price:', '').trim() || 'Not specified',
+                requirements: lines
+                    .filter(l => l.startsWith('-'))
+                    .map(l => l.replace('-', '').trim()),
+                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Not specified'
+            };
+            programs.push(program);
+        }
+
         const analysis = {
+            category: `${category} Rebate Programs`,
+            programs: programs,
             timestamp: new Date().toISOString(),
-            content: completion.choices[0].message.content,
-            category: category,
             disclaimer: "Note: Please verify all information with the official program websites. Terms and conditions may have changed."
         };
 
@@ -124,5 +152,5 @@ app.get('/health', (req, res) => {
     res.json({ status: 'healthy' });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;  // Changed to 3001 for local development
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -843,7 +843,6 @@
 
       // Show loading spinner
       loadingSpinner.style.display = 'block';
-      resultsContainer.innerHTML = '';
 
       try {
         // Google Custom Search API configuration
@@ -869,6 +868,9 @@
           return data.items || [];
         }
 
+        // Clear previous results before starting new search
+        resultsContainer.innerHTML = '';
+
         // Fetch results for each category
         const results = await Promise.all(
           Object.entries(queries).map(async ([category, query]) => {
@@ -887,9 +889,6 @@
         );
 
         // Display results
-        // Clear previous results once before displaying new ones
-        resultsContainer.innerHTML = '';
-        
         results.forEach(({ category, results, analysis, error }) => {
           if (error) {
             console.error(`Error in ${category}:`, error);
@@ -898,7 +897,7 @@
             errorSection.innerHTML = `<p>Error loading ${category} programs: ${error}</p>`;
             resultsContainer.appendChild(errorSection);
           } else if (analysis) {
-            // Use the existing displayPrograms method without clearing the container
+            // Use the existing displayPrograms method
             rebatePrograms.displayPrograms(analysis, resultsContainer);
             // Replace placeholder amounts after rendering results
             replacePlaceholderAmounts();
