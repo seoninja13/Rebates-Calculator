@@ -10,23 +10,29 @@ async function analyzeResults(results, category) {
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
     const prompt = `CRITICAL TASK: Analyze these ${category} rebate programs and extract comprehensive information.
 
-    MANDATORY REQUIREMENTS:
-    1. Generate a precise, informative summary for EACH program
-    2. Summary MUST be exactly 320 characters long
-    3. Capture the core purpose, key benefits, and primary eligibility criteria
-    4. Write in clear, concise language
-    5. Avoid technical jargon
-    6. Focus on what makes each program unique and valuable
+    MANDATORY REQUIREMENTS FOR EACH PROGRAM:
+    Generate a PRECISE 320-character summary
+    MUST include:
+       - Core purpose of the program
+       - Key financial benefits
+       - Primary eligibility criteria
+    Write in ACTIVE, CLEAR language
+    AVOID technical jargon
+    HIGHLIGHT unique program features
 
-    Return a JSON object with this EXACT structure:
+    CRITICAL: If you CANNOT create a 320-character summary, 
+    you MUST provide the MOST COMPREHENSIVE summary possible.
+    NEVER return an empty or generic summary.
+
+    REQUIRED JSON FORMAT:
     {
         "programs": [
             {
-                "name": "Program Name",
-                "summary": "REQUIRED: Exactly 320-character summary capturing program's essence. Must include core purpose, key benefits, and primary eligibility.",
-                "amount": "Exact rebate amount",
-                "requirements": ["Key requirements"],
-                "deadline": "Program deadline"
+                "name": "Exact Program Name",
+                "summary": "REQUIRED: Exactly 320 characters explaining program's core value, benefits, and who qualifies.",
+                "amount": "Precise rebate amount",
+                "requirements": ["Key eligibility points"],
+                "deadline": "Specific program end date"
             }
         ]
     }
@@ -34,7 +40,7 @@ async function analyzeResults(results, category) {
     Programs to analyze:
     ${resultsText}
 
-    IMPORTANT: If you CANNOT generate a 320-character summary, provide the most comprehensive summary possible, but NEVER return an empty summary.`;
+    FINAL INSTRUCTION: Ensure EVERY program has a MEANINGFUL, INFORMATIVE summary.`;
 
     try {
         const completion = await openai.chat.completions.create({
@@ -54,17 +60,31 @@ async function analyzeResults(results, category) {
             response_format: { type: "json_object" }
         });
 
-        // Parse the response content as JSON
-        const parsedContent = JSON.parse(completion.choices[0].message.content);
+        // Log the raw response for debugging
+        console.log('Raw OpenAI Response:', JSON.stringify(completion, null, 2));
+
+        // Defensive parsing with more error handling
+        let parsedContent;
+        try {
+            parsedContent = JSON.parse(completion.choices[0].message.content);
+        } catch (parseError) {
+            console.error('JSON Parsing Error:', parseError);
+            console.error('Raw content:', completion.choices[0].message.content);
+            throw new Error('Failed to parse OpenAI response');
+        }
 
         // Validate that each program has a summary
-        const validatedPrograms = (parsedContent.programs || []).map(program => ({
-            name: program.name || 'Program Name Not Available',
-            summary: (program.summary || 'No summary available').slice(0, 320),
-            amount: program.amount || 'Contact for details',
-            requirements: Array.isArray(program.requirements) ? program.requirements : [],
-            deadline: program.deadline || 'Ongoing'
-        }));
+        const validatedPrograms = (parsedContent.programs || []).map(program => {
+            const summary = program.summary || 'No summary available';
+            console.log(`Program Summary: ${summary}`);
+            return {
+                name: program.name || 'Program Name Not Available',
+                summary: summary.slice(0, 320),
+                amount: program.amount || 'Contact for details',
+                requirements: Array.isArray(program.requirements) ? program.requirements : [],
+                deadline: program.deadline || 'Ongoing'
+            };
+        });
 
         return {
             category: category,
