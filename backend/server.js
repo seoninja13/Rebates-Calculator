@@ -45,13 +45,15 @@ async function analyzeResults(results, category) {
         const prompt = `Analyze these ${category} rebate programs and extract information about the top 3 programs. For each program include:
 
 1. Program Name
-2. Rebate Amount (format as "Up to $X,XXX" or "Fixed $X,XXX")
-3. Key Requirements (2-3 bullet points)
-4. Application Deadline (if mentioned)
+2. Summary (320 characters max, focus on key benefits and eligibility)
+3. Rebate Amount (format as "Up to $X,XXX" or "Fixed $X,XXX")
+4. Key Requirements (2-3 bullet points)
+5. Application Deadline (if mentioned)
 
 Format each program as:
 
 [Program Name]
+Summary: [320 char summary]
 Amount: [Rebate amount]
 Requirements:
 - [Requirement 1]
@@ -93,6 +95,7 @@ ${resultsText}`;
             const lines = section.split('\n');
             return {
                 name: lines[0].trim(),
+                summary: lines.find(l => l.startsWith('Summary:'))?.replace('Summary:', '').trim(),
                 amount: lines.find(l => l.startsWith('Amount:'))?.replace('Amount:', '').trim() || 'Amount varies',
                 requirements: lines
                     .filter(l => l.startsWith('-'))

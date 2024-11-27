@@ -45,37 +45,42 @@ class RebatePrograms {
         const card = document.createElement('div');
         card.className = 'program-card';
         
-        const header = document.createElement('div');
-        header.className = 'program-header';
-        
+        // Title
         const title = document.createElement('h3');
         title.className = 'program-title';
-        title.innerHTML = `<i class="fas fa-leaf"></i> ${program.name}`;
-        header.appendChild(title);
+        title.textContent = program.name;
+        card.appendChild(title);
         
+        // Amount (always show)
         const amount = document.createElement('div');
         amount.className = 'program-amount';
-        amount.innerHTML = `<i class="fas fa-dollar-sign"></i> ${program.amount || program.price || 'Amount varies'}`;
-        header.appendChild(amount);
+        amount.textContent = `Rebate amount: ${program.amount !== 'Not specified' ? program.amount : 'Amount varies'}`;
+        card.appendChild(amount);
         
-        card.appendChild(header);
-        
+        // Requirements
         if (program.requirements && program.requirements.length > 0) {
-            const requirements = document.createElement('ul');
-            requirements.className = 'program-requirements';
-            requirements.innerHTML = '<i class="fas fa-list-check"></i> Requirements:';
+            const requirementsTitle = document.createElement('div');
+            requirementsTitle.className = 'requirements-title';
+            requirementsTitle.textContent = 'Requirements:';
+            card.appendChild(requirementsTitle);
+            
             program.requirements.forEach(req => {
-                const li = document.createElement('li');
-                li.textContent = req;
-                requirements.appendChild(li);
+                if (req && !req.toLowerCase().includes('not specified')) {
+                    const requirement = document.createElement('div');
+                    requirement.className = 'requirement-item';
+                    requirement.textContent = req;
+                    card.appendChild(requirement);
+                }
             });
-            card.appendChild(requirements);
         }
         
-        const deadline = document.createElement('div');
-        deadline.className = 'program-deadline';
-        deadline.innerHTML = `<i class="fas fa-calendar"></i> Deadline: ${program.deadline || 'Ongoing'}`;
-        card.appendChild(deadline);
+        // Deadline
+        if (program.deadline && program.deadline !== 'Not specified') {
+            const deadline = document.createElement('div');
+            deadline.className = 'program-deadline';
+            deadline.textContent = `Deadline: ${program.deadline}`;
+            card.appendChild(deadline);
+        }
         
         return card;
     }
@@ -95,7 +100,7 @@ class RebatePrograms {
             
             const header = document.createElement('h2');
             header.className = 'category-header';
-            header.innerHTML = `<i class="fas fa-leaf"></i> ${category} Programs`;
+            header.textContent = `${category} Programs`;
             categorySection.appendChild(header);
             
             container.appendChild(categorySection);
@@ -104,7 +109,7 @@ class RebatePrograms {
             categorySection.innerHTML = '';
             const header = document.createElement('h2');
             header.className = 'category-header';
-            header.innerHTML = `<i class="fas fa-leaf"></i> ${category} Programs`;
+            header.textContent = `${category} Programs`;
             categorySection.appendChild(header);
         }
 
@@ -115,8 +120,10 @@ class RebatePrograms {
 
         // Create and append program cards
         data.programs.forEach(program => {
-            const card = this.createProgramCard(program);
-            categorySection.appendChild(card);
+            if (!program.name.toLowerCase().includes('category:')) {
+                const card = this.createProgramCard(program);
+                categorySection.appendChild(card);
+            }
         });
     }
 }
