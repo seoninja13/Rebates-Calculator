@@ -1,11 +1,8 @@
 class RebatePrograms {
     constructor() {
         this.cache = new Map();
-        // Get the current hostname
         const hostname = window.location.hostname;
-        // Use production endpoint or fallback to local during development
         this.apiEndpoint = `${window.location.protocol}//${hostname}/.netlify/functions/analyze`;
-        // Fallback to local if in development
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             this.apiEndpoint = 'http://localhost:3001/api/analyze';
         }
@@ -15,7 +12,6 @@ class RebatePrograms {
     async fetchPrograms(results, category) {
         const cacheKey = `${category}-${JSON.stringify(results)}`;
         
-        // Check cache
         if (this.cache.has(cacheKey)) {
             return this.cache.get(cacheKey);
         }
@@ -29,127 +25,100 @@ class RebatePrograms {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                mode: 'cors',
-                body: JSON.stringify({ 
-                    results: results.map(r => ({
-                        title: r.title,
-                        snippet: r.snippet,
-                        link: r.link
-                    })), 
-                    category 
-                })
+                body: JSON.stringify({ results, category })
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch analysis');
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            const analysis = await response.json();
-            
-            // Validate the response format
-            if (!this._isValidAnalysis(analysis)) {
-                throw new Error('Invalid analysis format');
-            }
-
-            console.log('Received analysis:', analysis);
-            
-            // Cache the result
-            this.cache.set(cacheKey, analysis);
-            
-            return analysis;
+            const data = await response.json();
+            this.cache.set(cacheKey, data);
+            return data;
         } catch (error) {
-            console.error('Error fetching analysis:', error);
+            console.error('Error:', error);
             throw error;
         }
     }
 
-    _isValidAnalysis(analysis) {
-        return analysis && 
-               typeof analysis === 'object' && 
-               'category' in analysis && 
-               'programs' in analysis &&
-               Array.isArray(analysis.programs) &&
-               analysis.programs.every(program => 
-                   typeof program === 'object' &&
-                   'name' in program
-               );
+    createProgramCard(program) {
+        const card = document.createElement('div');
+        card.className = 'program-card';
+        
+        const header = document.createElement('div');
+        header.className = 'program-header';
+        
+        const title = document.createElement('h3');
+        title.className = 'program-title';
+        title.innerHTML = `<i class="fas fa-leaf"></i> ${program.name}`;
+        header.appendChild(title);
+        
+        const amount = document.createElement('div');
+        amount.className = 'program-amount';
+        amount.innerHTML = `<i class="fas fa-dollar-sign"></i> ${program.amount || program.price || 'Amount varies'}`;
+        header.appendChild(amount);
+        
+        card.appendChild(header);
+        
+        if (program.requirements && program.requirements.length > 0) {
+            const requirements = document.createElement('ul');
+            requirements.className = 'program-requirements';
+            requirements.innerHTML = '<i class="fas fa-list-check"></i> Requirements:';
+            program.requirements.forEach(req => {
+                const li = document.createElement('li');
+                li.textContent = req;
+                requirements.appendChild(li);
+            });
+            card.appendChild(requirements);
+        }
+        
+        const deadline = document.createElement('div');
+        deadline.className = 'program-deadline';
+        deadline.innerHTML = `<i class="fas fa-calendar"></i> Deadline: ${program.deadline || 'Ongoing'}`;
+        card.appendChild(deadline);
+        
+        return card;
     }
 
-    displayPrograms(analysis, container) {
-        // Create programs section
-        const section = document.createElement('div');
-        section.className = 'programs-section';
-
-        // Add header
-        const header = document.createElement('div');
-        header.className = 'programs-header';
-        
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-leaf';
-        header.appendChild(icon);
-
-        const title = document.createElement('div');
-        title.className = 'programs-title';
-        title.textContent = analysis.category;
-        header.appendChild(title);
-
-        section.appendChild(header);
-
-        // Add programs
-        analysis.programs.forEach(program => {
-            const card = document.createElement('div');
-            card.className = 'program-card';
-
-            // Program name
-            const name = document.createElement('h3');
-            name.className = 'program-name';
-            name.textContent = program.name;
-            card.appendChild(name);
-
-            // Amount if available
-            if (program.amount && program.amount !== "Contact for details" && program.amount !== "Amount varies") {
-                const amount = document.createElement('div');
-                amount.className = 'program-amount';
-                // Check if it's a percentage or dollar amount
-                const icon = program.amount.includes('%') ? 'fa-percent' : 'fa-dollar-sign';
-                amount.innerHTML = `<i class="fas ${icon}"></i> ${program.amount}`;
-                card.appendChild(amount);
-            }
-
-            // Requirements if available
-            if (program.requirements && program.requirements.length > 0) {
-                const requirements = document.createElement('ul');
-                requirements.className = 'program-requirements';
-                program.requirements.forEach(req => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<i class="fas fa-check"></i> ${req}`;
-                    requirements.appendChild(li);
-                });
-                card.appendChild(requirements);
-            }
-
-            // Deadline if available
-            if (program.deadline && program.deadline !== "Ongoing") {
-                const deadline = document.createElement('div');
-                deadline.className = 'program-deadline';
-                deadline.innerHTML = `<i class="fas fa-clock"></i> Deadline: ${program.deadline}`;
-                card.appendChild(deadline);
-            }
-
-            section.appendChild(card);
-        });
-
-        // Add disclaimer if available
-        if (analysis.disclaimer) {
-            const disclaimer = document.createElement('div');
-            disclaimer.className = 'program-disclaimer';
-            disclaimer.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
-            section.appendChild(disclaimer);
+    displayPrograms(data, container, category) {
+        if (!container || !category) {
+            console.error('Missing container or category for displaying programs');
+            return;
         }
 
-        container.appendChild(section);
+        // Get or create category section
+        let categorySection = document.getElementById(`${category.toLowerCase()}Results`);
+        if (!categorySection) {
+            categorySection = document.createElement('div');
+            categorySection.id = `${category.toLowerCase()}Results`;
+            categorySection.className = 'category-section';
+            
+            const header = document.createElement('h2');
+            header.className = 'category-header';
+            header.innerHTML = `<i class="fas fa-leaf"></i> ${category} Programs`;
+            categorySection.appendChild(header);
+            
+            container.appendChild(categorySection);
+        } else {
+            // Clear existing content in the category section
+            categorySection.innerHTML = '';
+            const header = document.createElement('h2');
+            header.className = 'category-header';
+            header.innerHTML = `<i class="fas fa-leaf"></i> ${category} Programs`;
+            categorySection.appendChild(header);
+        }
+
+        if (!data || !data.programs || !Array.isArray(data.programs)) {
+            categorySection.innerHTML += '<div class="error-message">No valid program data available</div>';
+            return;
+        }
+
+        // Create and append program cards
+        data.programs.forEach(program => {
+            const card = this.createProgramCard(program);
+            categorySection.appendChild(card);
+        });
     }
 }
 
-// Export the class
 export default RebatePrograms;

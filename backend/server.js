@@ -36,53 +36,44 @@ app.use(express.json());
 async function analyzeResults(results, category) {
     const cacheKey = `${category}-${JSON.stringify(results)}`;
     
-    // Check cache first
-    const cachedAnalysis = cache.get(cacheKey);
-    if (cachedAnalysis) {
-        return cachedAnalysis;
+    if (cache.has(cacheKey)) {
+        return cache.get(cacheKey);
     }
 
-    // Build prompt for OpenAI
-    const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and provide a summary of the top 3 programs in this exact format:
-
-    Category: ${category} Rebate Programs
-    
-    1. [Program Name]
-       Price: [Extract or estimate the rebate amount, format as "Up to $X,XXX" or "Fixed $X,XXX"]
-       Key Requirements:
-       - [Requirement 1]
-       - [Requirement 2]
-       - [Requirement 3]
-       Deadline: [Extract deadline if mentioned, otherwise "Ongoing" or "Not specified"]
-
-    2. [Program Name]
-       Price: [Extract or estimate the rebate amount]
-       Key Requirements:
-       - [Requirement 1]
-       - [Requirement 2]
-       - [Requirement 3]
-       Deadline: [Extract deadline if mentioned]
-
-    3. [Program Name]
-       Price: [Extract or estimate the rebate amount]
-       Key Requirements:
-       - [Requirement 1]
-       - [Requirement 2]
-       - [Requirement 3]
-       Deadline: [Extract deadline if mentioned]
-
-    Here are the programs to analyze:
-
-    ${resultsText}`;
-
     try {
+        const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
+        const prompt = `Analyze these ${category} rebate programs and extract information about the top 3 programs. For each program include:
+
+1. Program Name
+2. Rebate Amount (format as "Up to $X,XXX" or "Fixed $X,XXX")
+3. Key Requirements (2-3 bullet points)
+4. Application Deadline (if mentioned)
+
+Format each program as:
+
+[Program Name]
+Amount: [Rebate amount]
+Requirements:
+- [Requirement 1]
+- [Requirement 2]
+- [Requirement 3]
+Deadline: [Extract deadline if mentioned, otherwise "Ongoing"]
+
+If specific values are not found in the text, use these defaults:
+- Amount: "Amount varies"
+- Deadline: "Ongoing"
+- Requirements: ["Contact program administrator for specific requirements"]
+
+Here are the programs to analyze:
+
+${resultsText}`;
+
         const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs. Always format the price as a dollar amount with commas and dollar signs (e.g., '$1,000' or 'Up to $8,000'). Keep requirements concise and actionable. Only include deadline if specifically mentioned. Return the analysis in a structured format with exactly 3 programs."
+                    content: "You are a helpful assistant that analyzes rebate programs. Always format amounts with dollar signs and commas (e.g., '$1,000' or 'Up to $8,000'). Keep requirements concise and actionable. Return exactly 3 programs if available."
                 },
                 {
                     role: "user",
@@ -90,39 +81,32 @@ async function analyzeResults(results, category) {
                 }
             ],
             temperature: 0.7,
-            max_tokens: 500
+            max_tokens: 1000
         });
 
-        // Parse the OpenAI response into structured format
         const content = completion.choices[0].message.content;
-        const programs = [];
-        
-        // Split content into program sections
-        const sections = content.split(/\d+\.\s+/).filter(Boolean);
-        
-        for (const section of sections) {
-            const lines = section.trim().split('\n').map(line => line.trim());
-            const program = {
-                name: lines[0],
-                price: lines.find(l => l.startsWith('Price:'))?.replace('Price:', '').trim() || 'Not specified',
+        console.log('OpenAI Response:', content);
+
+        // Split content into program sections and parse
+        const sections = content.split(/\n\n(?=[A-Z])/g).filter(Boolean);
+        const programs = sections.map(section => {
+            const lines = section.split('\n');
+            return {
+                name: lines[0].trim(),
+                amount: lines.find(l => l.startsWith('Amount:'))?.replace('Amount:', '').trim() || 'Amount varies',
                 requirements: lines
                     .filter(l => l.startsWith('-'))
                     .map(l => l.replace('-', '').trim()),
-                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Not specified'
+                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Ongoing'
             };
-            programs.push(program);
-        }
+        });
 
         const analysis = {
-            category: `${category} Rebate Programs`,
             programs: programs,
-            timestamp: new Date().toISOString(),
-            disclaimer: "Note: Please verify all information with the official program websites. Terms and conditions may have changed."
+            timestamp: new Date().toISOString()
         };
 
-        // Cache the results
         cache.set(cacheKey, analysis);
-
         return analysis;
     } catch (error) {
         console.error('OpenAI API Error:', error);

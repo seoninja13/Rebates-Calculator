@@ -899,7 +899,7 @@
             resultsContainer.appendChild(errorSection);
           } else if (analysis) {
             // Use the existing displayPrograms method
-            rebatePrograms.displayPrograms(analysis, resultsContainer);
+            rebatePrograms.displayPrograms(analysis, resultsContainer, category);
             // Replace placeholder amounts after rendering results
             replacePlaceholderAmounts();
           }
