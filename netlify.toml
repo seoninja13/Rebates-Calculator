@@ -12,6 +12,12 @@
     Access-Control-Allow-Origin = "https://green-rebates-calculator.netlify.app"
     Access-Control-Allow-Methods = "OPTIONS, POST, GET"
     Access-Control-Allow-Headers = "Origin, Content-Type"
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
 
 [[redirects]]
   from = "/*"
