@@ -6,6 +6,24 @@
   functions = "netlify/functions"
   publish = "."
 
+# Handle CORS preflight requests
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, OPTIONS", Access-Control-Allow-Headers = "Origin, Content-Type, Accept"}
+  methods = ["OPTIONS"]
+
+# Handle actual requests
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*", Access-Control-Allow-Methods = "GET, POST, OPTIONS", Access-Control-Allow-Headers = "Origin, Content-Type, Accept"}
+
+# SPA redirect
 [[redirects]]
   from = "/*"
   to = "/index.html"
