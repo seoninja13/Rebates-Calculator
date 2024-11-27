@@ -8,24 +8,32 @@ const openai = new OpenAI({
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. Focus on finding specific rebate amounts, deadlines, and requirements. Return a JSON object with this exact structure:
+    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. You MUST find and extract a rebate amount for each program, even if it requires inference. Return a JSON object with this exact structure:
     {
         "programs": [
             {
                 "name": "Program Name",
-                "amount": "Extract exact rebate amount (e.g. '$500', 'Up to $2000', '30% of cost')",
+                "amount": "REQUIRED - Use one of these formats:
+                          - Exact amount: '$500', '$1,000', etc.
+                          - Range: 'Up to $2,000', '$500-$1,500'
+                          - Percentage: '30% of cost', 'Up to 80%'
+                          - Variable: '$X per square foot', '$X per kW'
+                          - If amount unclear: 'Contact for details'",
                 "requirements": ["List each key requirement as a separate item"],
                 "deadline": "Extract specific deadline if mentioned"
             }
         ]
     }
 
-    Important instructions:
-    1. For the amount field, always include the dollar sign ($) if it's a monetary value
-    2. If multiple amounts are mentioned, list the highest or most relevant one
-    3. If no specific amount is found, use "Amount varies" or "Contact for details"
-    4. Keep requirements brief but specific
-    5. For deadline, use "Ongoing" if no specific date is mentioned
+    Important instructions for amount field:
+    1. The amount field is REQUIRED for each program
+    2. Always include the dollar sign ($) for monetary values
+    3. If multiple amounts are mentioned, list the highest or most comprehensive one
+    4. Look for keywords like 'rebate', 'incentive', 'savings', 'credit', 'reimbursement'
+    5. If amount is mentioned as a range, include both ends (e.g., '$500-$2,500')
+    6. For percentage-based rebates, clearly state the percentage
+    7. For variable amounts, explain the calculation basis
+    8. Only use 'Contact for details' if no amount information can be inferred
 
     Here are the programs to analyze:
 
@@ -37,7 +45,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. Be precise in extracting monetary values and always include the dollar sign ($) for amounts. If an amount is a percentage, format it clearly (e.g., '30% of cost')."
+                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. You must ALWAYS find and include a rebate amount for each program. Be thorough in searching for amount information and format it consistently. If the exact amount isn't stated, provide the best approximation based on available information."
                 },
                 {
                     role: "user",
@@ -52,9 +60,15 @@ async function analyzeResults(results, category) {
         // Parse the response content as JSON
         const parsedContent = JSON.parse(completion.choices[0].message.content);
 
+        // Validate that each program has an amount
+        const validatedPrograms = parsedContent.programs.map(program => ({
+            ...program,
+            amount: program.amount || 'Contact for details'
+        }));
+
         return {
             category: category,
-            programs: parsedContent.programs || [],
+            programs: validatedPrograms,
             timestamp: new Date().toISOString()
         };
     } catch (error) {

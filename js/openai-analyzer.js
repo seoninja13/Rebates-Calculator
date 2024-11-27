@@ -106,15 +106,13 @@ class RebatePrograms {
             name.textContent = program.name;
             card.appendChild(name);
 
-            // Amount if available
-            if (program.amount && program.amount !== "Contact for details" && program.amount !== "Amount varies") {
-                const amount = document.createElement('div');
-                amount.className = 'program-amount';
-                // Check if it's a percentage or dollar amount
-                const icon = program.amount.includes('%') ? 'fa-percent' : 'fa-dollar-sign';
-                amount.innerHTML = `<i class="fas ${icon}"></i> ${program.amount}`;
-                card.appendChild(amount);
-            }
+            // Amount - now always displayed since it's required
+            const amount = document.createElement('div');
+            amount.className = 'program-amount';
+            // Check if it's a percentage or dollar amount
+            const icon = program.amount.includes('%') ? 'fa-percent' : 'fa-dollar-sign';
+            amount.innerHTML = `<i class="fas ${icon}"></i> ${program.amount}`;
+            card.appendChild(amount);
 
             // Requirements if available
             if (program.requirements && program.requirements.length > 0) {
