@@ -25,8 +25,11 @@ class RebatePrograms {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Origin': 'https://green-rebates-calculator.netlify.app'
                 },
+                credentials: 'omit',
+                mode: 'cors',
                 body: JSON.stringify({ 
                     results: results.map(r => ({
                         title: r.title,

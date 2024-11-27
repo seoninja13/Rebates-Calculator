@@ -58,16 +58,18 @@ async function analyzeResults(results, category) {
 exports.handler = async (event, context) => {
     // Add CORS headers
     const headers = {
-        'Access-Control-Allow-Origin': 'https://green-rebates-calculator.netlify.app',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Access-Control-Allow-Origin': '*',  // More permissive for testing
+        'Access-Control-Allow-Headers': 'Content-Type, Accept, Origin',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Max-Age': '86400'  // 24 hours cache for preflight
     };
 
     // Handle preflight request
     if (event.httpMethod === 'OPTIONS') {
         return {
-            statusCode: 200,
-            headers
+            statusCode: 204,  // No content needed for preflight
+            headers,
+            body: ''  // Empty body for OPTIONS request
         };
     }
 
