@@ -13,6 +13,16 @@
     Access-Control-Allow-Methods = "OPTIONS, POST, GET"
     Access-Control-Allow-Headers = "Origin, Content-Type"
 
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Content-Type = "text/javascript;charset=utf-8"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Content-Type = "text/javascript;charset=utf-8"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
