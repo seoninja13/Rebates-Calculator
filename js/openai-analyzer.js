@@ -65,7 +65,11 @@ class RebatePrograms {
                typeof analysis === 'object' && 
                'category' in analysis && 
                'programs' in analysis &&
-               Array.isArray(analysis.programs);
+               Array.isArray(analysis.programs) &&
+               analysis.programs.every(program => 
+                   typeof program === 'object' &&
+                   'name' in program
+               );
     }
 
     displayPrograms(analysis, container) {
@@ -86,83 +90,55 @@ class RebatePrograms {
         title.textContent = analysis.category;
         header.appendChild(title);
 
-        const date = document.createElement('div');
-        date.className = 'programs-date';
-        date.textContent = new Date().toLocaleDateString();
-        header.appendChild(date);
-
         section.appendChild(header);
-
-        // Create programs grid
-        const programsGrid = document.createElement('div');
-        programsGrid.className = 'programs-grid';
 
         // Add programs
         analysis.programs.forEach(program => {
-            const programCard = document.createElement('div');
-            programCard.className = 'program-card';
+            const card = document.createElement('div');
+            card.className = 'program-card';
 
-            // Program header
-            const programHeader = document.createElement('div');
-            programHeader.className = 'program-header';
-            programHeader.textContent = program.name || 'Program Name Not Available';
-            programCard.appendChild(programHeader);
+            // Program name
+            const name = document.createElement('h3');
+            name.textContent = program.name;
+            card.appendChild(name);
 
-            // Program amount
-            if (program.price) {
+            // Amount if available
+            if (program.amount) {
                 const amount = document.createElement('div');
                 amount.className = 'program-amount';
-                amount.innerHTML = `<i class="fas fa-money-bill-wave"></i>${program.price}`;
-                programCard.appendChild(amount);
+                amount.innerHTML = `<i class="fas fa-dollar-sign"></i> ${program.amount}`;
+                card.appendChild(amount);
             }
 
-            // Requirements section
+            // Requirements if available
             if (program.requirements && program.requirements.length > 0) {
-                const reqSection = document.createElement('div');
-                reqSection.className = 'program-requirements';
-                
-                const reqTitle = document.createElement('div');
-                reqTitle.className = 'requirements-title';
-                reqTitle.textContent = 'Key Requirements';
-                reqSection.appendChild(reqTitle);
-
+                const requirements = document.createElement('ul');
+                requirements.className = 'program-requirements';
                 program.requirements.forEach(req => {
-                    const reqItem = document.createElement('div');
-                    reqItem.className = 'requirement-item';
-                    
-                    const reqIcon = document.createElement('i');
-                    reqIcon.className = 'fas fa-check';
-                    reqItem.appendChild(reqIcon);
-
-                    const reqText = document.createElement('div');
-                    reqText.textContent = req;
-                    reqItem.appendChild(reqText);
-
-                    reqSection.appendChild(reqItem);
+                    const li = document.createElement('li');
+                    li.textContent = req;
+                    requirements.appendChild(li);
                 });
-                
-                programCard.appendChild(reqSection);
+                card.appendChild(requirements);
             }
 
-            // Deadline
+            // Deadline if available
             if (program.deadline) {
                 const deadline = document.createElement('div');
                 deadline.className = 'program-deadline';
-                deadline.innerHTML = `<i class="far fa-clock"></i>${program.deadline}`;
-                programCard.appendChild(deadline);
+                deadline.innerHTML = `<i class="fas fa-clock"></i> Deadline: ${program.deadline}`;
+                card.appendChild(deadline);
             }
 
-            programsGrid.appendChild(programCard);
+            section.appendChild(card);
         });
 
-        section.appendChild(programsGrid);
-
-        // Add disclaimer note
+        // Add disclaimer if available
         if (analysis.disclaimer) {
-            const note = document.createElement('div');
-            note.className = 'programs-note';
-            note.textContent = analysis.disclaimer;
-            section.appendChild(note);
+            const disclaimer = document.createElement('div');
+            disclaimer.className = 'program-disclaimer';
+            disclaimer.textContent = analysis.disclaimer;
+            section.appendChild(disclaimer);
         }
 
         container.appendChild(section);

@@ -8,20 +8,17 @@ const openai = new OpenAI({
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and provide a summary with the following format:
-
-    Category: [Main category of rebates]
-    Top 3 Programs:
-    1. [Program Name]
-       - Rebate Amount: [Amount if available]
-       - Key Requirements: [Brief list]
-       - Deadline: [If mentioned]
-       
-    2. [Program Name]
-       ...
-    
-    3. [Program Name]
-       ...
+    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. Return a JSON object with this structure:
+    {
+        "programs": [
+            {
+                "name": "Program Name",
+                "amount": "Rebate amount if available",
+                "requirements": ["List of key requirements"],
+                "deadline": "Deadline if mentioned"
+            }
+        ]
+    }
 
     Here are the programs to analyze:
 
@@ -33,20 +30,25 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and summarizes key information."
+                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. Return the information in a consistent format that can be parsed."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            temperature: 0.7,
-            max_tokens: 500
+            temperature: 0,
+            max_tokens: 500,
+            response_format: { type: "json_object" }
         });
 
+        // Parse the response content as JSON
+        const parsedContent = JSON.parse(completion.choices[0].message.content);
+
         return {
+            category: category,
+            programs: parsedContent.programs || [],
             timestamp: new Date().toISOString(),
-            content: completion.choices[0].message.content,
             disclaimer: "Note: Please verify all information with the official program websites. Terms and conditions may have changed."
         };
     } catch (error) {
