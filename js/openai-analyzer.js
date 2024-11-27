@@ -106,6 +106,12 @@ class RebatePrograms {
             name.textContent = program.name || 'Program Name Not Available';
             card.appendChild(name);
 
+            // Program summary
+            const summary = document.createElement('p');
+            summary.className = 'program-summary';
+            summary.textContent = program.summary || 'No summary available';
+            card.appendChild(summary);
+
             // Amount - now always displayed since it's required
             const amount = document.createElement('div');
             amount.className = 'program-amount';

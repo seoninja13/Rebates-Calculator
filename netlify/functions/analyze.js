@@ -8,11 +8,12 @@ const openai = new OpenAI({
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. You MUST find and extract a rebate amount for each program, even if it requires inference. Return a JSON object with this exact structure:
+    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. You MUST find and extract a rebate amount for each program, even if it requires inference. Additionally, provide a brief summary of about 320 characters for each program, highlighting the main points. Return a JSON object with this exact structure:
     {
         "programs": [
             {
                 "name": "Program Name",
+                "summary": "Brief summary of the program (about 320 characters)",
                 "amount": "REQUIRED - Use one of these formats:
                           - Exact amount: '$500', '$1,000', etc.
                           - Range: 'Up to $2,000', '$500-$1,500'
@@ -45,7 +46,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. You must ALWAYS find and include a rebate amount for each program. Be thorough in searching for amount information and format it consistently. If the exact amount isn't stated, provide the best approximation based on available information."
+                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. You must ALWAYS find and include a rebate amount for each program. Be thorough in searching for amount information and format it consistently. If the exact amount isn't stated, provide the best approximation based on available information. Additionally, provide a concise summary for each program, capturing the main points in about 320 characters."
                 },
                 {
                     role: "user",
@@ -63,6 +64,7 @@ async function analyzeResults(results, category) {
         // Validate that each program has an amount and required fields
         const validatedPrograms = (parsedContent.programs || []).map(program => ({
             name: program.name || 'Program Name Not Available',
+            summary: program.summary || 'No summary available',
             amount: program.amount || 'Contact for details',
             requirements: Array.isArray(program.requirements) ? program.requirements : [],
             deadline: program.deadline || 'Ongoing'
