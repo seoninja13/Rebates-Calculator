@@ -49,150 +49,92 @@ class RebatePrograms {
             }
 
             console.log('Received analysis:', analysis);
+            
+            // Cache the result
             this.cache.set(cacheKey, analysis);
+            
             return analysis;
-
         } catch (error) {
             console.error('Error fetching analysis:', error);
-            throw new Error('Oops..., we are busy right now. Please come back later.');
+            throw error;
         }
     }
 
     _isValidAnalysis(analysis) {
         return analysis && 
-               typeof analysis.content === 'string' && 
-               typeof analysis.timestamp === 'string' && 
-               typeof analysis.disclaimer === 'string' &&
-               analysis.content.includes('Program') &&
-               analysis.content.includes('Requirements');
+               typeof analysis === 'object' && 
+               'category' in analysis && 
+               'programs' in analysis &&
+               Array.isArray(analysis.programs);
     }
 
     displayPrograms(analysis, container) {
-        try {
-            // Create programs section
-            const section = document.createElement('section');
-            section.className = 'programs-section';
+        const section = document.createElement('div');
+        section.className = 'rebate-section';
+        
+        // Add category header
+        const header = document.createElement('h2');
+        header.className = 'category-header';
+        header.textContent = analysis.category;
+        section.appendChild(header);
 
-            // Add header
-            const header = document.createElement('div');
-            header.className = 'programs-header';
-            header.innerHTML = `
-                <i class="fas fa-award"></i>
-                <h2 class="programs-title">${analysis.category || 'Rebate Programs'}</h2>
-                <span class="programs-date">Updated ${new Date(analysis.timestamp).toLocaleDateString()}</span>
-            `;
-            section.appendChild(header);
+        // Add programs
+        analysis.programs.forEach(program => {
+            const programDiv = document.createElement('div');
+            programDiv.className = 'rebate-program';
 
-            // Parse the content into program cards
-            const programs = this._parsePrograms(analysis.content);
-            
-            if (programs.length === 0) {
-                throw new Error('No valid programs found');
+            // Program header with title and amount
+            const programHeader = document.createElement('div');
+            programHeader.className = 'program-header';
+
+            const title = document.createElement('h3');
+            title.className = 'rebate-title';
+            title.textContent = program.name || 'Program Name Not Available';
+            programHeader.appendChild(title);
+
+            if (program.amount) {
+                const amount = document.createElement('div');
+                amount.className = 'program-amount';
+                amount.textContent = program.amount;
+                programHeader.appendChild(amount);
             }
 
-            const grid = document.createElement('div');
-            grid.className = 'programs-grid';
+            programDiv.appendChild(programHeader);
 
-            programs.forEach(program => {
-                const card = this._createProgramCard(program);
-                grid.appendChild(card);
-            });
+            // Requirements section
+            if (program.requirements && program.requirements.length > 0) {
+                const reqSection = document.createElement('div');
+                reqSection.className = 'requirements-section';
+                
+                const reqTitle = document.createElement('h4');
+                reqTitle.textContent = 'Key Requirements:';
+                reqSection.appendChild(reqTitle);
 
-            section.appendChild(grid);
-
-            // Add disclaimer
-            const note = document.createElement('div');
-            note.className = 'programs-note';
-            note.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
-            section.appendChild(note);
-
-            container.appendChild(section);
-        } catch (error) {
-            console.error('Error displaying programs:', error);
-            container.innerHTML = `
-                <div class="error-section">
-                    <p><i class="fas fa-exclamation-circle"></i> Oops..., we are busy right now. Please come back later.</p>
-                </div>
-            `;
-        }
-    }
-
-    _parsePrograms(content) {
-        const programs = [];
-        const lines = content.split('\n');
-        let currentProgram = null;
-
-        lines.forEach(line => {
-            line = line.trim();
-            
-            // Skip empty lines and category headers
-            if (!line || line.startsWith('Category:')) return;
-
-            // New program starts with a number
-            if (/^\d+\./.test(line)) {
-                if (currentProgram) {
-                    programs.push(currentProgram);
-                }
-                currentProgram = {
-                    name: line.replace(/^\d+\.\s*/, '').trim(),
-                    price: '',
-                    requirements: [],
-                    deadline: ''
-                };
-            } else if (currentProgram) {
-                // Parse program details
-                if (line.startsWith('Price:')) {
-                    currentProgram.price = line.replace('Price:', '').trim();
-                } else if (line.startsWith('Key Requirements:')) {
-                    // Skip the header, requirements will be added below
-                } else if (line.startsWith('-')) {
-                    currentProgram.requirements.push(line.replace('-', '').trim());
-                } else if (line.startsWith('Deadline:')) {
-                    currentProgram.deadline = line.replace('Deadline:', '').trim();
-                }
+                const reqList = document.createElement('ul');
+                program.requirements.forEach(req => {
+                    const li = document.createElement('li');
+                    li.textContent = req;
+                    reqList.appendChild(li);
+                });
+                reqSection.appendChild(reqList);
+                
+                programDiv.appendChild(reqSection);
             }
+
+            // Deadline section
+            if (program.deadline) {
+                const deadline = document.createElement('div');
+                deadline.className = 'deadline-section';
+                deadline.innerHTML = `<strong>Deadline:</strong> ${program.deadline}`;
+                programDiv.appendChild(deadline);
+            }
+
+            section.appendChild(programDiv);
         });
 
-        // Add the last program
-        if (currentProgram) {
-            programs.push(currentProgram);
-        }
-
-        return programs;
-    }
-
-    _createProgramCard(program) {
-        const card = document.createElement('div');
-        card.className = 'program-card';
-        
-        card.innerHTML = `
-            <div class="program-header">
-                ${program.name}
-            </div>
-            <div class="program-amount">
-                <i class="fas fa-dollar-sign"></i>
-                ${program.price}
-            </div>
-            <div class="program-requirements">
-                <div class="requirements-title">Requirements:</div>
-                ${program.requirements.map(req => `
-                    <div class="requirement-item">
-                        <i class="fas fa-check"></i>
-                        <span>${req}</span>
-                    </div>
-                `).join('')}
-            </div>
-            ${program.deadline ? `
-                <div class="program-deadline">
-                    <i class="fas fa-clock"></i>
-                    Deadline: ${program.deadline}
-                </div>
-            ` : ''}
-        `;
-        
-        return card;
+        container.appendChild(section);
     }
 }
 
-// Export the program handler
-window.RebatePrograms = RebatePrograms;
+// Export the class
+export default RebatePrograms;
