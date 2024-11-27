@@ -1,0 +1,98 @@
+.programs-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.programs-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eee;
+}
+
+.programs-header i {
+    font-size: 24px;
+    color: #4CAF50;
+    margin-right: 10px;
+}
+
+.programs-title {
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+}
+
+.program-card {
+    background: #f9f9f9;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+    border-left: 4px solid #4CAF50;
+}
+
+.program-name {
+    margin: 0 0 15px 0;
+    color: #2196F3;
+    font-size: 20px;
+}
+
+.program-amount {
+    font-size: 24px;
+    color: #4CAF50;
+    margin: 15px 0;
+    padding: 10px;
+    background: rgba(76, 175, 80, 0.1);
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.program-amount i {
+    margin-right: 8px;
+}
+
+.program-requirements {
+    list-style: none;
+    padding: 0;
+    margin: 15px 0;
+}
+
+.program-requirements li {
+    margin: 8px 0;
+    padding-left: 25px;
+    position: relative;
+}
+
+.program-requirements li i {
+    position: absolute;
+    left: 0;
+    top: 4px;
+    color: #4CAF50;
+}
+
+.program-deadline {
+    color: #FF5722;
+    margin-top: 15px;
+    font-weight: 500;
+}
+
+.program-deadline i {
+    margin-right: 8px;
+}
+
+.program-disclaimer {
+    margin-top: 20px;
+    padding: 15px;
+    background: #FFF3E0;
+    border-radius: 4px;
+    color: #666;
+    font-size: 14px;
+}
+
+.program-disclaimer i {
+    color: #FF9800;
+    margin-right: 8px;
+}

@@ -102,14 +102,17 @@ class RebatePrograms {
 
             // Program name
             const name = document.createElement('h3');
+            name.className = 'program-name';
             name.textContent = program.name;
             card.appendChild(name);
 
             // Amount if available
-            if (program.amount) {
+            if (program.amount && program.amount !== "Contact for details" && program.amount !== "Amount varies") {
                 const amount = document.createElement('div');
                 amount.className = 'program-amount';
-                amount.innerHTML = `<i class="fas fa-dollar-sign"></i> ${program.amount}`;
+                // Check if it's a percentage or dollar amount
+                const icon = program.amount.includes('%') ? 'fa-percent' : 'fa-dollar-sign';
+                amount.innerHTML = `<i class="fas ${icon}"></i> ${program.amount}`;
                 card.appendChild(amount);
             }
 
@@ -119,14 +122,14 @@ class RebatePrograms {
                 requirements.className = 'program-requirements';
                 program.requirements.forEach(req => {
                     const li = document.createElement('li');
-                    li.textContent = req;
+                    li.innerHTML = `<i class="fas fa-check"></i> ${req}`;
                     requirements.appendChild(li);
                 });
                 card.appendChild(requirements);
             }
 
             // Deadline if available
-            if (program.deadline) {
+            if (program.deadline && program.deadline !== "Ongoing") {
                 const deadline = document.createElement('div');
                 deadline.className = 'program-deadline';
                 deadline.innerHTML = `<i class="fas fa-clock"></i> Deadline: ${program.deadline}`;
@@ -140,7 +143,7 @@ class RebatePrograms {
         if (analysis.disclaimer) {
             const disclaimer = document.createElement('div');
             disclaimer.className = 'program-disclaimer';
-            disclaimer.textContent = analysis.disclaimer;
+            disclaimer.innerHTML = `<i class="fas fa-info-circle"></i> ${analysis.disclaimer}`;
             section.appendChild(disclaimer);
         }
 

@@ -8,17 +8,24 @@ const openai = new OpenAI({
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. Return a JSON object with this structure:
+    const prompt = `Analyze these ${category} rebate programs and extract key information in JSON format. Focus on finding specific rebate amounts, deadlines, and requirements. Return a JSON object with this exact structure:
     {
         "programs": [
             {
                 "name": "Program Name",
-                "amount": "Rebate amount if available",
-                "requirements": ["List of key requirements"],
-                "deadline": "Deadline if mentioned"
+                "amount": "Extract exact rebate amount (e.g. '$500', 'Up to $2000', '30% of cost')",
+                "requirements": ["List each key requirement as a separate item"],
+                "deadline": "Extract specific deadline if mentioned"
             }
         ]
     }
+
+    Important instructions:
+    1. For the amount field, always include the dollar sign ($) if it's a monetary value
+    2. If multiple amounts are mentioned, list the highest or most relevant one
+    3. If no specific amount is found, use "Amount varies" or "Contact for details"
+    4. Keep requirements brief but specific
+    5. For deadline, use "Ongoing" if no specific date is mentioned
 
     Here are the programs to analyze:
 
@@ -30,7 +37,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. Return the information in a consistent format that can be parsed."
+                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. Be precise in extracting monetary values and always include the dollar sign ($) for amounts. If an amount is a percentage, format it clearly (e.g., '30% of cost')."
                 },
                 {
                     role: "user",
@@ -38,7 +45,7 @@ async function analyzeResults(results, category) {
                 }
             ],
             temperature: 0,
-            max_tokens: 500,
+            max_tokens: 1000,
             response_format: { type: "json_object" }
         });
 
