@@ -16,12 +16,18 @@
 [[headers]]
   for = "/*.js"
   [headers.values]
-    Content-Type = "text/javascript;charset=utf-8"
+    Content-Type = "application/javascript"
 
 [[headers]]
   for = "/js/*"
   [headers.values]
-    Content-Type = "text/javascript;charset=utf-8"
+    Content-Type = "application/javascript"
+    X-Content-Type-Options = "nosniff"
+
+[[redirects]]
+  from = "/js/*"
+  to = "/js/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"
