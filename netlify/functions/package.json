@@ -1,0 +1,9 @@
+{
+  "name": "rebates-calculator-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for Rebates Calculator",
+  "dependencies": {
+    "openai": "^4.0.0",
+    "node-fetch": "^2.6.1"
+  }
+}

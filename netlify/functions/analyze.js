@@ -1,9 +1,40 @@
 const OpenAI = require('openai');
+const fetch = require('node-fetch');
 
 // Initialize OpenAI
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
+
+// Google Search API configuration
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+// Helper function to perform Google search
+async function performGoogleSearch(query) {
+    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
+    console.log('🔍 Performing Google search with URL:', url);
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Google Search failed:', response.status, errorText);
+            throw new Error(`Google Search failed: ${response.status} - ${errorText}`);
+        }
+        const data = await response.json();
+        
+        if (!data.items || data.items.length === 0) {
+            console.warn('⚠️ No items found in Google Search response');
+            return [];
+        }
+        
+        return data.items;
+    } catch (error) {
+        console.error('❌ Google Search Error:', error);
+        throw error;
+    }
+}
 
 async function analyzeResults(results, category) {
     // Build prompt for OpenAI
@@ -99,7 +130,6 @@ async function analyzeResults(results, category) {
 
 // Export the handler function
 exports.handler = async function(event, context) {
-    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -118,15 +148,12 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Create mock results for testing
-        const results = [
-            {
-                title: "Sample Energy Rebate Program",
-                snippet: "This is a sample energy rebate program offering incentives for energy-efficient upgrades."
-            }
-        ];
-
-        const analysis = await analyzeResults(results, category);
+        // Perform Google search
+        console.log('Performing search for:', query);
+        const searchResults = await performGoogleSearch(query);
+        
+        // Analyze the results
+        const analysis = await analyzeResults(searchResults, category);
 
         return {
             statusCode: 200,
