@@ -9,14 +9,35 @@ import { dirname } from 'path';
 import dotenv from 'dotenv';
 import { GoogleSheetsCache } from './services/sheets-cache.js';
 
-// Initialize environment variables
-dotenv.config();
+// Initialize environment variables with the correct path
+dotenv.config({ path: path.join(dirname(fileURLToPath(import.meta.url)), '.env') });
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
+// CORS configuration
+const corsOptions = {
+    origin: function(origin, callback) {
+        const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
+    preflightContinue: false,
+    optionsSuccessStatus: 204
+};
+
+// Apply CORS middleware before other middleware
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable pre-flight for all routes
 
 // Initialize cache
 const cache = new GoogleSheetsCache();
@@ -27,16 +48,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-// CORS configuration
-const corsOptions = {
-    origin: '*', // Allow all origins for testing
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-};
-
 // Middleware
-app.use(cors(corsOptions));
 app.use(express.json());
 
 // Serve static files from the root directory
@@ -80,7 +92,14 @@ app.get('/api/cache', async (req, res) => {
 
         const cachedResults = await cache.get(query, category);
         if (cachedResults) {
-            console.log('Cache hit for:', query, category);
+            console.log('✅ CACHE HIT: Results retrieved from cache');
+            console.log('📦 Cache details:', { query, category });
+            // Add source indicator to each program
+            cachedResults.programs = cachedResults.programs.map(program => ({
+                ...program,
+                source: 'cache'
+            }));
+            console.log('Program with source:', cachedResults.programs[0]); // Debug log
             return res.json(cachedResults);
         }
 
@@ -149,6 +168,7 @@ async function performGoogleSearch(query) {
 // API endpoint for analysis
 app.post('/api/analyze', async (req, res) => {
     try {
+        console.log('\n========== NEW ANALYSIS REQUEST ==========');
         const { query, category } = req.body;
         console.log('📝 Analyze request:', { query, category });
         
@@ -158,24 +178,34 @@ app.post('/api/analyze', async (req, res) => {
         }
 
         // First check cache
+        console.log('\n🔍 Checking cache...');
         const cachedResults = await cache.get(query, category);
         if (cachedResults) {
-            console.log('💾 Cache hit in analyze endpoint');
+            console.log('✅ CACHE HIT: Results retrieved from cache');
+            console.log('📦 Cache details:', { query, category });
+            // Add source indicator to each program
+            cachedResults.programs = cachedResults.programs.map(program => ({
+                ...program,
+                source: 'cache'
+            }));
+            console.log('Program with source:', cachedResults.programs[0]); // Debug log
             return res.json(cachedResults);
         }
 
         // Perform Google search
-        const searchQuery = `${query} ${category === 'Federal' ? 'federal' : category} energy rebate program`;
-        console.log('🔍 Starting search for:', searchQuery);
+        console.log('\n🔎 CACHE MISS: Performing fresh Google search');
+        const searchQuery = `${query} ${category === 'Federal' ? 'federal government' : category} energy rebate program incentive`;
+        console.log('🔍 Search query:', searchQuery);
         
         const searchResults = await performGoogleSearch(searchQuery);
-        console.log('📊 Search results count:', searchResults.length);
+        console.log(`📊 Found ${searchResults.length} results from Google Search`);
         
         if (!searchResults || searchResults.length === 0) {
-            console.warn('⚠️ No search results found for:', searchQuery);
+            console.warn('⚠️ No search results found');
             return res.status(404).json({ error: 'No search results found' });
         }
 
+        console.log('\n🤖 Analyzing results with OpenAI...');
         // Map search results to our format
         const results = searchResults.map(item => ({
             title: item.title,
@@ -192,6 +222,13 @@ app.post('/api/analyze', async (req, res) => {
             return res.status(404).json({ error: 'No programs found in analysis' });
         }
         
+        // Add source indicator to each program
+        analysis.programs = analysis.programs.map(program => ({
+            ...program,
+            source: 'search'
+        }));
+        console.log('Program with source:', analysis.programs[0]); // Debug log
+
         // Store in cache
         await cache.set(query, category, analysis);
         console.log('💾 Results cached successfully');

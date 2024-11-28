@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Green Rebates Calculator</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="css/styles.css">
   <style>
     /* General Styles */
@@ -125,7 +125,6 @@
       border: 1px solid #e1e4e8;
       border-radius: 8px;
       padding: 20px;
-      transition: transform 0.2s, box-shadow 0.2s;
     }
 
     .program-card:hover {
@@ -746,6 +745,160 @@
     .error-content i {
       font-size: 1.25rem;
     }
+
+    /* Program Card Styles */
+    .program-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .program-header {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      font-size: 1.2em;
+      font-weight: bold;
+      background-color: #f8f9fa;
+    }
+
+    .program-type {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--secondary);
+      margin-bottom: 10px;
+    }
+
+    .program-amount {
+      font-size: 1.2rem;
+      color: var(--success);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .program-summary {
+      color: var(--gray-700);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--gray-200);
+      padding-bottom: 5px;
+    }
+
+    .program-projects,
+    .program-recipients,
+    .program-requirements,
+    .program-contact {
+      margin-bottom: 20px;
+    }
+
+    .project-item,
+    .recipient-item,
+    .requirement-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--gray-700);
+    }
+
+    .program-scope,
+    .program-process,
+    .program-deadline,
+    .program-processing {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--gray-700);
+    }
+
+    .program-website {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 10px;
+      padding: 8px 16px;
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .program-website:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .contact-info {
+      color: var(--gray-700);
+      margin-top: 5px;
+    }
+
+    /* Icon styles */
+    .fas {
+      font-size: 1.1em;
+      margin-right: 5px;
+      color: var(--primary);
+    }
+
+    .source-indicator {
+      margin-left: 10px;
+      font-size: 1.2em;
+      padding: 5px 10px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .source-indicator i[title="From Cache"] {
+      color: #2563eb;
+    }
+
+    .source-indicator i[title="Fresh Search"] {
+      color: #7c3aed;
+    }
+
+    /* Add styles for the source indicator */
+    .source-indicator-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.675em;
+      padding: 5px;
+      border-radius: 4px;
+      background-color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .source-indicator-container i {
+      margin-right: 5px;
+    }
+
+    .source-indicator-container .cached {
+      color: #6B7280;
+    }
+
+    .source-indicator-container .search {
+      color: #6B7280;
+    }
   </style>
 </head>
 <body>
@@ -831,15 +984,27 @@
 
       <!-- Results Container -->
       <div id="resultsContainer" style="display: none;">
-        <div id="federalResults" class="results-section">
+        <div id="federalResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
           <h2>Federal Programs</h2>
           <div class="programs-grid"></div>
         </div>
-        <div id="stateResults" class="results-section">
+        <div id="stateResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
           <h2>State Programs</h2>
           <div class="programs-grid"></div>
         </div>
-        <div id="countyResults" class="results-section">
+        <div id="countyResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
           <h2>County Programs</h2>
           <div class="programs-grid"></div>
         </div>
@@ -854,33 +1019,87 @@
 
     // Helper function to create a program card
     function createProgramCard(program) {
+      console.log('Creating card for program:', program); // Debug log
       const card = document.createElement('div');
       card.className = 'program-card';
       
+      // Header with source indicator
       const header = document.createElement('div');
       header.className = 'program-header';
-      header.textContent = program.name;
+      
+      // Program name
+      const name = document.createElement('span');
+      name.textContent = program.name;
+      header.appendChild(name);
+
       card.appendChild(header);
 
+      // Program Type
+      const type = document.createElement('div');
+      type.className = 'program-type';
+      type.innerHTML = `<i class="fas fa-tag"></i><span>Type: ${program.programType || 'Rebate'}</span>`;
+      card.appendChild(type);
+
+      // Amount
       const amount = document.createElement('div');
       amount.className = 'program-amount';
-      amount.innerHTML = `<i class="fas fa-dollar-sign"></i>${program.amount}`;
+      amount.innerHTML = `<i class="fas fa-dollar-sign"></i><span>Amount: ${program.amount}</span>`;
       card.appendChild(amount);
 
+      // Summary
       const summary = document.createElement('div');
       summary.className = 'program-summary';
       summary.textContent = program.summary;
       card.appendChild(summary);
 
+      // Eligible Projects
+      if (program.eligibleProjects && program.eligibleProjects.length > 0) {
+        const projects = document.createElement('div');
+        projects.className = 'program-projects';
+        const projectsTitle = document.createElement('div');
+        projectsTitle.className = 'section-title';
+        projectsTitle.innerHTML = '<i class="fas fa-tasks"></i> Eligible Projects';
+        projects.appendChild(projectsTitle);
+        program.eligibleProjects.forEach(project => {
+          const item = document.createElement('div');
+          item.className = 'project-item';
+          item.innerHTML = `<i class="fas fa-check"></i><span>${project}</span>`;
+          projects.appendChild(item);
+        });
+        card.appendChild(projects);
+      }
+
+      // Eligible Recipients
+      if (program.eligibleRecipients && program.eligibleRecipients.length > 0) {
+        const recipients = document.createElement('div');
+        recipients.className = 'program-recipients';
+        const recipientsTitle = document.createElement('div');
+        recipientsTitle.className = 'section-title';
+        recipientsTitle.innerHTML = '<i class="fas fa-users"></i> Eligible Recipients';
+        recipients.appendChild(recipientsTitle);
+        program.eligibleRecipients.forEach(recipient => {
+          const item = document.createElement('div');
+          item.className = 'recipient-item';
+          item.innerHTML = `<i class="fas fa-user"></i><span>${recipient}</span>`;
+          recipients.appendChild(item);
+        });
+        card.appendChild(recipients);
+      }
+
+      // Geographic Scope
+      const scope = document.createElement('div');
+      scope.className = 'program-scope';
+      scope.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Location: ${program.geographicScope}</span>`;
+      card.appendChild(scope);
+
+      // Requirements
       if (program.requirements && program.requirements.length > 0) {
         const requirements = document.createElement('div');
         requirements.className = 'program-requirements';
-        
         const requirementsTitle = document.createElement('div');
-        requirementsTitle.className = 'requirements-title';
-        requirementsTitle.textContent = 'Requirements';
+        requirementsTitle.className = 'section-title';
+        requirementsTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Requirements';
         requirements.appendChild(requirementsTitle);
-
         program.requirements.forEach(req => {
           if (req && typeof req === 'string' && !req.toLowerCase().includes('contact administrator')) {
             const item = document.createElement('div');
@@ -889,16 +1108,55 @@
             requirements.appendChild(item);
           }
         });
-
-        if (requirements.children.length > 1) { // Only add if there are requirements beyond the title
+        if (requirements.children.length > 1) {
           card.appendChild(requirements);
         }
       }
 
+      // Application Process
+      const process = document.createElement('div');
+      process.className = 'program-process';
+      process.innerHTML = `<i class="fas fa-file-alt"></i><span>How to Apply: ${program.applicationProcess}</span>`;
+      card.appendChild(process);
+
+      // Deadline
       const deadline = document.createElement('div');
       deadline.className = 'program-deadline';
-      deadline.innerHTML = `<i class="fas fa-clock"></i>Deadline: ${program.deadline}`;
+      deadline.innerHTML = `<i class="fas fa-clock"></i><span>Deadline: ${program.deadline}</span>`;
       card.appendChild(deadline);
+
+      // Website Link
+      if (program.websiteLink) {
+        const website = document.createElement('a');
+        website.className = 'program-website';
+        website.href = program.websiteLink;
+        website.target = '_blank';
+        website.innerHTML = `<i class="fas fa-external-link-alt"></i><span>Visit Official Website</span>`;
+        card.appendChild(website);
+      }
+
+      // Contact Information
+      if (program.contactInformation) {
+        const contact = document.createElement('div');
+        contact.className = 'program-contact';
+        const contactTitle = document.createElement('div');
+        contactTitle.className = 'section-title';
+        contactTitle.innerHTML = '<i class="fas fa-address-card"></i> Contact Information';
+        contact.appendChild(contactTitle);
+        const info = document.createElement('div');
+        info.className = 'contact-info';
+        info.innerHTML = program.contactInformation;
+        contact.appendChild(info);
+        card.appendChild(contact);
+      }
+
+      // Processing Time
+      if (program.processingTime) {
+        const processing = document.createElement('div');
+        processing.className = 'program-processing';
+        processing.innerHTML = `<i class="fas fa-hourglass-half"></i><span>Processing Time: ${program.processingTime}</span>`;
+        card.appendChild(processing);
+      }
 
       return card;
     }

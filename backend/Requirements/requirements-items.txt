@@ -1,0 +1,49 @@
+Title: [Program Name]
+
+Summary: Brief description focusing on key benefits and eligibility (max 320 characters)
+
+Program Type: [Rebate/Grant/Tax Credit/Low-Interest Loan]
+
+Amount: [Exact amount or range, with $ and commas]
+
+Eligible Projects:
+- Solar panels
+- HVAC systems
+- Insulation
+- Electric vehicles
+- Energy-efficient appliances
+- Home improvements
+
+Eligible Recipients:
+- Homeowners
+- Businesses
+- Municipalities
+- Income requirements
+- Other qualifying criteria
+
+Geographic Scope:
+- Nationwide
+- State-specific
+- County/city-specific
+- Utility service area
+
+Requirements:
+- Application forms
+- Proof of purchase/installation
+- Contractor requirements
+- Energy audits
+- Income verification
+- Property documentation
+
+Application Process: [1-2 line description of how to apply]
+
+Deadline: [Specific date or "Ongoing"]
+
+Website Link: [Official program URL]
+
+Contact Information:
+- Phone numbers
+- Email addresses
+- Office locations
+
+Processing Time: [e.g., "6-8 weeks" or "30 days after approval"]
