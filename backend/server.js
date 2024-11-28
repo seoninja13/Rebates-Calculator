@@ -21,8 +21,14 @@ const app = express();
 // CORS configuration
 const corsOptions = {
     origin: function(origin, callback) {
-        const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000'];
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        const allowedOrigins = [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'http://localhost:8888',  // Netlify CLI local development
+            'https://green-rebates-calculator.netlify.app'
+        ];
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));

@@ -1,6 +1,9 @@
 export default class RebatePrograms {
     constructor() {
-        this.baseUrl = 'http://localhost:3001';
+        // Use environment-specific API URL
+        this.baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001'
+            : '/.netlify/functions';  // This will point to Netlify Functions when deployed
     }
 
     async analyze(county) {
