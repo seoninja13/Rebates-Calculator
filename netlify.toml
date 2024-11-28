@@ -1,24 +1,6 @@
 [build]
-  command = "cd backend && npm install"
-  functions = "netlify/functions"
   publish = "."
-
-[dev]
   functions = "netlify/functions"
-  publish = "."
 
 [functions]
   node_bundler = "esbuild"
-  timeout = 30
-
-[[headers]]
-  for = "/.netlify/functions/*"
-  [headers.values]
-    Access-Control-Allow-Origin = "*"
-    Access-Control-Allow-Methods = "OPTIONS, POST, GET"
-    Access-Control-Allow-Headers = "Origin, Content-Type"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Content-Type = "application/javascript"

@@ -4,7 +4,8 @@
   "description": "Rebates Calculator with OpenAI integration",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "build": "echo 'No build step required - static site'"
   },
   "dependencies": {
     "express": "^4.18.2",
