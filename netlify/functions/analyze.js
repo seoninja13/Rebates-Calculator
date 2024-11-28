@@ -10,6 +10,13 @@ const openai = new OpenAI({
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
+// Debug log environment variables (excluding sensitive values)
+console.log('Environment check:', {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Not set',
+    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Not set',
+    GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ? 'Set' : 'Not set'
+});
+
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
     const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
@@ -130,6 +137,9 @@ async function analyzeResults(results, category) {
 
 // Export the handler function
 exports.handler = async function(event, context) {
+    console.log('Function started');
+    console.log('HTTP Method:', event.httpMethod);
+    
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -138,10 +148,14 @@ exports.handler = async function(event, context) {
     }
 
     try {
+        console.log('Parsing request body');
         const body = JSON.parse(event.body);
+        console.log('Request body:', body);
+        
         const { query, category } = body;
 
         if (!query || !category) {
+            console.log('Missing parameters:', { query, category });
             return {
                 statusCode: 400,
                 body: JSON.stringify({ error: 'Missing required parameters: query and category' })
@@ -149,11 +163,14 @@ exports.handler = async function(event, context) {
         }
 
         // Perform Google search
-        console.log('Performing search for:', query);
+        console.log('Starting Google search for:', query);
         const searchResults = await performGoogleSearch(query);
+        console.log('Search results count:', searchResults.length);
         
         // Analyze the results
+        console.log('Starting analysis for category:', category);
         const analysis = await analyzeResults(searchResults, category);
+        console.log('Analysis completed');
 
         return {
             statusCode: 200,
@@ -166,10 +183,19 @@ exports.handler = async function(event, context) {
             body: JSON.stringify(analysis)
         };
     } catch (error) {
-        console.error('Error:', error);
+        console.error('Detailed error:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
+        
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Internal server error' })
+            body: JSON.stringify({ 
+                error: 'Internal server error',
+                details: error.message,
+                type: error.name
+            })
         };
     }
 };
