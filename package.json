@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Rebates Calculator with OpenAI integration",
   "main": "backend/server.js",
+  "type": "module",
   "scripts": {
     "start": "node backend/server.js",
     "build": "echo 'No build step required - static site'"

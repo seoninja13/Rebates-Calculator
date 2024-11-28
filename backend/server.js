@@ -169,8 +169,8 @@ async function performGoogleSearch(query) {
 app.post('/api/analyze', async (req, res) => {
     try {
         console.log('\n========== NEW ANALYSIS REQUEST ==========');
-        const { query, category } = req.body;
-        console.log('📝 Analyze request:', { query, category });
+        const { query, category, county } = req.body;
+        console.log('📝 Analyze request:', { query, category, county });
         
         if (!query || !category) {
             console.error('❌ Missing parameters:', { query, category });
@@ -214,7 +214,7 @@ app.post('/api/analyze', async (req, res) => {
         }));
         console.log('🔄 Mapped results:', JSON.stringify(results, null, 2));
 
-        const analysis = await analyzeResults(results, category);
+        const analysis = await analyzeResults(results, category, county);
         console.log('✨ Analysis results:', JSON.stringify(analysis, null, 2));
         
         if (!analysis || !analysis.programs || analysis.programs.length === 0) {
@@ -241,17 +241,54 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 // Helper function to analyze results
-async function analyzeResults(results, category) {
+async function analyzeResults(results, category, county) {
     try {
         const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
         console.log('📝 Sending to OpenAI:', resultsText);
-        const prompt = `Analyze these ${category} rebate programs and extract detailed information about all programs. For each program, provide the following information in this exact format:
+        const prompt = `Analyze these ${category} rebate programs and extract detailed information about all programs. 
+
+STRICT CATEGORIZATION AND DUPLICATION RULES - YOU MUST FOLLOW THESE EXACTLY:
+
+1. For County programs (when searching for "${county} county"):
+   *** EXTREMELY IMPORTANT: DO NOT INCLUDE ANY FEDERAL OR STATE PROGRAMS IN COUNTY RESULTS ***
+   - ONLY include programs that are EXCLUSIVELY available to ${county} County residents
+   - ONLY include programs administered by:
+     * ${county} County government offices
+     * Local utilities serving ONLY ${county} County
+     * City governments within ${county} County
+   - Programs must be UNIQUE to ${county} County
+   - STRICTLY EXCLUDE:
+     * ANY federal programs (even if they apply to the county)
+     * ANY state programs (even if they apply to the county)
+     * ANY programs available outside ${county} County
+     * ANY programs from other counties
+   If in doubt whether a program is county-specific, DO NOT include it.
+
+2. For State programs:
+   - ONLY include programs administered by California state agencies
+   - ONLY include programs available to all California residents
+   - EXCLUDE ALL federal and county-specific programs
+   - EXCLUDE programs specific to individual counties
+
+3. For Federal programs:
+   - ONLY include nationwide programs administered by federal agencies
+   - Programs must be available across all US states
+   - EXCLUDE ALL state and county-specific programs
+
+DUPLICATION CHECK:
+- Before including any program in the County results, verify it is NOT:
+  * A federal program being implemented locally
+  * A state program being implemented locally
+  * A utility program available in multiple counties
+  * A regional program covering multiple counties
+
+For each program that matches the correct category, provide the following information in this exact format:
 
 Title: [Program Name]
 
 Summary: Provide a concise 320-character summary focusing on the program's key benefits and eligibility criteria.
 
-Program Type: Specify if it's a rebate, grant, tax credit, or low-interest loan. This helps categorize the program.
+Program Type: Specify if it's a rebate, grant, tax credit, or low-interest loan.
 
 Amount: Format as exact amount (e.g., "$5,000") or range (e.g., "Up to $X,XXX"). Always include dollar signs and commas.
 
@@ -268,41 +305,29 @@ Eligible Recipients: Specify who can apply, including:
 - Income requirements if any
 - Other qualifying criteria
 
-Geographic Scope: Specify the exact coverage area:
-- Nationwide
-- State-specific (specify which state)
-- County or city-specific
-- Utility service area
+Geographic Scope: Must be one of:
+- For Federal: "Available nationwide through [federal agency name]"
+- For State: "Available throughout California through [state agency name]"
+- For County: "Available only to ${county} County residents through [local agency/utility name]"
 
-Requirements: List all required documents and conditions, such as:
-- Application forms
-- Proof of purchase/installation
-- Contractor requirements
-- Energy audits
-- Income verification
-- Property documentation
+Requirements: List all required documents and conditions.
 
-Application Process: Provide a clear 1-2 line description of how to apply (e.g., "Apply online through government portal" or "Submit application to local utility company")
+Application Process: Provide a clear 1-2 line description of how to apply.
 
-Deadline: Specify the application deadline or if it's ongoing. Include exact date if available.
+Deadline: Specify the application deadline or if it's ongoing.
 
-Website Link: Provide the official program URL for more information or application.
+Website Link: Provide the official program URL.
 
-Contact Information: Include phone numbers, email addresses, or office locations for support.
-
-Processing Time: Specify how long it typically takes to receive funds or approval (e.g., "6-8 weeks" or "30 days after approval")
+Contact Information: Include phone numbers, email addresses, or office locations.
 
 If any field's information is not found in the source text, use these defaults:
 - Summary: "This program offers financial incentives for energy-efficient home improvements. Contact program administrator for specific details."
 - Program Type: "Rebate"
 - Amount: "Amount varies"
-- Eligible Projects: "Contact administrator for eligible projects"
-- Eligible Recipients: "Contact administrator for eligibility requirements"
-- Geographic Scope: "Contact administrator for coverage area"
-- Requirements: ["Contact program administrator for specific requirements"]
-- Application Process: "Contact administrator for application details"
-- Deadline: "Ongoing"
-- Processing Time: "Contact administrator for processing time details"
+- Geographic Scope: 
+  * Federal: "Available nationwide"
+  * State: "Available throughout California"
+  * County: "Available only to ${county} County residents"
 
 Here are the programs to analyze:
 

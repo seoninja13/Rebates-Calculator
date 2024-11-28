@@ -1037,13 +1037,13 @@
       // Program Type
       const type = document.createElement('div');
       type.className = 'program-type';
-      type.innerHTML = `<i class="fas fa-tag"></i><span>Type: ${program.programType || 'Rebate'}</span>`;
+      type.innerHTML = `<i class="fas fa-tag"></i>Type: <span>${program.programType || 'Rebate'}</span>`;
       card.appendChild(type);
 
       // Amount
       const amount = document.createElement('div');
       amount.className = 'program-amount';
-      amount.innerHTML = `<i class="fas fa-dollar-sign"></i><span>Amount: ${program.amount}</span>`;
+      amount.innerHTML = `<i class="fas fa-dollar-sign"></i><span>Amount: </span><span class="amount-value">${program.amount}</span>`;
       card.appendChild(amount);
 
       // Summary
@@ -1097,33 +1097,47 @@
         const requirements = document.createElement('div');
         requirements.className = 'program-requirements';
         const requirementsTitle = document.createElement('div');
-        requirementsTitle.className = 'section-title';
+        requirementsTitle.className = 'requirements-title';
         requirementsTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Requirements';
         requirements.appendChild(requirementsTitle);
-        program.requirements.forEach(req => {
-          if (req && typeof req === 'string' && !req.toLowerCase().includes('contact administrator')) {
-            const item = document.createElement('div');
-            item.className = 'requirement-item';
-            item.innerHTML = `<i class="fas fa-check"></i><span>${req}</span>`;
-            requirements.appendChild(item);
-          }
+        program.requirements.forEach(requirement => {
+          const item = document.createElement('div');
+          item.className = 'requirement-item';
+          item.innerHTML = `<i class="fas fa-check"></i><span>${requirement}</span>`;
+          requirements.appendChild(item);
         });
-        if (requirements.children.length > 1) {
-          card.appendChild(requirements);
-        }
+        card.appendChild(requirements);
       }
 
-      // Application Process
-      const process = document.createElement('div');
-      process.className = 'program-process';
-      process.innerHTML = `<i class="fas fa-file-alt"></i><span>How to Apply: ${program.applicationProcess}</span>`;
-      card.appendChild(process);
+      // How to Apply
+      if (program.applicationProcess) {
+        const application = document.createElement('div');
+        application.className = 'program-application';
+        const applicationTitle = document.createElement('div');
+        applicationTitle.className = 'how-to-apply-title';
+        applicationTitle.innerHTML = '<i class="fas fa-file-alt"></i> How to Apply';
+        application.appendChild(applicationTitle);
+        const applicationText = document.createElement('div');
+        applicationText.className = 'application-text';
+        applicationText.textContent = program.applicationProcess;
+        application.appendChild(applicationText);
+        card.appendChild(application);
+      }
 
       // Deadline
-      const deadline = document.createElement('div');
-      deadline.className = 'program-deadline';
-      deadline.innerHTML = `<i class="fas fa-clock"></i><span>Deadline: ${program.deadline}</span>`;
-      card.appendChild(deadline);
+      if (program.deadline) {
+        const deadline = document.createElement('div');
+        deadline.className = 'program-deadline';
+        const deadlineTitle = document.createElement('div');
+        deadlineTitle.className = 'deadline-title';
+        deadlineTitle.innerHTML = '<i class="fas fa-clock"></i> Deadline';
+        deadline.appendChild(deadlineTitle);
+        const deadlineText = document.createElement('div');
+        deadlineText.className = 'deadline-text';
+        deadlineText.textContent = program.deadline;
+        deadline.appendChild(deadlineText);
+        card.appendChild(deadline);
+      }
 
       // Website Link
       if (program.websiteLink) {
