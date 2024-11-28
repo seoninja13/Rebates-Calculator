@@ -17,26 +17,30 @@ class RebatePrograms {
         }
 
         try {
-            console.log('Sending request to:', this.apiEndpoint);
-            console.log('Request data:', { results, category });
-
             const response = await fetch(this.apiEndpoint, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ results, category })
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text();
+                console.error(`Server response (${response.status}):`, errorText);
+                
+                if (response.status === 502) {
+                    throw new Error('The request took too long to process. Please try again with a more specific search term.');
+                }
+                
+                throw new Error(`Server error (${response.status}): ${errorText || 'No error details available'}`);
             }
 
             const data = await response.json();
             this.cache.set(cacheKey, data);
             return data;
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error in fetchPrograms:', error);
             throw error;
         }
     }

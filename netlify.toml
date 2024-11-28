@@ -6,6 +6,10 @@
   functions = "netlify/functions"
   publish = "."
 
+[functions]
+  node_bundler = "esbuild"
+  timeout = 30
+
 [[headers]]
   for = "/.netlify/functions/*"
   [headers.values]
@@ -31,6 +35,11 @@
 
 [[redirects]]
   from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 

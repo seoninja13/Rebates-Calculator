@@ -726,6 +726,26 @@
       text-align: center;
       margin-bottom: 2rem;
     }
+
+    .error-message {
+      background-color: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.5rem;
+      display: none;
+    }
+
+    .error-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .error-content i {
+      font-size: 1.25rem;
+    }
   </style>
 </head>
 <body>
@@ -812,6 +832,12 @@
           <div class="spinner"></div>
           <p>Searching for rebates...</p>
         </div>
+        <div id="error-message" class="error-message" style="display: none;">
+          <div class="error-content">
+            <i class="fas fa-exclamation-circle"></i>
+            <span id="error-text"></span>
+          </div>
+        </div>
         <div class="rebates-results" id="rebatesResultsSection">
           <div id="rebatesResults"></div>
         </div>
@@ -836,8 +862,24 @@
       });
     }
 
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      const errorText = document.getElementById('error-text');
+      errorText.textContent = message;
+      errorDiv.style.display = 'block';
+      
+      // Scroll to error message
+      errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function hideError() {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.style.display = 'none';
+    }
+
     document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
       event.preventDefault();
+      hideError();
       const county = document.getElementById('countySelect').value;
       const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
       const resultsContainer = document.getElementById('rebatesResults');
@@ -906,13 +948,7 @@
         });
 
       } catch (error) {
-        console.error('Search error:', error);
-        resultsContainer.innerHTML = `
-          <div class="error-section">
-            <p>An error occurred while searching for rebate programs. Please try again.</p>
-            <p>Error details: ${error.message}</p>
-          </div>
-        `;
+        showError(error.message);
       } finally {
         // Hide loading spinner
         loadingSpinner.style.display = 'none';
