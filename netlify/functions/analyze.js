@@ -193,7 +193,10 @@ exports.handler = async function(event, context) {
             };
         }
 
-        // Return the input data for testing
+        // Perform the actual analysis
+        const searchResults = await performGoogleSearch(query);
+        const analyzedResults = await analyzeResults(searchResults, category);
+
         return {
             statusCode: 200,
             headers: {
@@ -203,13 +206,9 @@ exports.handler = async function(event, context) {
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
             body: JSON.stringify({
-                message: 'Request received successfully',
-                receivedData: { query, category },
-                env: {
-                    OPENAI_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Not set',
-                    GOOGLE_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Not set',
-                    SEARCH_ENGINE: process.env.GOOGLE_SEARCH_ENGINE_ID ? 'Set' : 'Not set'
-                }
+                programs: analyzedResults,
+                query,
+                category
             })
         };
     } catch (error) {
