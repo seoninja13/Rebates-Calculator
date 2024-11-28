@@ -109,14 +109,22 @@ exports.handler = async function(event, context) {
 
     try {
         const body = JSON.parse(event.body);
-        const { results, category } = body;
+        const { query, category } = body;
 
-        if (!results || !category) {
+        if (!query || !category) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ error: 'Missing required parameters' })
+                body: JSON.stringify({ error: 'Missing required parameters: query and category' })
             };
         }
+
+        // Create mock results for testing
+        const results = [
+            {
+                title: "Sample Energy Rebate Program",
+                snippet: "This is a sample energy rebate program offering incentives for energy-efficient upgrades."
+            }
+        ];
 
         const analysis = await analyzeResults(results, category);
 
