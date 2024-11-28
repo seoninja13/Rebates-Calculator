@@ -1,5 +1,10 @@
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') });
+
+// Log the path we're trying to load
+console.log('Trying to load .env from:', path.resolve(__dirname, '../../backend/.env'));
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -16,6 +21,10 @@ console.log('Environment check:', {
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Not set',
     GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ? 'Set' : 'Not set'
 });
+
+// Additional debug logging
+console.log('All environment variables:', process.env);
+console.log('Current working directory:', process.cwd());
 
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
@@ -137,9 +146,23 @@ async function analyzeResults(results, category) {
 
 // Export the handler function
 exports.handler = async function(event, context) {
+    // Log the start of function execution
     console.log('Function started');
-    console.log('HTTP Method:', event.httpMethod);
-    
+
+    // Handle OPTIONS request for CORS
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            body: ''
+        };
+    }
+
+    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
@@ -148,30 +171,29 @@ exports.handler = async function(event, context) {
     }
 
     try {
-        console.log('Parsing request body');
-        const body = JSON.parse(event.body);
-        console.log('Request body:', body);
+        // Log the raw event body
+        console.log('Raw event body:', event.body);
         
-        const { query, category } = body;
+        // Parse the request body
+        const body = JSON.parse(event.body);
+        console.log('Parsed body:', body);
 
+        // Extract query and category
+        const { query, category } = body;
+        console.log('Extracted data:', { query, category });
+
+        // Check for required parameters
         if (!query || !category) {
-            console.log('Missing parameters:', { query, category });
             return {
                 statusCode: 400,
-                body: JSON.stringify({ error: 'Missing required parameters: query and category' })
+                body: JSON.stringify({ 
+                    error: 'Missing required parameters',
+                    received: { query, category }
+                })
             };
         }
 
-        // Perform Google search
-        console.log('Starting Google search for:', query);
-        const searchResults = await performGoogleSearch(query);
-        console.log('Search results count:', searchResults.length);
-        
-        // Analyze the results
-        console.log('Starting analysis for category:', category);
-        const analysis = await analyzeResults(searchResults, category);
-        console.log('Analysis completed');
-
+        // Return the input data for testing
         return {
             statusCode: 200,
             headers: {
@@ -180,18 +202,32 @@ exports.handler = async function(event, context) {
                 'Access-Control-Allow-Headers': 'Content-Type',
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
-            body: JSON.stringify(analysis)
+            body: JSON.stringify({
+                message: 'Request received successfully',
+                receivedData: { query, category },
+                env: {
+                    OPENAI_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Not set',
+                    GOOGLE_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Not set',
+                    SEARCH_ENGINE: process.env.GOOGLE_SEARCH_ENGINE_ID ? 'Set' : 'Not set'
+                }
+            })
         };
     } catch (error) {
-        console.error('Detailed error:', {
+        console.error('Error details:', {
             message: error.message,
             stack: error.stack,
             name: error.name
         });
-        
+
         return {
             statusCode: 500,
-            body: JSON.stringify({ 
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            body: JSON.stringify({
                 error: 'Internal server error',
                 details: error.message,
                 type: error.name
