@@ -1,10 +1,6 @@
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../../backend/.env') });
-
-// Log the path we're trying to load
-console.log('Trying to load .env from:', path.resolve(__dirname, '../../backend/.env'));
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -28,7 +24,7 @@ console.log('Current working directory:', process.cwd());
 
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
-    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
+    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
     console.log('🔍 Performing Google search with URL:', url);
     
     try {
@@ -42,6 +38,27 @@ async function performGoogleSearch(query) {
         
         if (!data.items || data.items.length === 0) {
             console.warn('⚠️ No items found in Google Search response');
+            // Add fallback search terms for federal rebates
+            const fallbackQueries = [
+                'federal energy efficiency tax credits',
+                'federal renewable energy rebates',
+                'US government energy incentives',
+                'federal solar tax credits'
+            ];
+            
+            for (const fallbackQuery of fallbackQueries) {
+                const fallbackUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(fallbackQuery)}&num=10`;
+                console.log(`🔄 Trying fallback search: ${fallbackQuery}`);
+                
+                const fallbackResponse = await fetch(fallbackUrl);
+                const fallbackData = await fallbackResponse.json();
+                
+                if (fallbackData.items && fallbackData.items.length > 0) {
+                    console.log(`✅ Found results with fallback query: ${fallbackQuery}`);
+                    return fallbackData.items;
+                }
+            }
+            
             return [];
         }
         
@@ -53,8 +70,23 @@ async function performGoogleSearch(query) {
 }
 
 async function analyzeResults(results, category) {
+    // Log raw search results
+    console.log('Raw Search Results:', JSON.stringify(results, null, 2));
+
     // Build prompt for OpenAI
     const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
+    console.log('Results Text for OpenAI:', resultsText);
+
+    if (!resultsText) {
+        console.error('❌ NO SEARCH RESULTS FOUND');
+        return {
+            category: category,
+            programs: [],
+            error: 'No search results found',
+            timestamp: new Date().toISOString()
+        };
+    }
+
     const prompt = `CRITICAL TASK: Analyze these ${category} rebate programs and extract comprehensive information.
 
     MANDATORY REQUIREMENTS FOR EACH PROGRAM:
@@ -114,10 +146,17 @@ async function analyzeResults(results, category) {
         let parsedContent;
         try {
             parsedContent = JSON.parse(completion.choices[0].message.content);
+            console.log('Parsed OpenAI Content:', JSON.stringify(parsedContent, null, 2));
         } catch (parseError) {
             console.error('JSON Parsing Error:', parseError);
             console.error('Raw content:', completion.choices[0].message.content);
-            throw new Error('Failed to parse OpenAI response');
+            return {
+                category: category,
+                programs: [],
+                error: 'Failed to parse OpenAI response',
+                rawContent: completion.choices[0].message.content,
+                timestamp: new Date().toISOString()
+            };
         }
 
         // Validate that each program has a summary
@@ -133,6 +172,8 @@ async function analyzeResults(results, category) {
             };
         });
 
+        console.log('Validated Programs:', JSON.stringify(validatedPrograms, null, 2));
+
         return {
             category: category,
             programs: validatedPrograms,
@@ -140,7 +181,12 @@ async function analyzeResults(results, category) {
         };
     } catch (error) {
         console.error('OpenAI API Error:', error);
-        throw new Error('Failed to analyze results');
+        return {
+            category: category,
+            programs: [],
+            error: error.message,
+            timestamp: new Date().toISOString()
+        };
     }
 }
 
