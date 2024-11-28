@@ -1,152 +1,85 @@
-class RebatePrograms {
+export default class RebatePrograms {
     constructor() {
-        this.cache = new Map();
-        // Get the current hostname
-        const hostname = window.location.hostname;
-        // Use production endpoint or fallback to local during development
-        this.apiEndpoint = `${window.location.protocol}//${hostname}/.netlify/functions/analyze`;
-        // Fallback to local if in development
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            this.apiEndpoint = 'http://localhost:3001/api/analyze';
-        }
-        console.log('Using API endpoint:', this.apiEndpoint);
+        this.baseUrl = 'http://localhost:3001';
     }
 
-    async fetchPrograms(results, category) {
-        const cacheKey = `${category}-${JSON.stringify(results)}`;
-        
-        // Check cache
-        if (this.cache.has(cacheKey)) {
-            return this.cache.get(cacheKey);
-        }
-
+    async analyze(county) {
         try {
-            console.log('Sending request to:', this.apiEndpoint);
-            console.log('Request data:', { results, category });
+            const categories = ['Federal', 'State', 'County'];
+            const results = {};
 
-            const response = await fetch(this.apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                mode: 'cors',
-            body: JSON.stringify({ 
-                results: results.map(r => ({
-                    title: r.title,
-                    snippet: r.snippet,
-                    link: r.link
-                })), 
-                category 
-            })
-        });
+            for (const category of categories) {
+                try {
+                    const response = await fetch(`${this.baseUrl}/api/analyze`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            query: category === 'County' 
+                                ? `${county} county california energy rebate program`
+                                : category === 'State'
+                                ? 'california state energy rebate program'
+                                : 'federal energy rebate program california',
+                            category
+                        })
+                    });
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch analysis');
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    console.log(`${category} programs data:`, data);
+                    
+                    // Update source indicator icons for the specific section
+                    const sectionId = `${category.toLowerCase()}Results`;
+                    const cachedIcon = document.querySelector(`#${sectionId} .source-indicator-container .cached`);
+                    const searchIcon = document.querySelector(`#${sectionId} .source-indicator-container .search`);
+                    
+                    // Check source from the first program's source field
+                    if (data.programs && data.programs.length > 0 && data.programs[0].source === 'cache') {
+                        cachedIcon.style.display = 'inline-block';
+                        searchIcon.style.display = 'none';
+                    } else {
+                        searchIcon.style.display = 'inline-block';
+                        cachedIcon.style.display = 'none';
+                    }
+                    
+                    console.log('First program raw data:', data.programs[0]); // Debug log
+                    
+                    // Check if we have valid program data
+                    if (data && data.programs && Array.isArray(data.programs)) {
+                        results[category.toLowerCase()] = data.programs.map(program => {
+                            const mappedProgram = {
+                                name: program.name || 'Program Name Not Available',
+                                amount: program.amount || 'Amount varies',
+                                requirements: [
+                                    program.eligibleProjects,
+                                    program.eligibleRecipients,
+                                    program.requirements
+                                ].filter(Boolean),
+                                deadline: program.deadline || 'Contact for deadline',
+                                summary: program.summary || 'No summary available',
+                                source: program.source // Preserve the source field
+                            };
+                            console.log('Mapped program with source:', mappedProgram); // Debug log
+                            return mappedProgram;
+                        });
+                    } else {
+                        console.error(`No valid programs found for ${category}`);
+                        results[category.toLowerCase()] = [];
+                    }
+                } catch (error) {
+                    console.error(`Error loading ${category} programs:`, error);
+                    results[category.toLowerCase()] = [];
+                }
             }
 
-            const analysis = await response.json();
-            
-            // Validate the response format
-            if (!this._isValidAnalysis(analysis)) {
-                throw new Error('Invalid analysis format');
-            }
-
-            console.log('Received analysis:', analysis);
-            
-            // Cache the result
-            this.cache.set(cacheKey, analysis);
-            
-            return analysis;
+            return results;
         } catch (error) {
-            console.error('Error fetching analysis:', error);
+            console.error('Error in analyze:', error);
             throw error;
         }
     }
-
-    _isValidAnalysis(analysis) {
-        return analysis && 
-               typeof analysis === 'object' && 
-               'category' in analysis && 
-               'programs' in analysis &&
-               Array.isArray(analysis.programs) &&
-               analysis.programs.every(program => 
-                   typeof program === 'object' &&
-                   'name' in program
-               );
-    }
-
-    displayPrograms(analysis, container) {
-        // Create programs section
-        const section = document.createElement('div');
-        section.className = 'programs-section';
-
-        // Add header
-        const header = document.createElement('div');
-        header.className = 'programs-header';
-        
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-leaf';
-        header.appendChild(icon);
-
-        const title = document.createElement('div');
-        title.className = 'programs-title';
-        title.textContent = analysis.category;
-        header.appendChild(title);
-
-        section.appendChild(header);
-
-        // Add programs
-        analysis.programs.forEach(program => {
-            const card = document.createElement('div');
-            card.className = 'program-card';
-
-            // Program name
-            const name = document.createElement('h3');
-            name.className = 'program-name';
-            name.textContent = program.name || 'Program Name Not Available';
-            card.appendChild(name);
-
-            // Program summary
-            const summary = document.createElement('p');
-            summary.className = 'program-summary';
-            summary.textContent = program.summary || 'No summary available';
-            card.appendChild(summary);
-
-            // Amount - now always displayed since it's required
-            const amount = document.createElement('div');
-            amount.className = 'program-amount';
-            // Default to dollar sign if amount is missing or doesn't specify percentage
-            const amountText = program.amount || 'Contact for details';
-            const icon = (amountText && amountText.includes('%')) ? 'fa-percent' : 'fa-dollar-sign';
-            amount.innerHTML = `<i class="fas ${icon}"></i> ${amountText}`;
-            card.appendChild(amount);
-
-            // Requirements if available
-            if (program.requirements && program.requirements.length > 0) {
-                const requirements = document.createElement('ul');
-                requirements.className = 'program-requirements';
-                program.requirements.forEach(req => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<i class="fas fa-check"></i> ${req}`;
-                    requirements.appendChild(li);
-                });
-                card.appendChild(requirements);
-            }
-
-            // Deadline if available
-            if (program.deadline && program.deadline !== "Ongoing") {
-                const deadline = document.createElement('div');
-                deadline.className = 'program-deadline';
-                deadline.innerHTML = `<i class="fas fa-clock"></i> Deadline: ${program.deadline}`;
-                card.appendChild(deadline);
-            }
-
-            section.appendChild(card);
-        });
-
-        container.appendChild(section);
-    }
 }
-
-// Export the class
-export default RebatePrograms;

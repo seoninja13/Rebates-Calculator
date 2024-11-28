@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Green Rebates Calculator</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <link rel="stylesheet" href="css/styles.css">
   <style>
     /* General Styles */
@@ -125,7 +125,6 @@
       border: 1px solid #e1e4e8;
       border-radius: 8px;
       padding: 20px;
-      transition: transform 0.2s, box-shadow 0.2s;
     }
 
     .program-card:hover {
@@ -726,6 +725,180 @@
       text-align: center;
       margin-bottom: 2rem;
     }
+
+    .error-message {
+      background-color: #fee2e2;
+      border: 1px solid #ef4444;
+      color: #991b1b;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 0.5rem;
+      display: none;
+    }
+
+    .error-content {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .error-content i {
+      font-size: 1.25rem;
+    }
+
+    /* Program Card Styles */
+    .program-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .program-header {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+      font-size: 1.2em;
+      font-weight: bold;
+      background-color: #f8f9fa;
+    }
+
+    .program-type {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--secondary);
+      margin-bottom: 10px;
+    }
+
+    .program-amount {
+      font-size: 1.2rem;
+      color: var(--success);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .program-summary {
+      color: var(--gray-700);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--gray-200);
+      padding-bottom: 5px;
+    }
+
+    .program-projects,
+    .program-recipients,
+    .program-requirements,
+    .program-contact {
+      margin-bottom: 20px;
+    }
+
+    .project-item,
+    .recipient-item,
+    .requirement-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--gray-700);
+    }
+
+    .program-scope,
+    .program-process,
+    .program-deadline,
+    .program-processing {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+      color: var(--gray-700);
+    }
+
+    .program-website {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--primary);
+      text-decoration: none;
+      margin-top: 10px;
+      padding: 8px 16px;
+      border: 1px solid var(--primary);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .program-website:hover {
+      background: var(--primary);
+      color: white;
+    }
+
+    .contact-info {
+      color: var(--gray-700);
+      margin-top: 5px;
+    }
+
+    /* Icon styles */
+    .fas {
+      font-size: 1.1em;
+      margin-right: 5px;
+      color: var(--primary);
+    }
+
+    .source-indicator {
+      margin-left: 10px;
+      font-size: 1.2em;
+      padding: 5px 10px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .source-indicator i[title="From Cache"] {
+      color: #2563eb;
+    }
+
+    .source-indicator i[title="Fresh Search"] {
+      color: #7c3aed;
+    }
+
+    /* Add styles for the source indicator */
+    .source-indicator-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 0.675em;
+      padding: 5px;
+      border-radius: 4px;
+      background-color: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .source-indicator-container i {
+      margin-right: 5px;
+    }
+
+    .source-indicator-container .cached {
+      color: #6B7280;
+    }
+
+    .source-indicator-container .search {
+      color: #6B7280;
+    }
   </style>
 </head>
 <body>
@@ -733,92 +906,110 @@
     <div class="container">
       <!-- Hero Section -->
       <div class="hero">
-        <h1>California Energy Rebate Programs</h1>
-        <p>Discover available rebates and incentives for energy-efficient home improvements in your area</p>
+        <h1>California Green Rebates Calculator</h1>
+        <p>Find energy efficiency rebates and incentives available in your county</p>
       </div>
 
-    <div id="rebates-finder-widget">
-      <div class="rebates-container">
-        <h2 class="mb-4">Find Energy Rebates</h2>
-        <div class="search-box mb-4">
-          <form id="rebatesSearchForm">
-            <div class="search-wrapper">
-              <select id="countySelect" required>
-                <option value="">Select County</option>
-                <option value="Alameda">Alameda</option>
-                <option value="Alpine">Alpine</option>
-                <option value="Amador">Amador</option>
-                <option value="Butte">Butte</option>
-                <option value="Calaveras">Calaveras</option>
-                <option value="Colusa">Colusa</option>
-                <option value="Contra Costa">Contra Costa</option>
-                <option value="Del Norte">Del Norte</option>
-                <option value="El Dorado">El Dorado</option>
-                <option value="Fresno">Fresno</option>
-                <option value="Glenn">Glenn</option>
-                <option value="Humboldt">Humboldt</option>
-                <option value="Imperial">Imperial</option>
-                <option value="Inyo">Inyo</option>
-                <option value="Kern">Kern</option>
-                <option value="Kings">Kings</option>
-                <option value="Lake">Lake</option>
-                <option value="Lassen">Lassen</option>
-                <option value="Los Angeles">Los Angeles</option>
-                <option value="Madera">Madera</option>
-                <option value="Marin">Marin</option>
-                <option value="Mariposa">Mariposa</option>
-                <option value="Mendocino">Mendocino</option>
-                <option value="Merced">Merced</option>
-                <option value="Modoc">Modoc</option>
-                <option value="Mono">Mono</option>
-                <option value="Monterey">Monterey</option>
-                <option value="Napa">Napa</option>
-                <option value="Nevada">Nevada</option>
-                <option value="Orange">Orange</option>
-                <option value="Placer">Placer</option>
-                <option value="Plumas">Plumas</option>
-                <option value="Riverside">Riverside</option>
-                <option value="Sacramento">Sacramento</option>
-                <option value="San Benito">San Benito</option>
-                <option value="San Bernardino">San Bernardino</option>
-                <option value="San Diego">San Diego</option>
-                <option value="San Francisco">San Francisco</option>
-                <option value="San Joaquin">San Joaquin</option>
-                <option value="San Luis Obispo">San Luis Obispo</option>
-                <option value="San Mateo">San Mateo</option>
-                <option value="Santa Barbara">Santa Barbara</option>
-                <option value="Santa Clara">Santa Clara</option>
-                <option value="Santa Cruz">Santa Cruz</option>
-                <option value="Shasta">Shasta</option>
-                <option value="Sierra">Sierra</option>
-                <option value="Siskiyou">Siskiyou</option>
-                <option value="Solano">Solano</option>
-                <option value="Sonoma">Sonoma</option>
-                <option value="Stanislaus">Stanislaus</option>
-                <option value="Sutter">Sutter</option>
-                <option value="Tehama">Tehama</option>
-                <option value="Trinity">Trinity</option>
-                <option value="Tulare">Tulare</option>
-                <option value="Tuolumne">Tuolumne</option>
-                <option value="Ventura">Ventura</option>
-                <option value="Yolo">Yolo</option>
-                <option value="Yuba">Yuba</option>
-              </select>
-              <button type="submit" class="btn btn-primary">Search</button>
-            </div>
-          </form>
+      <!-- Search Form -->
+      <form id="rebatesSearchForm" class="search-form">
+        <div class="search-wrapper">
+          <select id="countySelect" required>
+            <option value="">Select your county</option>
+            <option value="Alameda">Alameda</option>
+            <option value="Alpine">Alpine</option>
+            <option value="Amador">Amador</option>
+            <option value="Butte">Butte</option>
+            <option value="Calaveras">Calaveras</option>
+            <option value="Colusa">Colusa</option>
+            <option value="Contra Costa">Contra Costa</option>
+            <option value="Del Norte">Del Norte</option>
+            <option value="El Dorado">El Dorado</option>
+            <option value="Fresno">Fresno</option>
+            <option value="Glenn">Glenn</option>
+            <option value="Humboldt">Humboldt</option>
+            <option value="Imperial">Imperial</option>
+            <option value="Inyo">Inyo</option>
+            <option value="Kern">Kern</option>
+            <option value="Kings">Kings</option>
+            <option value="Lake">Lake</option>
+            <option value="Lassen">Lassen</option>
+            <option value="Los Angeles">Los Angeles</option>
+            <option value="Madera">Madera</option>
+            <option value="Marin">Marin</option>
+            <option value="Mariposa">Mariposa</option>
+            <option value="Mendocino">Mendocino</option>
+            <option value="Merced">Merced</option>
+            <option value="Modoc">Modoc</option>
+            <option value="Mono">Mono</option>
+            <option value="Monterey">Monterey</option>
+            <option value="Napa">Napa</option>
+            <option value="Nevada">Nevada</option>
+            <option value="Orange">Orange</option>
+            <option value="Placer">Placer</option>
+            <option value="Plumas">Plumas</option>
+            <option value="Riverside">Riverside</option>
+            <option value="Sacramento">Sacramento</option>
+            <option value="San Benito">San Benito</option>
+            <option value="San Bernardino">San Bernardino</option>
+            <option value="San Diego">San Diego</option>
+            <option value="San Francisco">San Francisco</option>
+            <option value="San Joaquin">San Joaquin</option>
+            <option value="San Luis Obispo">San Luis Obispo</option>
+            <option value="San Mateo">San Mateo</option>
+            <option value="Santa Barbara">Santa Barbara</option>
+            <option value="Santa Clara">Santa Clara</option>
+            <option value="Santa Cruz">Santa Cruz</option>
+            <option value="Shasta">Shasta</option>
+            <option value="Sierra">Sierra</option>
+            <option value="Siskiyou">Siskiyou</option>
+            <option value="Solano">Solano</option>
+            <option value="Sonoma">Sonoma</option>
+            <option value="Stanislaus">Stanislaus</option>
+            <option value="Sutter">Sutter</option>
+            <option value="Tehama">Tehama</option>
+            <option value="Trinity">Trinity</option>
+            <option value="Tulare">Tulare</option>
+            <option value="Tuolumne">Tuolumne</option>
+            <option value="Ventura">Ventura</option>
+            <option value="Yolo">Yolo</option>
+            <option value="Yuba">Yuba</option>
+          </select>
+          <button type="submit">Search</button>
         </div>
-        <div class="rebates-loading-spinner" id="rebatesLoadingSpinner" style="display: none;">
-          <div class="spinner"></div>
-          <p>Searching for rebates...</p>
+        <!-- Loading Spinner -->
+        <div id="rebatesLoadingSpinner" class="spinner"></div>
+        <!-- Error Display -->
+        <div id="errorDisplay" class="error-message" style="display: none;"></div>
+      </form>
+
+      <!-- Results Container -->
+      <div id="resultsContainer" style="display: none;">
+        <div id="federalResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
+          <h2>Federal Programs</h2>
+          <div class="programs-grid"></div>
         </div>
-        <div class="rebates-results" id="rebatesResultsSection">
-          <div id="rebatesResults"></div>
+        <div id="stateResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
+          <h2>State Programs</h2>
+          <div class="programs-grid"></div>
+        </div>
+        <div id="countyResults" class="results-section" style="position: relative;">
+          <div class="source-indicator-container">
+            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
+            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+          </div>
+          <h2>County Programs</h2>
+          <div class="programs-grid"></div>
         </div>
       </div>
-
     </div>
- 
   </div>
   <script type="module">
     import RebatePrograms from './js/openai-analyzer.js';
@@ -826,95 +1017,210 @@
     // Initialize the rebate programs handler
     const rebatePrograms = new RebatePrograms();
 
-    // Function to replace placeholder amounts
-    function replacePlaceholderAmounts() {
-      const amounts = document.querySelectorAll('.program-amount');
-      amounts.forEach(amount => {
-        if (amount.textContent.includes('Up to $X,XXX')) {
-          amount.textContent = 'Amount varies by program';
+    // Helper function to create a program card
+    function createProgramCard(program) {
+      console.log('Creating card for program:', program); // Debug log
+      const card = document.createElement('div');
+      card.className = 'program-card';
+      
+      // Header with source indicator
+      const header = document.createElement('div');
+      header.className = 'program-header';
+      
+      // Program name
+      const name = document.createElement('span');
+      name.textContent = program.name;
+      header.appendChild(name);
+
+      card.appendChild(header);
+
+      // Program Type
+      const type = document.createElement('div');
+      type.className = 'program-type';
+      type.innerHTML = `<i class="fas fa-tag"></i><span>Type: ${program.programType || 'Rebate'}</span>`;
+      card.appendChild(type);
+
+      // Amount
+      const amount = document.createElement('div');
+      amount.className = 'program-amount';
+      amount.innerHTML = `<i class="fas fa-dollar-sign"></i><span>Amount: ${program.amount}</span>`;
+      card.appendChild(amount);
+
+      // Summary
+      const summary = document.createElement('div');
+      summary.className = 'program-summary';
+      summary.textContent = program.summary;
+      card.appendChild(summary);
+
+      // Eligible Projects
+      if (program.eligibleProjects && program.eligibleProjects.length > 0) {
+        const projects = document.createElement('div');
+        projects.className = 'program-projects';
+        const projectsTitle = document.createElement('div');
+        projectsTitle.className = 'section-title';
+        projectsTitle.innerHTML = '<i class="fas fa-tasks"></i> Eligible Projects';
+        projects.appendChild(projectsTitle);
+        program.eligibleProjects.forEach(project => {
+          const item = document.createElement('div');
+          item.className = 'project-item';
+          item.innerHTML = `<i class="fas fa-check"></i><span>${project}</span>`;
+          projects.appendChild(item);
+        });
+        card.appendChild(projects);
+      }
+
+      // Eligible Recipients
+      if (program.eligibleRecipients && program.eligibleRecipients.length > 0) {
+        const recipients = document.createElement('div');
+        recipients.className = 'program-recipients';
+        const recipientsTitle = document.createElement('div');
+        recipientsTitle.className = 'section-title';
+        recipientsTitle.innerHTML = '<i class="fas fa-users"></i> Eligible Recipients';
+        recipients.appendChild(recipientsTitle);
+        program.eligibleRecipients.forEach(recipient => {
+          const item = document.createElement('div');
+          item.className = 'recipient-item';
+          item.innerHTML = `<i class="fas fa-user"></i><span>${recipient}</span>`;
+          recipients.appendChild(item);
+        });
+        card.appendChild(recipients);
+      }
+
+      // Geographic Scope
+      const scope = document.createElement('div');
+      scope.className = 'program-scope';
+      scope.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Location: ${program.geographicScope}</span>`;
+      card.appendChild(scope);
+
+      // Requirements
+      if (program.requirements && program.requirements.length > 0) {
+        const requirements = document.createElement('div');
+        requirements.className = 'program-requirements';
+        const requirementsTitle = document.createElement('div');
+        requirementsTitle.className = 'section-title';
+        requirementsTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Requirements';
+        requirements.appendChild(requirementsTitle);
+        program.requirements.forEach(req => {
+          if (req && typeof req === 'string' && !req.toLowerCase().includes('contact administrator')) {
+            const item = document.createElement('div');
+            item.className = 'requirement-item';
+            item.innerHTML = `<i class="fas fa-check"></i><span>${req}</span>`;
+            requirements.appendChild(item);
+          }
+        });
+        if (requirements.children.length > 1) {
+          card.appendChild(requirements);
         }
+      }
+
+      // Application Process
+      const process = document.createElement('div');
+      process.className = 'program-process';
+      process.innerHTML = `<i class="fas fa-file-alt"></i><span>How to Apply: ${program.applicationProcess}</span>`;
+      card.appendChild(process);
+
+      // Deadline
+      const deadline = document.createElement('div');
+      deadline.className = 'program-deadline';
+      deadline.innerHTML = `<i class="fas fa-clock"></i><span>Deadline: ${program.deadline}</span>`;
+      card.appendChild(deadline);
+
+      // Website Link
+      if (program.websiteLink) {
+        const website = document.createElement('a');
+        website.className = 'program-website';
+        website.href = program.websiteLink;
+        website.target = '_blank';
+        website.innerHTML = `<i class="fas fa-external-link-alt"></i><span>Visit Official Website</span>`;
+        card.appendChild(website);
+      }
+
+      // Contact Information
+      if (program.contactInformation) {
+        const contact = document.createElement('div');
+        contact.className = 'program-contact';
+        const contactTitle = document.createElement('div');
+        contactTitle.className = 'section-title';
+        contactTitle.innerHTML = '<i class="fas fa-address-card"></i> Contact Information';
+        contact.appendChild(contactTitle);
+        const info = document.createElement('div');
+        info.className = 'contact-info';
+        info.innerHTML = program.contactInformation;
+        contact.appendChild(info);
+        card.appendChild(contact);
+      }
+
+      // Processing Time
+      if (program.processingTime) {
+        const processing = document.createElement('div');
+        processing.className = 'program-processing';
+        processing.innerHTML = `<i class="fas fa-hourglass-half"></i><span>Processing Time: ${program.processingTime}</span>`;
+        card.appendChild(processing);
+      }
+
+      return card;
+    }
+
+    // Helper function to display programs
+    function displayPrograms(programs, category) {
+      const section = document.getElementById(`${category.toLowerCase()}Results`);
+      const grid = section.querySelector('.programs-grid');
+      grid.innerHTML = ''; // Clear existing content
+
+      if (!programs || programs.length === 0) {
+        const message = document.createElement('div');
+        message.className = 'no-programs-message';
+        message.textContent = `No ${category} programs found`;
+        grid.appendChild(message);
+        return;
+      }
+
+      programs.forEach(program => {
+        const card = createProgramCard(program);
+        grid.appendChild(card);
       });
     }
 
+    // Handle form submission
     document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
       event.preventDefault();
+      
       const county = document.getElementById('countySelect').value;
       const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
-      const resultsContainer = document.getElementById('rebatesResults');
-
-      // Show loading spinner
-      loadingSpinner.style.display = 'block';
-
+      const errorDisplay = document.getElementById('errorDisplay');
+      const resultsContainer = document.getElementById('resultsContainer');
+      
       try {
-        // Google Custom Search API configuration
-        const apiKey = 'AIzaSyD0k6vrMlYwCXlzKC-iqCOp2O-X6xT-gkU';
-        const searchEngineId = '50cffa222875141dd';
-
-        // Construct search queries
-        const queries = {
-          'Federal': 'federal energy rebate program california',
-          'State': 'california state energy rebate program',
-          'County': `${county} county california energy rebate program`
-        };
-
-        async function searchGoogle(query) {
-          console.log('Searching for:', query);
-          const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${searchEngineId}&q=${encodeURIComponent(query)}`;
-          const response = await fetch(url);
-          if (!response.ok) {
-            throw new Error(`Google Search failed: ${response.status}`);
-          }
-          const data = await response.json();
-          console.log('Search results:', data);
-          return data.items || [];
-        }
-
-        // Clear previous results before starting new search
-        resultsContainer.innerHTML = '';
-
-        // Fetch results for each category
-        const results = await Promise.all(
-          Object.entries(queries).map(async ([category, query]) => {
-            const searchResults = await searchGoogle(query);
-            if (searchResults.length > 0) {
-              try {
-                const analysis = await rebatePrograms.fetchPrograms(searchResults, category);
-                return { category, results: searchResults, analysis };
-              } catch (error) {
-                console.error(`Analysis error for ${category}:`, error);
-                return { category, results: searchResults, error };
-              }
-            }
-            return { category, results: [], error: 'No results found' };
-          })
-        );
-
-        // Display results
-        results.forEach(({ category, results, analysis, error }) => {
-          if (error) {
-            console.error(`Error in ${category}:`, error);
-            const errorSection = document.createElement('div');
-            errorSection.className = 'error-section';
-            errorSection.innerHTML = `<p>Error loading ${category} programs: ${error}</p>`;
-            resultsContainer.appendChild(errorSection);
-          } else if (analysis) {
-            // Use the existing displayPrograms method
-            rebatePrograms.displayPrograms(analysis, resultsContainer);
-            // Replace placeholder amounts after rendering results
-            replacePlaceholderAmounts();
+        // Show loading spinner
+        loadingSpinner.style.display = 'block';
+        errorDisplay.style.display = 'none';
+        resultsContainer.style.display = 'none';
+        
+        // Clear existing results
+        ['federal', 'state', 'county'].forEach(category => {
+          const section = document.getElementById(`${category}Results`);
+          if (section) {
+            const grid = section.querySelector('.programs-grid');
+            if (grid) grid.innerHTML = '';
           }
         });
 
+        // Get programs
+        const results = await rebatePrograms.analyze(county);
+        
+        // Show results container
+        resultsContainer.style.display = 'block';
+        
+        // Display results for each category
+        Object.entries(results).forEach(([category, programs]) => {
+          displayPrograms(programs, category);
+        });
+
       } catch (error) {
-        console.error('Search error:', error);
-        resultsContainer.innerHTML = `
-          <div class="error-section">
-            <p>An error occurred while searching for rebate programs. Please try again.</p>
-            <p>Error details: ${error.message}</p>
-          </div>
-        `;
+        console.error('Error:', error);
+        errorDisplay.textContent = error.message || 'An error occurred while fetching programs';
+        errorDisplay.style.display = 'block';
       } finally {
-        // Hide loading spinner
         loadingSpinner.style.display = 'none';
       }
     });

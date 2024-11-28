@@ -1,10 +1,15 @@
 [build]
+  command = "cd backend && npm install"
   functions = "netlify/functions"
   publish = "."
 
 [dev]
   functions = "netlify/functions"
   publish = "."
+
+[functions]
+  node_bundler = "esbuild"
+  timeout = 30
 
 [[headers]]
   for = "/.netlify/functions/*"
@@ -17,25 +22,3 @@
   for = "/*.js"
   [headers.values]
     Content-Type = "application/javascript"
-
-[[headers]]
-  for = "/js/*"
-  [headers.values]
-    Content-Type = "application/javascript"
-    X-Content-Type-Options = "nosniff"
-
-[[redirects]]
-  from = "/js/*"
-  to = "/js/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-  force = true
