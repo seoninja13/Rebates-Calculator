@@ -1,9 +1,9 @@
 export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
-        this.baseUrl = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3001'
-            : '/.netlify/functions';  // This will point to Netlify Functions when deployed
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        this.baseUrl = isLocal ? 'http://localhost:3001' : '/.netlify/functions';
+        this.analyzePath = isLocal ? '/api/analyze' : '/analyze';
     }
 
     async analyze(county) {
@@ -13,7 +13,7 @@ export default class RebatePrograms {
 
             for (const category of categories) {
                 try {
-                    const response = await fetch(`${this.baseUrl}/api/analyze`, {
+                    const response = await fetch(`${this.baseUrl}${this.analyzePath}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

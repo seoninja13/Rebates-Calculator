@@ -97,55 +97,43 @@ async function analyzeResults(results, category) {
     }
 }
 
+// Export the handler function
 exports.handler = async function(event, context) {
-    // Set CORS headers
-    const headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Content-Type': 'application/json'
-    };
-
-    // Handle preflight requests
-    if (event.httpMethod === 'OPTIONS') {
-        return {
-            statusCode: 204,
-            headers,
-            body: ''
-        };
-    }
-
+    // Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return {
             statusCode: 405,
-            headers,
             body: JSON.stringify({ error: 'Method not allowed' })
         };
     }
 
     try {
-        const { results, category } = JSON.parse(event.body);
-        
+        const body = JSON.parse(event.body);
+        const { results, category } = body;
+
         if (!results || !category) {
             return {
                 statusCode: 400,
-                headers,
                 body: JSON.stringify({ error: 'Missing required parameters' })
             };
         }
 
         const analysis = await analyzeResults(results, category);
-        
+
         return {
             statusCode: 200,
-            headers,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
             body: JSON.stringify(analysis)
         };
     } catch (error) {
-        console.error('Analysis Error:', error);
+        console.error('Error:', error);
         return {
             statusCode: 500,
-            headers,
             body: JSON.stringify({ error: 'Internal server error' })
         };
     }
