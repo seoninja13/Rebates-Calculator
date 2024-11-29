@@ -38,21 +38,19 @@ export default class RebatePrograms {
                     const data = await response.json();
                     console.log(`📦 ${category} Raw API Response:`, JSON.stringify(data, null, 2));
                     
-                    // Validate data structure
-                    if (!data || typeof data !== 'object') {
-                        console.error(`❌ ${category} Invalid Response Format:`, data);
-                        throw new Error('Invalid response format');
+                    // Normalize the programs data structure
+                    let normalizedPrograms = [];
+                    if (data && data.programs) {
+                        // Handle both array and object structures
+                        if (Array.isArray(data.programs)) {
+                            normalizedPrograms = data.programs;
+                        } else if (typeof data.programs === 'object') {
+                            // If programs is an object, convert its values to an array
+                            normalizedPrograms = Object.values(data.programs);
+                        }
                     }
-
-                    // Check programs array
-                    if (!data.programs || !Array.isArray(data.programs)) {
-                        console.error(`❌ ${category} Missing Programs Array:`, data);
-                        throw new Error('Missing programs array');
-                    }
-
-                    console.log(`✅ ${category} Valid Programs Count:`, data.programs.length);
                     
-                    console.log(`${category} programs data:`, data);
+                    console.log(`✅ ${category} Normalized Programs:`, normalizedPrograms);
                     
                     // Update source indicator icons for the specific section
                     const sectionId = `${category.toLowerCase()}Results`;
@@ -60,7 +58,7 @@ export default class RebatePrograms {
                     const searchIcon = document.querySelector(`#${sectionId} .source-indicator-container .search`);
                     
                     // Check source from the first program's source field
-                    if (data.programs && data.programs.length > 0 && data.programs[0].source === 'cache') {
+                    if (normalizedPrograms.length > 0 && normalizedPrograms[0].source === 'cache') {
                         cachedIcon.style.display = 'inline-block';
                         searchIcon.style.display = 'none';
                     } else {
@@ -68,12 +66,9 @@ export default class RebatePrograms {
                         cachedIcon.style.display = 'none';
                     }
                     
-                    console.log('First program raw data:', data.programs[0]); // Debug log
-                    
-                    // Check if we have valid program data
-                    if (data && data.programs && Array.isArray(data.programs)) {
-                        console.log(`🔄 Processing ${data.programs.length} programs for ${category}`);
-                        results[category.toLowerCase()] = data.programs.map(program => {
+                    // Process the normalized programs
+                    if (normalizedPrograms.length > 0) {
+                        results[category.toLowerCase()] = normalizedPrograms.map(program => {
                             console.log(`📝 Processing Program:`, program);
                             const mappedProgram = {
                                 name: program.name || 'Program Name Not Available',
@@ -82,10 +77,10 @@ export default class RebatePrograms {
                                     program.eligibleProjects,
                                     program.eligibleRecipients,
                                     program.requirements
-                                ].filter(Boolean),
+                                ].filter(Boolean).flat(), // Flatten nested arrays
                                 deadline: program.deadline || 'Contact for deadline',
                                 summary: program.summary || 'No summary available',
-                                source: program.source // Preserve the source field
+                                source: program.source
                             };
                             console.log(`✅ Mapped Program Result:`, mappedProgram);
                             return mappedProgram;
