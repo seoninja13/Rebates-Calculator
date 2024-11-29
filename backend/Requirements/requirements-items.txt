@@ -47,3 +47,11 @@ Contact Information:
 - Office locations
 
 Processing Time: [e.g., "6-8 weeks" or "30 days after approval"]
+
+For ChatGPT:
+2. Federal programs must be available to all California residents.
+3. County programs must be available to residents within the county.
+4. State programs must be available to all California residents.
+5. All results should be unique, meaning, No overlap betwenn Federal, County and State programs.
+
+

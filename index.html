@@ -13,7 +13,7 @@
       line-height: 1.6;
       color: #333;
       margin: 0;
-      padding: 20px;
+      padding: 0;
       background-color: #f5f7fa;
     }
 
@@ -49,75 +49,32 @@
 
     select {
       width: 200px;
+      background-color: white;
     }
 
     button {
-      background-color: #4a90e2;
+      background-color: #4CAF50;
       color: white;
       border: none;
       cursor: pointer;
       transition: background-color 0.3s;
-      min-width: 100px;
     }
 
     button:hover {
-      background-color: #357abd;
+      background-color: #2E7D32;
     }
 
-    .search-box {
-      text-align: center;
-    }
-
-    /* Replace $X,XXX text */
-    .program-amount:contains("Up to $X,XXX") {
-      display: none;
-    }
-    .program-amount:contains("Up to $X,XXX")::after {
-      content: "Amount varies by program";
-      display: inline;
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
     }
 
     /* Programs Section Styles */
-    .programs-section {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-      margin-bottom: 30px;
-      overflow: hidden;
-    }
-
-    .programs-header {
-      display: flex;
-      align-items: center;
-      padding: 20px;
-      border-bottom: 2px solid #f0f2f5;
-      background: #4a90e2;
-      color: white;
-    }
-
-    .programs-header i {
-      font-size: 24px;
-      margin-right: 15px;
-      color: white;
-    }
-
-    .programs-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: white;
-      flex-grow: 1;
-    }
-
-    .programs-date {
-      color: rgba(255, 255, 255, 0.9);
-      font-size: 14px;
-    }
-
     .programs-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      padding: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 15px;
+      padding: 15px;
     }
 
     .program-card {
@@ -213,495 +170,6 @@
     }
 
     /* Responsive Design */
-    @media (max-width: 768px) {
-      .programs-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .program-card {
-        margin: 10px;
-      }
-
-      .programs-header {
-        flex-direction: column;
-        text-align: center;
-      }
-
-      .programs-header i {
-        margin: 0 0 10px 0;
-      }
-
-      .programs-date {
-        margin-top: 10px;
-      }
-    }
-
-    .ca-rebates {
-      --primary: #0ea5e9;
-      --primary-dark: #0284c7;
-      --secondary: #64748b;
-      --success: #22c55e;
-      --background: #f8fafc;
-      --white: #ffffff;
-      --gray-50: #f9fafb;
-      --gray-100: #f3f4f6;
-      --gray-200: #e5e7eb;
-      --gray-300: #d1d5db;
-      --gray-600: #4b5563;
-      --gray-700: #374151;
-      --gray-900: #111827;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      color: var(--gray-700);
-      line-height: 1.5;
-    }
-
-    .ca-rebates * {
-      box-sizing: border-box;
-    }
-
-    .ca-rebates .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-    }
-
-    .ca-rebates .hero {
-      background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-      color: var(--white);
-      padding: 4rem 1rem;
-      margin-bottom: 3rem;
-      border-radius: 0.75rem;
-      text-align: center;
-    }
-
-    .ca-rebates .hero h1 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin: 0 0 1rem 0;
-      line-height: 1.2;
-    }
-
-    .ca-rebates .hero p {
-      font-size: 1.25rem;
-      opacity: 0.9;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    .ca-rebates .card {
-      background: var(--white);
-      border-radius: 1rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      padding: 2rem;
-      margin-bottom: 2rem;
-      transition: all 0.3s ease;
-    }
-
-    .ca-rebates .card:hover {
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    .ca-rebates .card-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .ca-rebates .icon {
-      font-size: 1.75rem;
-      margin-right: 1rem;
-    }
-
-    .ca-rebates .card h2 {
-      font-size: 1.5rem;
-      color: var(--gray-900);
-      margin: 0;
-    }
-
-    .ca-rebates .program-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .ca-rebates .program-list li {
-      padding: 1.25rem;
-      border-radius: 0.75rem;
-      background: var(--gray-50);
-      margin-bottom: 1rem;
-      transition: all 0.2s ease;
-    }
-
-    .ca-rebates .program-list li:hover {
-      background: var(--gray-100);
-    }
-
-    .ca-rebates .program-list h3 {
-      font-size: 1.125rem;
-      color: var(--gray-900);
-      margin: 0 0 0.5rem 0;
-    }
-
-    .ca-rebates .program-list p {
-      color: var(--gray-600);
-      margin: 0 0 0.75rem 0;
-      font-size: 0.925rem;
-    }
-
-    .ca-rebates .btn-link {
-      display: inline-flex;
-      align-items: center;
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 0.925rem;
-      transition: all 0.2s ease;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0;
-    }
-
-    .ca-rebates .btn-link:hover {
-      color: var(--primary-dark);
-      transform: translateX(4px);
-    }
-
-    .ca-rebates .search-container {
-      margin-bottom: 2rem;
-    }
-
-    .ca-rebates .search-input {
-      width: 100%;
-      padding: 0.875rem 1.25rem;
-      border: 2px solid var(--gray-200);
-      border-radius: 0.75rem;
-      font-size: 1rem;
-      transition: all 0.2s ease;
-    }
-
-    .ca-rebates .search-input:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
-    }
-
-    .ca-rebates .county-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
-    }
-
-    .ca-rebates .county-item {
-      background: var(--gray-50);
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      transition: all 0.2s ease;
-    }
-
-    .ca-rebates .county-item:hover {
-      background: var(--gray-100);
-    }
-
-    .ca-rebates .county-item h3 {
-      color: var(--gray-900);
-      font-size: 1.125rem;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .ca-rebates .county-item p {
-      color: var(--gray-600);
-      font-size: 0.925rem;
-      margin: 0;
-    }
-
-    .ca-rebates .county-item .details {
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--gray-200);
-    }
-
-    .ca-rebates .programs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 2rem;
-      margin-bottom: 2rem;
-    }
-
-    .ca-rebates .rebate-item {
-      background: var(--white);
-      border-radius: 0.75rem;
-      padding: 1.25rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .ca-rebates .rebate-item:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    .ca-rebates .rebate-header {
-      display: flex;
-      align-items: center;
-      margin-bottom: 0.75rem;
-    }
-
-    .ca-rebates .category-icon {
-      margin-right: 0.5rem;
-      width: 1.5rem;
-      height: 1.5rem;
-      color: var(--primary);
-    }
-
-    .ca-rebates .rebate-title {
-      flex-grow: 1;
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: var(--gray-900);
-      margin: 0;
-    }
-
-    .ca-rebates .rebate-description {
-      color: var(--gray-600);
-      font-size: 0.875rem;
-      line-height: 1.6;
-      margin: 0 0 1rem 0;
-    }
-
-    .ca-rebates .rebate-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding-top: 0.75rem;
-      border-top: 1px solid var(--gray-200);
-    }
-
-    .ca-rebates .rebate-source {
-      display: flex;
-      align-items: center;
-      color: var(--secondary);
-      font-size: 0.875rem;
-    }
-
-    .ca-rebates .rebate-link {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.5rem 1rem;
-      background: var(--primary);
-      color: var(--white);
-      text-decoration: none;
-      border-radius: 0.375rem;
-      font-size: 0.875rem;
-      font-weight: 500;
-      transition: background 0.2s ease;
-    }
-
-    .ca-rebates .rebate-link:hover {
-      background: var(--primary-dark);
-    }
-
-    .search-queries {
-      display: none;
-    }
-
-    .results-section {
-      background-color: white;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-    }
-
-    .results-section h3 {
-      color: #2d3748;
-      font-size: 1.5rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 2px solid #e2e8f0;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .results-section h3 i {
-      color: #4299e1;
-    }
-
-    .results-section h3 i.fa-globe {
-      margin-right: 0.5rem;
-    }
-
-    .results-section h3 i.fa-map-pin {
-      margin-right: 0.5rem;
-    }
-
-    .rebate-item {
-      padding: 1.5rem;
-      border-radius: 8px;
-      margin-bottom: 1rem;
-      background-color: #f8fafc;
-      transition: all 0.3s ease;
-      border: 1px solid #e2e8f0;
-    }
-
-    .rebate-item:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-      border-color: #cbd5e0;
-    }
-
-    .rebate-item h4 {
-      margin: 0 0 0.75rem 0;
-      font-size: 1.1rem;
-    }
-
-    .rebate-item a {
-      color: #4299e1;
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.3s ease;
-    }
-
-    .rebate-item a:hover {
-      color: #3182ce;
-      text-decoration: underline;
-    }
-
-    .rebate-item p {
-      color: #4a5568;
-      margin: 0;
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-
-    .rebates-loading-spinner {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      padding: 2rem;
-      color: #4a5568;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      z-index: 1000;
-    }
-
-    .spinner {
-      width: 50px;
-      height: 50px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #4299e1;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .rebates-loading-spinner p {
-      margin: 0;
-      font-size: 1.1rem;
-      font-weight: 500;
-      white-space: nowrap;
-    }
-
-    .analysis-section {
-      background-color: #ebf8ff;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      border: 1px solid #bee3f8;
-    }
-
-    .analysis-section h3 {
-      color: #2c5282;
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .analysis-section .program {
-      background: white;
-      padding: 1rem;
-      border-radius: 6px;
-      margin-bottom: 1rem;
-    }
-
-    .analysis-section .program h4 {
-      color: #2b6cb0;
-      margin: 0 0 0.5rem 0;
-    }
-
-    .analysis-section .program ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .analysis-section .program li {
-      padding: 0.25rem 0;
-      color: #4a5568;
-    }
-
-    .analysis-section .disclaimer {
-      font-size: 0.9rem;
-      color: #718096;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid #bee3f8;
-    }
-
-    .timestamp {
-      font-size: 0.8rem;
-      color: #718096;
-      margin-top: 0.5rem;
-    }
-
-    /* Error Styles */
-    .error-section {
-      background: #fff3f3;
-      border: 1px solid #ffcdd2;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 10px 0;
-      color: #d32f2f;
-    }
-
-    .error-section p {
-      margin: 5px 0;
-    }
-
-    /* Loading Spinner */
-    #rebatesLoadingSpinner {
-      display: none;
-      width: 50px;
-      height: 50px;
-      margin: 20px auto;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #4a90e2;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
     @media (max-width: 768px) {
       .container {
         padding: 1rem;
@@ -979,31 +447,31 @@
         <!-- Loading Spinner -->
         <div id="rebatesLoadingSpinner" class="spinner"></div>
         <!-- Error Display -->
-        <div id="errorDisplay" class="error-message" style="display: none;"></div>
+        <div id="errorDisplay" class="error-message"></div>
       </form>
 
       <!-- Results Container -->
-      <div id="resultsContainer" style="display: none;">
-        <div id="federalResults" class="results-section" style="position: relative;">
+      <div id="resultsContainer">
+        <div id="federalResults" class="results-section">
           <div class="source-indicator-container">
-            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
-            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+            <i class="fas fa-database cached" title="Results from cache"></i>
+            <i class="fas fa-search search" title="Results from direct search"></i>
           </div>
           <h2>Federal Programs</h2>
           <div class="programs-grid"></div>
         </div>
-        <div id="stateResults" class="results-section" style="position: relative;">
+        <div id="stateResults" class="results-section">
           <div class="source-indicator-container">
-            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
-            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+            <i class="fas fa-database cached" title="Results from cache"></i>
+            <i class="fas fa-search search" title="Results from direct search"></i>
           </div>
           <h2>State Programs</h2>
           <div class="programs-grid"></div>
         </div>
-        <div id="countyResults" class="results-section" style="position: relative;">
+        <div id="countyResults" class="results-section">
           <div class="source-indicator-container">
-            <i class="fas fa-database cached" style="display: none;" title="Results from cache"></i>
-            <i class="fas fa-search search" style="display: none;" title="Results from direct search"></i>
+            <i class="fas fa-database cached" title="Results from cache"></i>
+            <i class="fas fa-search search" title="Results from direct search"></i>
           </div>
           <h2>County Programs</h2>
           <div class="programs-grid"></div>
@@ -1208,7 +676,7 @@
         // Show loading spinner
         loadingSpinner.style.display = 'block';
         errorDisplay.style.display = 'none';
-        resultsContainer.style.display = 'none';
+        resultsContainer.style.display = 'block';
         
         // Clear existing results
         ['federal', 'state', 'county'].forEach(category => {
@@ -1221,9 +689,6 @@
 
         // Get programs
         const results = await rebatePrograms.analyze(county);
-        
-        // Show results container
-        resultsContainer.style.display = 'block';
         
         // Display results for each category
         Object.entries(results).forEach(([category, programs]) => {

@@ -1,8 +1,8 @@
 export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
-        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost:8888';
-        this.baseUrl = isLocal ? 'http://localhost:3001' : '/.netlify/functions';
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        this.baseUrl = isLocal ? 'http://localhost:3000' : '/.netlify/functions';
         this.analyzePath = isLocal ? '/api/analyze' : '/analyze';
     }
 
