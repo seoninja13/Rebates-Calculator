@@ -98,24 +98,38 @@ app.post('/api/analyze', async (req, res) => {
         5. Skip any program that doesn't explicitly state its eligibility requirements
 
         For each program, provide:
-        - name: Full program name
-        - amount: Specific rebate amount or range (e.g., "Up to $8,000", "$500-$1,000")
-        - requirements: List of specific eligibility requirements
-        - deadline: Application deadline or status
+        - programName: Full program name
         - summary: Clear description of what the program offers
-        - link: Program's URL
+        - programType: Type of program (Federal, State, or County)
+        - amount: Specific rebate amount or range
+        - eligibleProjects: List of projects that qualify
+        - eligibleRecipients: Who can apply
+        - geographicScope: Geographic area covered
+        - requirements: List of specific eligibility requirements
+        - applicationProcess: How to apply
+        - deadline: Application deadline or status
+        - websiteLink: Program's URL
+        - contactInfo: Contact information
+        - processingTime: Expected processing time
         - source: Source website
 
         Return the data in this exact JSON format:
         {
           "programs": [
             {
-              "name": "string",
-              "amount": "string",
-              "requirements": ["string"],
-              "deadline": "string",
+              "programName": "string",
               "summary": "string",
-              "link": "string",
+              "programType": "string",
+              "amount": "string",
+              "eligibleProjects": ["string"],
+              "eligibleRecipients": ["string"],
+              "geographicScope": "string",
+              "requirements": ["string"],
+              "applicationProcess": "string",
+              "deadline": "string",
+              "websiteLink": "string",
+              "contactInfo": "string",
+              "processingTime": "string",
               "source": "string"
             }
           ]
@@ -148,13 +162,20 @@ app.post('/api/analyze', async (req, res) => {
         
         // Validate and normalize the response
         const normalizedPrograms = (analyzedData.programs || []).map(program => ({
-            name: program.name || "Program Name Not Available",
-            amount: program.amount || "Amount varies",
-            requirements: Array.isArray(program.requirements) ? program.requirements : [],
-            deadline: program.deadline || "Contact for deadline",
-            summary: program.summary || "No summary available",
-            link: program.link || "",
-            source: program.source || ""
+            programName: program.programName || "Program Name Not Available",
+            summary: program.summary || "Summary Not Available",
+            programType: program.programType || "Program Type Not Available",
+            amount: program.amount || "Amount Not Available",
+            eligibleProjects: program.eligibleProjects || ["Not Specified"],
+            eligibleRecipients: program.eligibleRecipients || ["Not Specified"],
+            geographicScope: program.geographicScope || "Geographic Scope Not Available",
+            requirements: program.requirements || ["Requirements Not Available"],
+            applicationProcess: program.applicationProcess || "Application Process Not Available",
+            deadline: program.deadline || "Deadline Not Available",
+            websiteLink: program.websiteLink || "Website Link Not Available",
+            contactInfo: program.contactInfo || "Contact Information Not Available",
+            processingTime: program.processingTime || "Processing Time Not Available",
+            source: program.source || "Source Not Available"
         }));
 
         log('✅ OpenAI processing completed with ${normalizedPrograms.length} programs extracted');

@@ -23,6 +23,91 @@
       padding: 20px;
     }
 
+    /* Program Card Styles */
+    .program-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+      padding: 24px;
+      transition: transform 0.2s;
+    }
+
+    .program-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .program-header {
+      margin-bottom: 20px;
+    }
+
+    .program-header h3 {
+      color: #2563eb;
+      font-size: 1.5rem;
+      margin: 0 0 10px 0;
+    }
+
+    .program-header p {
+      color: #4b5563;
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .program-section {
+      margin-bottom: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background-color: #f8fafc;
+    }
+
+    .section-title {
+      font-weight: 600;
+      color: #1e40af;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-title i {
+      color: #3b82f6;
+    }
+
+    .info-item {
+      padding: 8px;
+      color: #4b5563;
+    }
+
+    .info-item div {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .info-item i {
+      color: #3b82f6;
+      margin-top: 4px;
+    }
+
+    .info-item a {
+      color: #2563eb;
+      text-decoration: none;
+    }
+
+    .info-item a:hover {
+      text-decoration: underline;
+    }
+
+    /* Grid Layout */
+    .program-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
     /* Form Styles */
     .search-form {
       background: white;
@@ -69,87 +154,54 @@
       cursor: not-allowed;
     }
 
-    /* Programs Section Styles */
-    .programs-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 15px;
-      padding: 15px;
-    }
-
-    .program-card {
-      background: #fff;
-      border: 1px solid #e1e4e8;
-      border-radius: 8px;
-      padding: 20px;
-    }
-
-    .program-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .program-header {
-      font-size: 18px;
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 15px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #f0f2f5;
-    }
-
-    .program-amount {
-      font-size: 16px;
-      color: #2ecc71;
-      margin-bottom: 15px;
-      display: flex;
+    /* Status Indicators */
+    .status-tag {
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 500;
     }
 
-    .program-requirements {
-      margin: 15px 0;
+    .status-active {
+      background: #dcfce7;
+      color: #166534;
     }
 
-    .requirements-title {
-      font-weight: 600;
-      color: #2c3e50;
-      margin-bottom: 10px;
+    .status-expired {
+      background: #fee2e2;
+      color: #991b1b;
     }
 
-    .requirement-item {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 8px;
-      padding: 8px;
-      background: #f8f9fa;
-      border-radius: 6px;
+    .status-pending {
+      background: #fef9c3;
+      color: #854d0e;
     }
 
-    .requirement-item i {
-      color: #4a90e2;
-      margin-top: 4px;
-    }
+    /* Responsive Design Improvements */
+    @media (max-width: 768px) {
+      .program-card {
+        padding: 20px;
+      }
 
-    .program-deadline {
-      margin-top: 15px;
-      padding-top: 15px;
-      border-top: 1px solid #f0f2f5;
-      color: #e74c3c;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+      .program-header {
+        flex-direction: column;
+        gap: 10px;
+      }
 
-    .programs-note {
-      margin: 20px;
-      padding: 15px;
-      background: #fff8dc;
-      border-radius: 6px;
-      font-size: 14px;
-      color: #856404;
-      text-align: center;
+      .program-type {
+        margin-left: 0;
+      }
+
+      .program-section {
+        padding: 15px;
+      }
+
+      .program-grid {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Loading Spinner */
@@ -167,25 +219,6 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
-    }
-
-    /* Responsive Design */
-    @media (max-width: 768px) {
-      .container {
-        padding: 1rem;
-      }
-
-      .search-wrapper {
-        flex-direction: column;
-      }
-
-      #countySelect {
-        width: 100%;
-      }
-
-      .btn-primary {
-        width: 100%;
-      }
     }
 
     /* Additional Styles */
@@ -214,158 +247,24 @@
       font-size: 1.25rem;
     }
 
-    /* Program Card Styles */
-    .program-card {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Add styles for program type sections */
+    #resultsContainer > div {
+      margin-bottom: 40px;
     }
 
-    .program-header {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--primary-dark);
-      margin-bottom: 15px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px;
-      border-bottom: 1px solid #eee;
-      font-size: 1.2em;
-      font-weight: bold;
-      background-color: #f8f9fa;
-    }
-
-    .program-type {
+    #resultsContainer h2 {
+      color: #1e40af;
+      font-size: 1.8rem;
+      margin: 30px 0 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e2e8f0;
       display: flex;
       align-items: center;
-      gap: 8px;
-      color: var(--secondary);
-      margin-bottom: 10px;
+      gap: 12px;
     }
 
-    .program-amount {
-      font-size: 1.2rem;
-      color: var(--success);
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .program-summary {
-      color: var(--gray-700);
-      margin-bottom: 20px;
-      line-height: 1.6;
-    }
-
-    .section-title {
-      font-weight: 600;
-      color: var(--primary-dark);
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--gray-200);
-      padding-bottom: 5px;
-    }
-
-    .program-projects,
-    .program-recipients,
-    .program-requirements,
-    .program-contact {
-      margin-bottom: 20px;
-    }
-
-    .project-item,
-    .recipient-item,
-    .requirement-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 5px;
-      color: var(--gray-700);
-    }
-
-    .program-scope,
-    .program-process,
-    .program-deadline,
-    .program-processing {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      color: var(--gray-700);
-    }
-
-    .program-website {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--primary);
-      text-decoration: none;
-      margin-top: 10px;
-      padding: 8px 16px;
-      border: 1px solid var(--primary);
-      border-radius: 6px;
-      transition: all 0.2s;
-    }
-
-    .program-website:hover {
-      background: var(--primary);
-      color: white;
-    }
-
-    .contact-info {
-      color: var(--gray-700);
-      margin-top: 5px;
-    }
-
-    /* Icon styles */
-    .fas {
-      font-size: 1.1em;
-      margin-right: 5px;
-      color: var(--primary);
-    }
-
-    .source-indicator {
-      margin-left: 10px;
-      font-size: 1.2em;
-      padding: 5px 10px;
-      border-radius: 4px;
-      display: inline-flex;
-      align-items: center;
-    }
-
-    .source-indicator i[title="From Cache"] {
-      color: #2563eb;
-    }
-
-    .source-indicator i[title="Fresh Search"] {
-      color: #7c3aed;
-    }
-
-    /* Add styles for the source indicator */
-    .source-indicator-container {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 0.675em;
-      padding: 5px;
-      border-radius: 4px;
-      background-color: rgba(255, 255, 255, 0.9);
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .source-indicator-container i {
-      margin-right: 5px;
-    }
-
-    .source-indicator-container .cached {
-      color: #6B7280;
-    }
-
-    .source-indicator-container .search {
-      color: #6B7280;
+    #resultsContainer h2 i {
+      color: #3b82f6;
     }
   </style>
 </head>
@@ -452,29 +351,17 @@
 
       <!-- Results Container -->
       <div id="resultsContainer">
-        <div id="federalResults" class="results-section">
-          <div class="source-indicator-container">
-            <i class="fas fa-database cached" title="Results from cache"></i>
-            <i class="fas fa-search search" title="Results from direct search"></i>
-          </div>
-          <h2>Federal Programs</h2>
-          <div class="programs-grid"></div>
+        <div id="federalResults">
+          <h2><i class="fas fa-flag-usa"></i> Federal Programs</h2>
+          <div class="program-grid"></div>
         </div>
-        <div id="stateResults" class="results-section">
-          <div class="source-indicator-container">
-            <i class="fas fa-database cached" title="Results from cache"></i>
-            <i class="fas fa-search search" title="Results from direct search"></i>
-          </div>
-          <h2>State Programs</h2>
-          <div class="programs-grid"></div>
+        <div id="stateResults">
+          <h2><i class="fas fa-landmark"></i> State Programs</h2>
+          <div class="program-grid"></div>
         </div>
-        <div id="countyResults" class="results-section">
-          <div class="source-indicator-container">
-            <i class="fas fa-database cached" title="Results from cache"></i>
-            <i class="fas fa-search search" title="Results from direct search"></i>
-          </div>
-          <h2>County Programs</h2>
-          <div class="programs-grid"></div>
+        <div id="countyResults">
+          <h2><i class="fas fa-building"></i> County Programs</h2>
+          <div class="program-grid"></div>
         </div>
       </div>
     </div>
@@ -487,156 +374,223 @@
 
     // Helper function to create a program card
     function createProgramCard(program) {
-      console.log('Creating card for program:', program); // Debug log
+      console.log('Creating card for program:', program);
       const card = document.createElement('div');
       card.className = 'program-card';
       
-      // Header with source indicator
+      // 1. Program Name
       const header = document.createElement('div');
       header.className = 'program-header';
-      
-      // Program name
-      const name = document.createElement('span');
-      name.textContent = program.name;
-      header.appendChild(name);
-
+      header.innerHTML = `
+        <h3>${program.programName || program.name || 'Untitled Program'}</h3>
+      `;
       card.appendChild(header);
 
-      // Program Type
-      const type = document.createElement('div');
-      type.className = 'program-type';
-      type.innerHTML = `<i class="fas fa-tag"></i>Type: <span>${program.programType || 'Rebate'}</span>`;
-      card.appendChild(type);
+      // 2. Summary
+      if (program.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'program-section';
+        summary.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-info-circle"></i> Summary
+          </div>
+          <div class="info-item">
+            <p>${program.summary}</p>
+          </div>
+        `;
+        card.appendChild(summary);
+      }
 
-      // Amount
-      const amount = document.createElement('div');
-      amount.className = 'program-amount';
-      amount.innerHTML = `<i class="fas fa-dollar-sign"></i><span>Amount: </span><span class="amount-value">${program.amount}</span>`;
-      card.appendChild(amount);
+      // 3. Program Type
+      if (program.programType) {
+        const type = document.createElement('div');
+        type.className = 'program-section';
+        type.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-tag"></i> Program Type
+          </div>
+          <div class="info-item">
+            <span>${program.programType}</span>
+          </div>
+        `;
+        card.appendChild(type);
+      }
 
-      // Summary
-      const summary = document.createElement('div');
-      summary.className = 'program-summary';
-      summary.textContent = program.summary;
-      card.appendChild(summary);
+      // 4. Amount
+      if (program.amount) {
+        const amount = document.createElement('div');
+        amount.className = 'program-section';
+        amount.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-dollar-sign"></i> Amount
+          </div>
+          <div class="info-item">
+            <span>${program.amount}</span>
+          </div>
+        `;
+        card.appendChild(amount);
+      }
 
-      // Eligible Projects
-      if (program.eligibleProjects && program.eligibleProjects.length > 0) {
+      // 5. Eligible Projects
+      if (program.eligibleProjects) {
         const projects = document.createElement('div');
-        projects.className = 'program-projects';
-        const projectsTitle = document.createElement('div');
-        projectsTitle.className = 'section-title';
-        projectsTitle.innerHTML = '<i class="fas fa-tasks"></i> Eligible Projects';
-        projects.appendChild(projectsTitle);
-        program.eligibleProjects.forEach(project => {
-          const item = document.createElement('div');
-          item.className = 'project-item';
-          item.innerHTML = `<i class="fas fa-check"></i><span>${project}</span>`;
-          projects.appendChild(item);
-        });
+        projects.className = 'program-section';
+        projects.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-tasks"></i> Eligible Projects
+          </div>
+          <div class="info-item">
+            ${Array.isArray(program.eligibleProjects)
+              ? program.eligibleProjects.map(project =>
+                  `<div><i class="fas fa-check"></i>${project}</div>`
+                ).join('')
+              : program.eligibleProjects
+                ? `<div><i class="fas fa-check"></i>${program.eligibleProjects}</div>`
+                : '<div>No specific projects listed</div>'
+            }
+          </div>
+        `;
         card.appendChild(projects);
       }
 
-      // Eligible Recipients
-      if (program.eligibleRecipients && program.eligibleRecipients.length > 0) {
+      // 6. Eligible Recipients
+      if (program.eligibleRecipients) {
         const recipients = document.createElement('div');
-        recipients.className = 'program-recipients';
-        const recipientsTitle = document.createElement('div');
-        recipientsTitle.className = 'section-title';
-        recipientsTitle.innerHTML = '<i class="fas fa-users"></i> Eligible Recipients';
-        recipients.appendChild(recipientsTitle);
-        program.eligibleRecipients.forEach(recipient => {
-          const item = document.createElement('div');
-          item.className = 'recipient-item';
-          item.innerHTML = `<i class="fas fa-user"></i><span>${recipient}</span>`;
-          recipients.appendChild(item);
-        });
+        recipients.className = 'program-section';
+        recipients.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-users"></i> Eligible Recipients
+          </div>
+          <div class="info-item">
+            ${Array.isArray(program.eligibleRecipients)
+              ? program.eligibleRecipients.map(recipient =>
+                  `<div><i class="fas fa-check"></i>${recipient}</div>`
+                ).join('')
+              : program.eligibleRecipients
+                ? `<div><i class="fas fa-check"></i>${program.eligibleRecipients}</div>`
+                : '<div>No specific recipients listed</div>'
+            }
+          </div>
+        `;
         card.appendChild(recipients);
       }
 
-      // Geographic Scope
-      const scope = document.createElement('div');
-      scope.className = 'program-scope';
-      scope.innerHTML = `<i class="fas fa-map-marker-alt"></i><span>Location: ${program.geographicScope}</span>`;
-      card.appendChild(scope);
+      // 7. Geographic Scope
+      if (program.geographicScope) {
+        const scope = document.createElement('div');
+        scope.className = 'program-section';
+        scope.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-map-marker-alt"></i> Geographic Scope
+          </div>
+          <div class="info-item">
+            ${Array.isArray(program.geographicScope)
+              ? program.geographicScope.map(area =>
+                  `<div><i class="fas fa-map-pin"></i>${area}</div>`
+                ).join('')
+              : `<div><i class="fas fa-map-pin"></i>${program.geographicScope}</div>`
+            }
+          </div>
+        `;
+        card.appendChild(scope);
+      }
 
-      // Requirements
-      if (program.requirements && program.requirements.length > 0) {
+      // 8. Requirements
+      if (program.requirements) {
         const requirements = document.createElement('div');
-        requirements.className = 'program-requirements';
-        const requirementsTitle = document.createElement('div');
-        requirementsTitle.className = 'requirements-title';
-        requirementsTitle.innerHTML = '<i class="fas fa-clipboard-list"></i> Requirements';
-        requirements.appendChild(requirementsTitle);
-        program.requirements.forEach(requirement => {
-          const item = document.createElement('div');
-          item.className = 'requirement-item';
-          item.innerHTML = `<i class="fas fa-check"></i><span>${requirement}</span>`;
-          requirements.appendChild(item);
-        });
+        requirements.className = 'program-section';
+        requirements.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-clipboard-list"></i> Requirements
+          </div>
+          <div class="info-item">
+            ${Array.isArray(program.requirements)
+              ? program.requirements.map(req =>
+                  `<div><i class="fas fa-check"></i>${req}</div>`
+                ).join('')
+              : program.requirements
+                ? `<div><i class="fas fa-check"></i>${program.requirements}</div>`
+                : '<div>No specific requirements listed</div>'
+            }
+          </div>
+        `;
         card.appendChild(requirements);
       }
 
-      // How to Apply
+      // 9. Application Process
       if (program.applicationProcess) {
         const application = document.createElement('div');
-        application.className = 'program-application';
-        const applicationTitle = document.createElement('div');
-        applicationTitle.className = 'how-to-apply-title';
-        applicationTitle.innerHTML = '<i class="fas fa-file-alt"></i> How to Apply';
-        application.appendChild(applicationTitle);
-        const applicationText = document.createElement('div');
-        applicationText.className = 'application-text';
-        applicationText.textContent = program.applicationProcess;
-        application.appendChild(applicationText);
+        application.className = 'program-section';
+        application.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-file-alt"></i> Application Process
+          </div>
+          <div class="info-item">
+            <span>${program.applicationProcess}</span>
+          </div>
+        `;
         card.appendChild(application);
       }
 
-      // Deadline
+      // 10. Deadline
       if (program.deadline) {
         const deadline = document.createElement('div');
-        deadline.className = 'program-deadline';
-        const deadlineTitle = document.createElement('div');
-        deadlineTitle.className = 'deadline-title';
-        deadlineTitle.innerHTML = '<i class="fas fa-clock"></i> Deadline';
-        deadline.appendChild(deadlineTitle);
-        const deadlineText = document.createElement('div');
-        deadlineText.className = 'deadline-text';
-        deadlineText.textContent = program.deadline;
-        deadline.appendChild(deadlineText);
+        deadline.className = 'program-section';
+        deadline.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-clock"></i> Deadline
+          </div>
+          <div class="info-item">
+            <span>${program.deadline}</span>
+          </div>
+        `;
         card.appendChild(deadline);
       }
 
-      // Website Link
-      if (program.websiteLink) {
-        const website = document.createElement('a');
-        website.className = 'program-website';
-        website.href = program.websiteLink;
-        website.target = '_blank';
-        website.innerHTML = `<i class="fas fa-external-link-alt"></i><span>Visit Official Website</span>`;
+      // 11. Website Link
+      if (program.websiteLink || program.link) {
+        const website = document.createElement('div');
+        website.className = 'program-section';
+        website.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-link"></i> Website
+          </div>
+          <div class="info-item">
+            <a href="${program.websiteLink || program.link}" target="_blank" rel="noopener noreferrer">
+              Visit Program Website <i class="fas fa-external-link-alt"></i>
+            </a>
+          </div>
+        `;
         card.appendChild(website);
       }
 
-      // Contact Information
+      // 12. Contact Information
       if (program.contactInformation) {
         const contact = document.createElement('div');
-        contact.className = 'program-contact';
-        const contactTitle = document.createElement('div');
-        contactTitle.className = 'section-title';
-        contactTitle.innerHTML = '<i class="fas fa-address-card"></i> Contact Information';
-        contact.appendChild(contactTitle);
-        const info = document.createElement('div');
-        info.className = 'contact-info';
-        info.innerHTML = program.contactInformation;
-        contact.appendChild(info);
+        contact.className = 'program-section';
+        contact.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-address-card"></i> Contact Information
+          </div>
+          <div class="info-item">
+            <span>${program.contactInformation}</span>
+          </div>
+        `;
         card.appendChild(contact);
       }
 
-      // Processing Time
+      // 13. Processing Time
       if (program.processingTime) {
         const processing = document.createElement('div');
-        processing.className = 'program-processing';
-        processing.innerHTML = `<i class="fas fa-hourglass-half"></i><span>Processing Time: ${program.processingTime}</span>`;
+        processing.className = 'program-section';
+        processing.innerHTML = `
+          <div class="section-title">
+            <i class="fas fa-hourglass-half"></i> Processing Time
+          </div>
+          <div class="info-item">
+            <span>${program.processingTime}</span>
+          </div>
+        `;
         card.appendChild(processing);
       }
 
@@ -645,22 +599,26 @@
 
     // Helper function to display programs
     function displayPrograms(programs, category) {
-      const section = document.getElementById(`${category.toLowerCase()}Results`);
-      const grid = section.querySelector('.programs-grid');
-      grid.innerHTML = ''; // Clear existing content
+      // Clear previous results for this category
+      const sectionId = `${category.toLowerCase()}Results`;
+      const section = document.getElementById(sectionId);
+      if (!section) return;
 
-      if (!programs || programs.length === 0) {
-        const message = document.createElement('div');
-        message.className = 'no-programs-message';
-        message.textContent = `No ${category} programs found`;
-        grid.appendChild(message);
-        return;
+      const grid = section.querySelector('.program-grid');
+      if (!grid) return;
+
+      grid.innerHTML = '';
+
+      // Add programs to the appropriate section
+      if (programs && programs.length > 0) {
+        programs.forEach(program => {
+          const card = createProgramCard(program);
+          grid.appendChild(card);
+        });
+        section.style.display = 'block';
+      } else {
+        section.style.display = 'none';
       }
-
-      programs.forEach(program => {
-        const card = createProgramCard(program);
-        grid.appendChild(card);
-      });
     }
 
     // Handle form submission
@@ -679,13 +637,12 @@
         resultsContainer.style.display = 'block';
         
         // Clear existing results
-        ['federal', 'state', 'county'].forEach(category => {
-          const section = document.getElementById(`${category}Results`);
-          if (section) {
-            const grid = section.querySelector('.programs-grid');
-            if (grid) grid.innerHTML = '';
-          }
-        });
+        const federalGrid = document.getElementById('federalResults').querySelector('.program-grid');
+        const stateGrid = document.getElementById('stateResults').querySelector('.program-grid');
+        const countyGrid = document.getElementById('countyResults').querySelector('.program-grid');
+        federalGrid.innerHTML = '';
+        stateGrid.innerHTML = '';
+        countyGrid.innerHTML = '';
 
         // Get programs
         const results = await rebatePrograms.analyze(county);

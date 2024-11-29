@@ -2,7 +2,7 @@ export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
         const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        this.baseUrl = isLocal ? 'http://localhost:3000' : '/.netlify/functions';
+        this.baseUrl = isLocal ? 'http://localhost:3001' : '/.netlify/functions';
         this.analyzePath = isLocal ? '/api/analyze' : '/analyze';
     }
 
@@ -52,38 +52,43 @@ export default class RebatePrograms {
                     
                     console.log(`✅ ${category} Normalized Programs:`, normalizedPrograms);
                     
-                    // Update source indicator icons for the specific section
+                    // Update source indicator icons for the specific section if they exist
                     const sectionId = `${category.toLowerCase()}Results`;
                     const cachedIcon = document.querySelector(`#${sectionId} .source-indicator-container .cached`);
                     const searchIcon = document.querySelector(`#${sectionId} .source-indicator-container .search`);
                     
-                    // Check source from the first program's source field
-                    if (normalizedPrograms.length > 0 && normalizedPrograms[0].source === 'cache') {
-                        cachedIcon.style.display = 'inline-block';
-                        searchIcon.style.display = 'none';
-                    } else {
-                        searchIcon.style.display = 'inline-block';
-                        cachedIcon.style.display = 'none';
+                    // Only update icons if they exist
+                    if (cachedIcon && searchIcon) {
+                        if (normalizedPrograms.length > 0 && normalizedPrograms[0].source === 'cache') {
+                            cachedIcon.style.display = 'inline-block';
+                            searchIcon.style.display = 'none';
+                        } else {
+                            searchIcon.style.display = 'inline-block';
+                            cachedIcon.style.display = 'none';
+                        }
                     }
                     
                     // Process the normalized programs
                     if (normalizedPrograms.length > 0) {
                         results[category.toLowerCase()] = normalizedPrograms.map(program => {
                             console.log(`📝 Processing Program:`, program);
-                            const mappedProgram = {
-                                name: program.name || 'Program Name Not Available',
-                                amount: program.amount || 'Amount varies',
-                                requirements: [
-                                    program.eligibleProjects,
-                                    program.eligibleRecipients,
-                                    program.requirements
-                                ].filter(Boolean).flat(), // Flatten nested arrays
-                                deadline: program.deadline || 'Contact for deadline',
-                                summary: program.summary || 'No summary available',
+                            // Map backend field names to frontend field names
+                            return {
+                                programName: program.name || program.programName,
+                                summary: program.summary,
+                                programType: program.programType,
+                                amount: program.amount,
+                                eligibleProjects: program.eligibleProjects,
+                                eligibleRecipients: program.eligibleRecipients,
+                                geographicScope: program.geographicScope,
+                                requirements: program.requirements,
+                                applicationProcess: program.applicationProcess,
+                                deadline: program.deadline,
+                                websiteLink: program.link || program.websiteLink,
+                                contactInformation: program.contactInformation,
+                                processingTime: program.processingTime,
                                 source: program.source
                             };
-                            console.log(`✅ Mapped Program Result:`, mappedProgram);
-                            return mappedProgram;
                         });
                         console.log(`✨ ${category} Processing Complete:`, results[category.toLowerCase()]);
                     } else {
