@@ -28,11 +28,30 @@ export default class RebatePrograms {
                         })
                     });
 
+                    console.log(`🌐 ${category} API Response Status:`, response.status);
+                    
                     if (!response.ok) {
+                        console.error(`❌ ${category} API Error:`, response.status, response.statusText);
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
 
                     const data = await response.json();
+                    console.log(`📦 ${category} Raw API Response:`, JSON.stringify(data, null, 2));
+                    
+                    // Validate data structure
+                    if (!data || typeof data !== 'object') {
+                        console.error(`❌ ${category} Invalid Response Format:`, data);
+                        throw new Error('Invalid response format');
+                    }
+
+                    // Check programs array
+                    if (!data.programs || !Array.isArray(data.programs)) {
+                        console.error(`❌ ${category} Missing Programs Array:`, data);
+                        throw new Error('Missing programs array');
+                    }
+
+                    console.log(`✅ ${category} Valid Programs Count:`, data.programs.length);
+                    
                     console.log(`${category} programs data:`, data);
                     
                     // Update source indicator icons for the specific section
@@ -53,7 +72,9 @@ export default class RebatePrograms {
                     
                     // Check if we have valid program data
                     if (data && data.programs && Array.isArray(data.programs)) {
+                        console.log(`🔄 Processing ${data.programs.length} programs for ${category}`);
                         results[category.toLowerCase()] = data.programs.map(program => {
+                            console.log(`📝 Processing Program:`, program);
                             const mappedProgram = {
                                 name: program.name || 'Program Name Not Available',
                                 amount: program.amount || 'Amount varies',
@@ -66,9 +87,10 @@ export default class RebatePrograms {
                                 summary: program.summary || 'No summary available',
                                 source: program.source // Preserve the source field
                             };
-                            console.log('Mapped program with source:', mappedProgram); // Debug log
+                            console.log(`✅ Mapped Program Result:`, mappedProgram);
                             return mappedProgram;
                         });
+                        console.log(`✨ ${category} Processing Complete:`, results[category.toLowerCase()]);
                     } else {
                         console.error(`No valid programs found for ${category}`);
                         results[category.toLowerCase()] = [];

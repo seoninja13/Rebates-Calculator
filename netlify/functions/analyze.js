@@ -120,6 +120,7 @@ async function analyzeResults(results, category) {
     FINAL INSTRUCTION: Ensure EVERY program has a MEANINGFUL, INFORMATIVE summary.`;
 
     try {
+        console.log('🤖 Sending to OpenAI with prompt length:', prompt.length);
         const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: [
@@ -137,17 +138,15 @@ async function analyzeResults(results, category) {
             response_format: { type: "json_object" }
         });
 
-        // Log the raw response for debugging
-        console.log('Raw OpenAI Response:', JSON.stringify(completion, null, 2));
+        console.log('✅ OpenAI Response received:', JSON.stringify(completion.choices[0].message.content, null, 2));
 
-        // Defensive parsing with more error handling
-        let parsedContent;
+        let programs = [];
         try {
-            parsedContent = JSON.parse(completion.choices[0].message.content);
-            console.log('Parsed OpenAI Content:', JSON.stringify(parsedContent, null, 2));
+            programs = JSON.parse(completion.choices[0].message.content);
+            console.log('📊 Parsed Programs:', JSON.stringify(programs, null, 2));
         } catch (parseError) {
-            console.error('JSON Parsing Error:', parseError);
-            console.error('Raw content:', completion.choices[0].message.content);
+            console.error('❌ Error parsing OpenAI response:', parseError);
+            console.log('Raw OpenAI response:', completion.choices[0].message.content);
             return {
                 category: category,
                 programs: [],
@@ -158,7 +157,7 @@ async function analyzeResults(results, category) {
         }
 
         // Validate that each program has a summary
-        const validatedPrograms = (parsedContent.programs || []).map(program => {
+        const validatedPrograms = (programs.programs || []).map(program => {
             const summary = program.summary || 'No summary available';
             console.log(`Program Summary: ${summary}`);
             return {
@@ -172,6 +171,8 @@ async function analyzeResults(results, category) {
 
         console.log('Validated Programs:', JSON.stringify(validatedPrograms, null, 2));
 
+        console.log(`✅ Successfully processed ${validatedPrograms.length} programs for category: ${category}`);
+        
         return {
             category: category,
             programs: validatedPrograms,
