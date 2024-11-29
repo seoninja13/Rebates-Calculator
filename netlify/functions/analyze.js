@@ -251,7 +251,7 @@ exports.handler = async function(event, context) {
                 'Access-Control-Allow-Methods': 'POST, OPTIONS'
             },
             body: JSON.stringify({
-                programs: analyzedResults,
+                ...analyzedResults,  // Spread the analyzed results
                 query,
                 category
             })
