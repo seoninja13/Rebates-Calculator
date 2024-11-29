@@ -1,6 +1,8 @@
 const OpenAI = require('openai');
 const fetch = require('node-fetch');
-const path = require('path');
+
+// Ensure no local .env loading
+// Rely entirely on Netlify environment variables
 
 // Initialize OpenAI
 const openai = new OpenAI({
@@ -11,16 +13,12 @@ const openai = new OpenAI({
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
-// Debug log environment variables (excluding sensitive values)
-console.log('Environment check:', {
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY ? 'Set' : 'Not set',
-    GOOGLE_API_KEY: process.env.GOOGLE_API_KEY ? 'Set' : 'Not set',
-    GOOGLE_SEARCH_ENGINE_ID: process.env.GOOGLE_SEARCH_ENGINE_ID ? 'Set' : 'Not set'
+// Minimal logging for environment variables
+console.log('Environment Variables Check:', {
+    OPENAI_API_KEY: !!process.env.OPENAI_API_KEY,
+    GOOGLE_API_KEY: !!process.env.GOOGLE_API_KEY,
+    GOOGLE_SEARCH_ENGINE_ID: !!process.env.GOOGLE_SEARCH_ENGINE_ID
 });
-
-// Additional debug logging
-console.log('All environment variables:', process.env);
-console.log('Current working directory:', process.cwd());
 
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
