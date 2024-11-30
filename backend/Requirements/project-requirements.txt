@@ -1,0 +1,144 @@
+wINDSURF ASSISTANT:DO NOT MAKE ANY CHANGES TO THIS FILE!!!
+
+Instructions for OpenAI/ChatGPT:
+1. Extract the following information from the search results:
+Title: [Program Name]
+
+Summary: Brief description focusing on key benefits and eligibility (min 240 max 520 characters)
+
+Program Type: [Rebate/Grant/Tax Credit/Low-Interest Loan]
+
+Amount: [Exact amount or range, with $ and commas]
+
+Eligible Projects:
+- Solar panels
+- HVAC systems
+- Insulation
+- Electric vehicles
+- Energy-efficient appliances
+- Home improvements
+
+Eligible Recipients:
+- Homeowners
+- Businesses
+- Municipalities
+- Income requirements
+- Other qualifying criteria
+
+Geographic Scope:
+- Nationwide
+- State-specific
+- County/city-specific
+- Utility service area
+
+Requirements:
+- Application forms
+- Proof of purchase/installation
+- Contractor requirements
+- Energy audits
+- Income verification
+- Property documentation
+
+Application Process: [1-2 line description of how to apply]
+
+Deadline: [Specific date or "Ongoing"]
+
+Website Link: [Official program URL]
+
+Contact Information:
+- Phone numbers
+- Email addresses
+- Office locations
+
+Processing Time: [e.g., "6-8 weeks" or "30 days after approval"]
+
+
+2. Federal programs must be available to all California residents.
+3. County programs must be available to residents within the county.
+4. State programs must be available to all California residents.
+5. All results should be unique, meaning, No overlap betwenn Federal, County and State programs.
+
+What infomation from openAI to display in the UI, and the order top down?
+1. Program Name
+2. Summary
+4. Amount
+5. Eligible Projects
+6. Eligible Recipients
+7. Geographic Scope
+8. Requirements
+9. Application Process
+10. Deadline
+11. Website Link
+12. Contact Information
+13. Processing Time
+
+When ever you make any changes to styling, do not chage the backend code.
+
+When you make any UI styling changes, make sure not to change any other code. 
+
+We have 2 environments:1. Local/staging 2. Netlify/production
+Local/staging already has .env file with enviromnet varbales.
+
+
+For Netlify functions, environment variables are configured in the Netlify dashboard. For  local/staging environment use the .env file.
+
+For Netlify/production environment, the Environment variables:
+
+GOOGLE_API_KEY
+GOOGLE_SEARCH_ENGINE_ID
+OPENAI_API_KEY
+GOOGLE_SHEETS_API_KEY
+CACHE_SPREADSHEET_ID
+
+are setup in Netlify dashboard configuration.
+
+Logging all requests and responses.
+Log all requests and responses comprehensively.
+Store every search query in the Google Sheets "Cache" sheet.
+Store every response (both from Google Search and OpenAI API) in the "Cache" sheet.
+Ensure we can retrieve the cached data effectively
+
+
+===> Caching logic:
+1. If the search query is the same as the previous one, return the cached results.
+2. If the search query is different from the previous one, perform a fresh search and cache the results.
+3. We are caching both the search results and the analysis results from openAI in Google Sheets.
+
+Here's a summary of our caching system:
+
+Storage Location:
+Using Google Sheets document with ID: "1lzUS63kvhh_ICyeZhdDs46fk7l72r0ulZ5tLSKNjcJc"
+All data is stored in a sheet named "Cache"
+Cache Structure (Columns):
+Query: The search query
+Category: Federal/State/County
+Results: The actual data (JSON stringified)
+Timestamp (PST): Converted to Pacific Standard Time
+Hash: Unique identifier for the query+category
+Google Search: Checkmark (✓) if it's a Google search result
+OpenAI Analysis: Checkmark (✓) if it's an OpenAI analysis result
+Caching Process:
+First checks if results exist in cache for a given query+category
+If not found, makes the API call (Google or OpenAI)
+Stores new results with appropriate source marked
+Removes old entries for the same query+category before storing new ones
+Two Types of Cached Data:
+Google Search Results: Raw search results from Google API
+OpenAI Analysis: Processed and analyzed program information from OpenAI
+
+===> Making changes to the UI:
+1. If you make any changes to the UI, do not change the backend code.
+
+Making changes to the backend:
+1. If you make any changes to the backend, do not change the UI code, or just make changes to the backend code diretly related to the task, do not get off track.
+
+OpenAI instructions:
+1. If you make any changes to the OpenAI instructions, do not change the UI code, or just make changes to the OpenAI instructions diretly related to the task, do not get off track.
+
+Requirements for OpenAI API Response:
+
+1. Use version 4 of the OpenAI API for all requests.
+
+
+===> Backend Logic:
+Make sure we use the same configuration in both local and production/Netlify environment. For eaxple make sure we use the same ChatGPT model.

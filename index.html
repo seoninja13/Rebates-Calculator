@@ -44,14 +44,17 @@
 
     .program-header h3 {
       color: #2563eb;
-      font-size: 1.5rem;
-      margin: 0 0 10px 0;
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin: 0 0 12px 0;
+      line-height: 1.3;
     }
 
     .program-header p {
       color: #4b5563;
       margin: 0;
-      font-size: 1rem;
+      font-size: 1.1rem;
+      line-height: 1.6;
     }
 
     .program-section {
@@ -61,17 +64,28 @@
       background-color: #f8fafc;
     }
 
-    .section-title {
-      font-weight: 600;
-      color: #1e40af;
-      margin-bottom: 8px;
+    .section-header {
       display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 8px;
+      margin-bottom: 1rem;
     }
 
-    .section-title i {
-      color: #3b82f6;
+    .section-title {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #1a73e8;
+      margin: 0;
+    }
+
+    .section-icons {
+      display: flex;
+      gap: 0.5rem;
+      color: #666;
+    }
+
+    .section-icons i {
+      font-size: 1.2rem;
     }
 
     .info-item {
@@ -351,17 +365,37 @@
 
       <!-- Results Container -->
       <div id="resultsContainer">
-        <div id="federalResults">
-          <h2><i class="fas fa-flag-usa"></i> Federal Programs</h2>
-          <div class="program-grid"></div>
+        <div id="federalSection">
+          <div class="section-header">
+            <h2 class="section-title">Federal Programs</h2>
+            <div class="section-icons">
+              <i class="fas fa-search" style="display: none;"></i>
+              <i class="fas fa-database" style="display: none;"></i>
+            </div>
+          </div>
+          <div id="federalResults"></div>
         </div>
-        <div id="stateResults">
-          <h2><i class="fas fa-landmark"></i> State Programs</h2>
-          <div class="program-grid"></div>
+
+        <div id="stateSection">
+          <div class="section-header">
+            <h2 class="section-title">State Programs</h2>
+            <div class="section-icons">
+              <i class="fas fa-search" style="display: none;"></i>
+              <i class="fas fa-database" style="display: none;"></i>
+            </div>
+          </div>
+          <div id="stateResults"></div>
         </div>
-        <div id="countyResults">
-          <h2><i class="fas fa-building"></i> County Programs</h2>
-          <div class="program-grid"></div>
+
+        <div id="countySection">
+          <div class="section-header">
+            <h2 class="section-title">County Programs</h2>
+            <div class="section-icons">
+              <i class="fas fa-search" style="display: none;"></i>
+              <i class="fas fa-database" style="display: none;"></i>
+            </div>
+          </div>
+          <div id="countyResults"></div>
         </div>
       </div>
     </div>
@@ -401,22 +435,7 @@
         card.appendChild(summary);
       }
 
-      // 3. Program Type
-      if (program.programType) {
-        const type = document.createElement('div');
-        type.className = 'program-section';
-        type.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-tag"></i> Program Type
-          </div>
-          <div class="info-item">
-            <span>${program.programType}</span>
-          </div>
-        `;
-        card.appendChild(type);
-      }
-
-      // 4. Amount
+      // 3. Amount
       if (program.amount) {
         const amount = document.createElement('div');
         amount.className = 'program-section';
@@ -431,7 +450,7 @@
         card.appendChild(amount);
       }
 
-      // 5. Eligible Projects
+      // 4. Eligible Projects
       if (program.eligibleProjects) {
         const projects = document.createElement('div');
         projects.className = 'program-section';
@@ -453,7 +472,7 @@
         card.appendChild(projects);
       }
 
-      // 6. Eligible Recipients
+      // 5. Eligible Recipients
       if (program.eligibleRecipients) {
         const recipients = document.createElement('div');
         recipients.className = 'program-section';
@@ -475,7 +494,7 @@
         card.appendChild(recipients);
       }
 
-      // 7. Geographic Scope
+      // 6. Geographic Scope
       if (program.geographicScope) {
         const scope = document.createElement('div');
         scope.className = 'program-section';
@@ -495,7 +514,7 @@
         card.appendChild(scope);
       }
 
-      // 8. Requirements
+      // 7. Requirements
       if (program.requirements) {
         const requirements = document.createElement('div');
         requirements.className = 'program-section';
@@ -517,7 +536,7 @@
         card.appendChild(requirements);
       }
 
-      // 9. Application Process
+      // 8. Application Process
       if (program.applicationProcess) {
         const application = document.createElement('div');
         application.className = 'program-section';
@@ -532,7 +551,7 @@
         card.appendChild(application);
       }
 
-      // 10. Deadline
+      // 9. Deadline
       if (program.deadline) {
         const deadline = document.createElement('div');
         deadline.className = 'program-section';
@@ -547,7 +566,7 @@
         card.appendChild(deadline);
       }
 
-      // 11. Website Link
+      // 10. Website Link
       if (program.websiteLink || program.link) {
         const website = document.createElement('div');
         website.className = 'program-section';
@@ -564,7 +583,7 @@
         card.appendChild(website);
       }
 
-      // 12. Contact Information
+      // 11. Contact Information
       if (program.contactInformation) {
         const contact = document.createElement('div');
         contact.className = 'program-section';
@@ -579,7 +598,7 @@
         card.appendChild(contact);
       }
 
-      // 13. Processing Time
+      // 12. Processing Time
       if (program.processingTime) {
         const processing = document.createElement('div');
         processing.className = 'program-section';
@@ -599,21 +618,25 @@
 
     // Helper function to display programs
     function displayPrograms(programs, category) {
-      // Clear previous results for this category
-      const sectionId = `${category.toLowerCase()}Results`;
+      const sectionId = `${category.toLowerCase()}Section`;
       const section = document.getElementById(sectionId);
-      if (!section) return;
+      if (!section) {
+        console.error(`Section not found: ${sectionId}`);
+        return;
+      }
 
-      const grid = section.querySelector('.program-grid');
-      if (!grid) return;
+      const resultsDiv = section.querySelector(`#${category.toLowerCase()}Results`);
+      if (!resultsDiv) {
+        console.error(`Results div not found in section: ${sectionId}`);
+        return;
+      }
 
-      grid.innerHTML = '';
+      resultsDiv.innerHTML = '';
 
-      // Add programs to the appropriate section
-      if (programs && programs.length > 0) {
+      if (programs && Array.isArray(programs) && programs.length > 0) {
         programs.forEach(program => {
           const card = createProgramCard(program);
-          grid.appendChild(card);
+          resultsDiv.appendChild(card);
         });
         section.style.display = 'block';
       } else {
@@ -624,32 +647,45 @@
     // Handle form submission
     document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
       event.preventDefault();
+      console.log('Form submitted');
       
       const county = document.getElementById('countySelect').value;
+      console.log('Selected county:', county);
+      
       const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
       const errorDisplay = document.getElementById('errorDisplay');
       const resultsContainer = document.getElementById('resultsContainer');
       
       try {
+        console.log('Starting search...');
         // Show loading spinner
         loadingSpinner.style.display = 'block';
         errorDisplay.style.display = 'none';
         resultsContainer.style.display = 'block';
         
         // Clear existing results
-        const federalGrid = document.getElementById('federalResults').querySelector('.program-grid');
-        const stateGrid = document.getElementById('stateResults').querySelector('.program-grid');
-        const countyGrid = document.getElementById('countyResults').querySelector('.program-grid');
-        federalGrid.innerHTML = '';
-        stateGrid.innerHTML = '';
-        countyGrid.innerHTML = '';
+        ['federal', 'state', 'county'].forEach(category => {
+          const section = document.getElementById(`${category}Section`);
+          if (section) {
+            const resultsDiv = section.querySelector(`#${category}Results`);
+            if (resultsDiv) {
+              resultsDiv.innerHTML = '';
+            }
+          }
+        });
 
-        // Get programs
+        console.log('Calling analyze with county:', county);
         const results = await rebatePrograms.analyze(county);
+        console.log('Got results:', results);
         
         // Display results for each category
-        Object.entries(results).forEach(([category, programs]) => {
-          displayPrograms(programs, category);
+        Object.entries(results).forEach(([category, categoryData]) => {
+          console.log(`Displaying ${category} programs:`, categoryData);
+          if (categoryData && categoryData.programs) {
+            displayPrograms(categoryData.programs, category);
+          } else {
+            console.error(`No programs found for category: ${category}`);
+          }
         });
 
       } catch (error) {

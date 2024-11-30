@@ -4,10 +4,6 @@
 
 [functions]
   node_bundler = "esbuild"
-
-# Remove local env file loading
-# [dev]
-#   envFiles = ["backend/.env"]
   
 [build.environment]
   NODE_VERSION = "18"

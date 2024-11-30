@@ -187,16 +187,15 @@ app.post('/api/analyze', async (req, res) => {
             return res.status(404).json({ error: 'No search results found' });
         }
 
-        console.log('\n🤖 Analyzing results with OpenAI...');
         // Map search results to our format
-        const results = searchResults.map(item => ({
+        const formattedResults = searchResults.map(item => ({
             title: item.title,
-            snippet: item.snippet,
-            link: item.link
+            link: item.link,
+            snippet: item.snippet
         }));
-        console.log('🔄 Mapped results:', JSON.stringify(results, null, 2));
 
-        const analysis = await analyzeResults(results, category, county);
+        console.log('\n🤖 Analyzing results with OpenAI...');
+        const analysis = await analyzeResults(formattedResults, category);
         console.log('✨ Analysis results:', JSON.stringify(analysis, null, 2));
         
         if (!analysis || !analysis.programs || analysis.programs.length === 0) {
@@ -223,150 +222,231 @@ app.post('/api/analyze', async (req, res) => {
 });
 
 // Helper function to analyze results
-async function analyzeResults(results, category, county) {
+async function analyzeResults(results, category) {
+    // Log raw search results
+    console.log('Raw Search Results:', JSON.stringify(results, null, 2));
+
+    // Build prompt for OpenAI
+    const resultsText = JSON.stringify(results, null, 2);
+    console.log('Results Text for OpenAI:', resultsText);
+
+    if (!resultsText) {
+        console.error('❌ NO SEARCH RESULTS FOUND');
+        return {
+            category: category,
+            programs: [],
+            error: 'No search results found',
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    const prompt = `Extract information about ${category} energy rebate programs from the search results. 
+
+        CRITICAL REQUIREMENT - SUMMARY LENGTH:
+        The summary field should ideally be between 240 and 520 characters, but longer summaries are acceptable.
+        - Target range: 240-520 characters (about 3-7 sentences)
+        - Minimum: 240 characters (required)
+        - Current summaries are too short and need to be expanded
+        - Include more details about benefits, eligibility, and process
+        - Use complete sentences and active voice
+
+        REQUIREMENTS FOR PROGRAMS:
+        - Federal programs must be available to all California residents
+        - State programs must be California-specific
+        - County programs should include both county-specific and relevant utility programs
+        
+        For each program, you MUST provide ALL of the following fields:
+        1. programName: Full official program name
+        2. programType: Must be one of [Rebate/Grant/Tax Credit/Low-Interest Loan]
+        3. summary: CRITICAL - Write a detailed summary (aim for 240-520 characters) that includes:
+           * Comprehensive program description
+           * Key benefits and financial incentives
+           * Primary and secondary eligibility criteria
+           * Application process overview
+        4. amount: Specific rebate amount or range (use $ and commas)
+        5. eligibleProjects: MUST include applicable items:
+           * Solar panels
+           * HVAC systems
+           * Insulation
+           * Electric vehicles
+           * Energy-efficient appliances
+           * Home improvements
+        6. eligibleRecipients: MUST specify ALL that apply:
+           * Homeowners
+           * Businesses
+           * Municipalities
+           * Income requirements
+           * Other qualifying criteria
+        7. geographicScope: MUST be one of:
+           * Nationwide
+           * State-specific
+           * County/city-specific
+           * Utility service area
+        8. requirements: MUST include ALL applicable items:
+           * Application forms
+           * Proof of purchase/installation
+           * Contractor requirements
+           * Energy audits
+           * Income verification
+           * Property documentation
+        9. applicationProcess: 1-2 line description of how to apply
+        10. deadline: Specific date or "Ongoing"
+        11. websiteLink: Official program URL
+        12. contactInfo: MUST include when available:
+            * Phone numbers
+            * Email addresses
+            * Office locations
+        13. processingTime: Expected processing time (e.g., "6-8 weeks" or "30 days after approval")
+        
+        Return the data as a JSON object with this structure:
+        {
+          "programs": [
+            {
+              "programName": "string",
+              "programType": "string",
+              "summary": "string (aim for 240-520 chars)",
+              "amount": "string",
+              "eligibleProjects": ["string"],
+              "eligibleRecipients": ["string"],
+              "geographicScope": "string",
+              "requirements": ["string"],
+              "applicationProcess": "string",
+              "deadline": "string",
+              "websiteLink": "string",
+              "contactInfo": "string",
+              "processingTime": "string"
+            }
+          ]
+        }`;
+
     try {
-        const resultsText = results.map(r => `Title: ${r.title}\nDescription: ${r.snippet}`).join('\n\n');
-        console.log('📝 Sending to OpenAI:', resultsText);
-        const prompt = `Analyze these ${category} rebate programs and extract detailed information about all programs. 
-
-STRICT CATEGORIZATION AND DUPLICATION RULES - YOU MUST FOLLOW THESE EXACTLY:
-
-1. For County programs (when searching for "${county} county"):
-   *** EXTREMELY IMPORTANT: DO NOT INCLUDE ANY FEDERAL OR STATE PROGRAMS IN COUNTY RESULTS ***
-   - ONLY include programs that are EXCLUSIVELY available to ${county} County residents
-   - ONLY include programs administered by:
-     * ${county} County government offices
-     * Local utilities serving ONLY ${county} County
-     * City governments within ${county} County
-   - Programs must be UNIQUE to ${county} County
-   - STRICTLY EXCLUDE:
-     * ANY federal programs (even if they apply to the county)
-     * ANY state programs (even if they apply to the county)
-     * ANY programs available outside ${county} County
-     * ANY programs from other counties
-   If in doubt whether a program is county-specific, DO NOT include it.
-
-2. For State programs:
-   - ONLY include programs administered by California state agencies
-   - ONLY include programs available to all California residents
-   - EXCLUDE ALL federal and county-specific programs
-   - EXCLUDE programs specific to individual counties
-
-3. For Federal programs:
-   - ONLY include nationwide programs administered by federal agencies
-   - Programs must be available across all US states
-   - EXCLUDE ALL state and county-specific programs
-
-DUPLICATION CHECK:
-- Before including any program in the County results, verify it is NOT:
-  * A federal program being implemented locally
-  * A state program being implemented locally
-  * A utility program available in multiple counties
-  * A regional program covering multiple counties
-
-For each program that matches the correct category, provide the following information in this exact format:
-
-Title: [Program Name]
-
-Summary: Provide a concise 320-character summary focusing on the program's key benefits and eligibility criteria.
-
-Program Type: Specify if it's a rebate, grant, tax credit, or low-interest loan.
-
-Amount: Format as exact amount (e.g., "$5,000") or range (e.g., "Up to $X,XXX"). Always include dollar signs and commas.
-
-Eligible Projects: List specific projects that qualify, such as:
-- Solar panels
-- HVAC systems
-- Insulation
-- Electric vehicles
-- Energy-efficient appliances
-- Home improvements
-
-Eligible Recipients: Specify who can apply, including:
-- Type of applicant (homeowners, businesses, municipalities)
-- Income requirements if any
-- Other qualifying criteria
-
-Geographic Scope: Must be one of:
-- For Federal: "Available nationwide through [federal agency name]"
-- For State: "Available throughout California through [state agency name]"
-- For County: "Available only to ${county} County residents through [local agency/utility name]"
-
-Requirements: List all required documents and conditions.
-
-Application Process: Provide a clear 1-2 line description of how to apply.
-
-Deadline: Specify the application deadline or if it's ongoing.
-
-Website Link: Provide the official program URL.
-
-Contact Information: Include phone numbers, email addresses, or office locations.
-
-If any field's information is not found in the source text, use these defaults:
-- Summary: "This program offers financial incentives for energy-efficient home improvements. Contact program administrator for specific details."
-- Program Type: "Rebate"
-- Amount: "Amount varies"
-- Geographic Scope: 
-  * Federal: "Available nationwide"
-  * State: "Available throughout California"
-  * County: "Available only to ${county} County residents"
-
-Here are the programs to analyze:
-
-${resultsText}`;
-
+        console.log('🤖 Sending to OpenAI with prompt length:', prompt.length);
         const completion = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
+            model: "gpt-4-1106-preview",
             messages: [
                 {
                     role: "system",
-                    content: "You are a helpful assistant that analyzes rebate programs and extracts structured information. Be precise in extracting monetary values and always include the dollar sign ($) for amounts. If an amount is a percentage, format it clearly (e.g., '30% of cost')."
+                    content: "You are a precise data extraction assistant that always returns valid JSON. Your primary focus is creating detailed program summaries between 240-520 characters, but longer summaries are acceptable. Current summaries are too short and need more detail. Include comprehensive information about benefits, eligibility, process, and requirements. Never return summaries shorter than 240 characters. For Federal and State programs, they must be available to all California residents. For County programs, include both county-specific programs and relevant utility/local government incentives available to county residents."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            temperature: 0.7,
-            max_tokens: 1500
+            temperature: 0,
+            max_tokens: 2000,
+            response_format: { type: "json_object" }
         });
 
-        const content = completion.choices[0].message.content;
-        console.log('OpenAI Response:', content);
+        console.log('✅ OpenAI Response received');
+        
+        let programs = [];
+        try {
+            const content = completion.choices[0].message.content;
+            console.log('Raw OpenAI response:', content);
+            const parsedResponse = JSON.parse(content);
+            console.log('📊 Parsed OpenAI response');
+            
+            // Validate summaries before accepting the response
+            if (parsedResponse.programs && Array.isArray(parsedResponse.programs)) {
+                let allSummariesValid = true;
+                parsedResponse.programs.forEach((program, index) => {
+                    if (!program.summary || program.summary.length < 240) {
+                        console.error(`Invalid summary length for program ${index + 1}:`, {
+                            programName: program.programName,
+                            summaryLength: program.summary ? program.summary.length : 0,
+                            required: '240+'
+                        });
+                        allSummariesValid = false;
+                    }
+                });
+                
+                if (!allSummariesValid) {
+                    // If any summaries are invalid, try one more time with stronger emphasis
+                    console.log('🔄 Retrying due to invalid summary lengths...');
+                    const retryCompletion = await openai.chat.completions.create({
+                        model: "gpt-4-1106-preview",
+                        messages: [
+                            {
+                                role: "system",
+                                content: "CRITICAL: Previous summaries were too short. You MUST write detailed summaries that are at least 240 characters (aim for 240-520, but longer is acceptable). Include comprehensive details about benefits, eligibility, process, and requirements. This is your final attempt to provide adequate length summaries."
+                            },
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0,
+                        max_tokens: 2000,
+                        response_format: { type: "json_object" }
+                    });
+                    const retryContent = retryCompletion.choices[0].message.content;
+                    console.log('Raw retry response:', retryContent);
+                    programs = JSON.parse(retryContent);
+                } else {
+                    programs = parsedResponse;
+                }
+            }
+        } catch (parseError) {
+            console.error('❌ Error parsing OpenAI response:', parseError);
+            console.log('Raw OpenAI response:', completion.choices[0].message.content);
+            throw new Error('Failed to parse OpenAI response: ' + parseError.message);
+        }
 
-        // Split content into program sections and parse
-        const sections = content.split(/\n\n(?=Title:)/g).filter(Boolean);
-        const programs = sections.map(section => {
-            const lines = section.split('\n');
+        // Final validation of programs
+        const validatedPrograms = (programs.programs || []).map(program => {
+            const summary = program.summary || "Summary Not Available";
+            console.log('\n=== Summary Length Analysis ===');
+            console.log(`Program: ${program.programName}`);
+            console.log(`Original Length: ${summary.length} characters`);
+            console.log(`Required Minimum: 240 characters`);
+            
+            let finalSummary = summary;
+            
+            if (summary.length < 240) {
+                console.error('❌ ERROR: Summary is too short!', {
+                    programName: program.programName,
+                    length: summary.length,
+                    required: '240+',
+                    summary: summary.slice(0, 50) + '...'
+                });
+                
+                finalSummary = `[Error: Summary length (${summary.length} chars) is below minimum requirement of 240 characters. This program needs manual review.]`;
+            } else {
+                console.log('✅ Summary length meets minimum requirement');
+            }
+            
+            console.log(`Final Length: ${finalSummary.length} characters`);
+            console.log('=== End Summary Analysis ===\n');
+            
             return {
-                name: lines.find(l => l.startsWith('Title:'))?.replace('Title:', '').trim(),
-                summary: lines.find(l => l.startsWith('Summary:'))?.replace('Summary:', '').trim() ||
-                    'This program offers financial incentives for energy-efficient home improvements. Contact program administrator for specific details.',
-                programType: lines.find(l => l.startsWith('Program Type:'))?.replace('Program Type:', '').trim() || 'Rebate',
-                amount: lines.find(l => l.startsWith('Amount:'))?.replace('Amount:', '').trim() || 'Amount varies',
-                eligibleProjects: lines.find(l => l.startsWith('Eligible Projects:'))?.replace('Eligible Projects:', '').trim(),
-                eligibleRecipients: lines.find(l => l.startsWith('Eligible Recipients:'))?.replace('Eligible Recipients:', '').trim(),
-                geographicScope: lines.find(l => l.startsWith('Geographic Scope:'))?.replace('Geographic Scope:', '').trim(),
-                requirements: lines.find(l => l.startsWith('Requirements:'))?.replace('Requirements:', '').trim(),
-                applicationProcess: lines.find(l => l.startsWith('Application Process:'))?.replace('Application Process:', '').trim(),
-                deadline: lines.find(l => l.startsWith('Deadline:'))?.replace('Deadline:', '').trim() || 'Ongoing',
-                websiteLink: lines.find(l => l.startsWith('Website Link:'))?.replace('Website Link:', '').trim(),
-                contactInfo: lines.find(l => l.startsWith('Contact Information:'))?.replace('Contact Information:', '').trim(),
-                processingTime: lines.find(l => l.startsWith('Processing Time:'))?.replace('Processing Time:', '').trim()
+                programName: program.programName || "Program Name Not Available",
+                programType: program.programType || "Program Type Not Available",
+                summary: finalSummary,
+                amount: program.amount || "Amount Not Available",
+                eligibleProjects: Array.isArray(program.eligibleProjects) ? program.eligibleProjects : ["Not Specified"],
+                eligibleRecipients: Array.isArray(program.eligibleRecipients) ? program.eligibleRecipients : ["Not Specified"],
+                geographicScope: program.geographicScope || "Geographic Scope Not Available",
+                requirements: Array.isArray(program.requirements) ? program.requirements : ["Requirements Not Available"],
+                applicationProcess: program.applicationProcess || "Application Process Not Available",
+                deadline: program.deadline || "Deadline Not Available",
+                websiteLink: program.websiteLink || "Website Link Not Available",
+                contactInfo: program.contactInfo || "Contact Information Not Available",
+                processingTime: program.processingTime || "Processing Time Not Available"
             };
         });
 
-        const result = {
+        console.log(`✅ Successfully processed ${validatedPrograms.length} programs for category: ${category}`);
+        
+        return {
             category: category,
-            programs: programs || [],
-            timestamp: new Date().toISOString(),
-            disclaimer: "Note: Please verify all information with the official program websites. Terms and conditions may have changed."
+            programs: validatedPrograms,
+            timestamp: new Date().toISOString()
         };
 
-        return result;
     } catch (error) {
-        console.error('Analysis Error:', error);
-        throw new Error('Failed to analyze results');
+        console.error('❌ OpenAI API Error:', error);
+        throw error;
     }
 }
 
