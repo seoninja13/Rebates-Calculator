@@ -2,14 +2,28 @@ export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
         const isNetlify = window.location.port === '8888';
-        this.baseUrl = isNetlify ? '/.netlify/functions' : 'http://localhost:3001';
+        this.baseUrl = isNetlify ? '/.netlify/functions' : 'http://localhost:3000';
         this.analyzePath = isNetlify ? '/analyze' : '/api/analyze';
         this.cache = new Map();
+        this.results = {};
+        this.setupLogging();
         console.log('RebatePrograms initialized with:', {
             isNetlify,
             baseUrl: this.baseUrl,
             analyzePath: this.analyzePath
         });
+    }
+
+    setupLogging() {
+        const eventSource = new EventSource('/api/logs');
+        eventSource.onmessage = (event) => {
+            const { message, details } = JSON.parse(event.data);
+            if (details) {
+                console.log('%c' + message, 'color: #2196F3; font-weight: bold', details);
+            } else {
+                console.log('%c' + message, 'color: #2196F3; font-weight: bold');
+            }
+        };
     }
 
     updateIcons(category, isSearching, isCached) {
@@ -33,74 +47,108 @@ export default class RebatePrograms {
     }
 
     async analyze(county) {
-        console.log('Starting analyze for county:', county);
+        console.log('Starting analyze for county:', county, {
+            timestamp: new Date().toISOString(),
+            county,
+            categories: ['Federal', 'State', 'County']
+        });
+
+        this.results = {}; // Reset results at start of analyze
+        
         try {
-            const categories = ['Federal', 'State', 'County'];
-            const results = {};
+            await this.processCategory('Federal', county);
+            await this.processCategory('State', county);
+            await this.processCategory('County', county);
+            
+            console.log('Final results:', this.results);
+            
+            return {
+                federal: this.results.federal?.programs || [],
+                state: this.results.state?.programs || [],
+                county: this.results.county?.programs || []
+            };
+        } catch (error) {
+            console.error('Error in analyze:', {
+                error: error.message,
+                county,
+                stack: error.stack
+            });
+            throw error;
+        }
+    }
 
-            for (const category of categories) {
-                try {
-                    const query = category === 'County' 
-                        ? `${county} county california energy rebate program`
-                        : category === 'State'
-                        ? 'california state energy rebate program'
-                        : 'federal energy rebate program california';
+    async processCategory(category, query) {
+        let fullQuery = query;
+        
+        if (category === 'Federal') {
+            fullQuery = `Federal energy rebate programs california`;
+        } else if (category === 'State') {
+            fullQuery = `${query} State energy rebate programs`;
+        } else if (category === 'County') {
+            fullQuery = `${query} County local energy rebate programs`;
+        }
+        
+        console.log('%cFrontend → API | Query', 'color: #4CAF50; font-weight: bold', {
+            query: fullQuery,
+            category,
+            timestamp: new Date().toISOString(),
+            type: 'outgoing_request'
+        });
+        
+        try {
+            const response = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ query: fullQuery, category }),
+            });
 
-                    console.log(`Processing ${category} with query:`, query);
-                    const cacheKey = this.getCacheKey(category, query);
-                    
-                    // Hide both icons initially
-                    this.updateIcons(category, false, false);
-
-                    // Check cache first
-                    if (this.cache.has(cacheKey)) {
-                        console.log(`Found cached results for ${category}`);
-                        this.updateIcons(category, false, true);
-                        results[category.toLowerCase()] = this.cache.get(cacheKey);
-                        continue;
-                    }
-
-                    // Show searching icon
-                    this.updateIcons(category, true, false);
-
-                    console.log(`Making API request for ${category} to:`, `${this.baseUrl}${this.analyzePath}`);
-                    const response = await fetch(`${this.baseUrl}${this.analyzePath}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            query,
-                            category
-                        })
-                    });
-
-                    if (!response.ok) {
-                        console.error(`API error for ${category}:`, response.status);
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
-
-                    const data = await response.json();
-                    console.log(`Got data for ${category}:`, data);
-                    
-                    // Cache the results
-                    this.cache.set(cacheKey, data);
-                    results[category.toLowerCase()] = data;
-
-                    // Hide searching icon, show cache icon
-                    this.updateIcons(category, false, true);
-
-                } catch (error) {
-                    console.error(`Error loading ${category} programs:`, error);
-                    this.updateIcons(category, false, false);
-                    results[category.toLowerCase()] = [];
-                }
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error('%cAPI → Frontend | Error', 'color: #f44336; font-weight: bold', {
+                    status: response.status,
+                    error: errorData,
+                    category,
+                    timestamp: new Date().toISOString(),
+                    type: 'error_response'
+                });
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            console.log('Final results:', results);
-            return results;
+            const data = await response.json();
+            
+            // Ensure data.programs is always an array
+            if (!data.programs) {
+                data.programs = [];
+            }
+            
+            console.log('%cAPI → Frontend | Success', 'color: #4CAF50; font-weight: bold', {
+                category,
+                programsCount: data.programs.length,
+                programs: data.programs,
+                timestamp: new Date().toISOString(),
+                type: 'success_response'
+            });
+            
+            // Store the programs directly
+            this.results[category.toLowerCase()] = {
+                programs: data.programs,
+                error: false,
+                loading: false
+            };
+
+            this.updateIcons(category, false, true);
+            
+            return data.programs;
         } catch (error) {
-            console.error('Error in analyze:', error);
+            console.error('%cAPI → Frontend | Error', 'color: #f44336; font-weight: bold', {
+                error: error.message,
+                category,
+                timestamp: new Date().toISOString(),
+                type: 'error_response'
+            });
+            this.updateIcons(category, false, false);
             throw error;
         }
     }

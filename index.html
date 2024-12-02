@@ -31,6 +31,20 @@
       margin-bottom: 20px;
       padding: 24px;
       transition: transform 0.2s;
+      position: relative;
+    }
+
+    /* Category-specific background colors */
+    .program-card[data-category="federal"] {
+      background: linear-gradient(to bottom right, #ffffff, #f0f7ff);
+    }
+
+    .program-card[data-category="state"] {
+      background: linear-gradient(to bottom right, #ffffff, #f0fff4);
+    }
+
+    .program-card[data-category="county"] {
+      background: linear-gradient(to bottom right, #ffffff, #fff5f5);
     }
 
     .program-card:hover {
@@ -280,6 +294,31 @@
     #resultsContainer h2 i {
       color: #3b82f6;
     }
+
+    /* Add these new styles for program icons */
+    .program-type-icon {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        font-size: 24px;
+        opacity: 0.8;
+    }
+    .federal-icon {
+        color: #3b82f6; /* blue */
+    }
+    .state-icon {
+        color: #10b981; /* green */
+    }
+    .county-icon {
+        color: #8b5cf6; /* purple */
+    }
+    .source-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        font-size: 12px;
+        color: #666;
+    }
   </style>
 </head>
 <body>
@@ -373,7 +412,7 @@
               <i class="fas fa-database" style="display: none;"></i>
             </div>
           </div>
-          <div id="federalResults"></div>
+          <div id="federalResults" class="program-grid"></div>
         </div>
 
         <div id="stateSection">
@@ -384,7 +423,7 @@
               <i class="fas fa-database" style="display: none;"></i>
             </div>
           </div>
-          <div id="stateResults"></div>
+          <div id="stateResults" class="program-grid"></div>
         </div>
 
         <div id="countySection">
@@ -395,7 +434,7 @@
               <i class="fas fa-database" style="display: none;"></i>
             </div>
           </div>
-          <div id="countyResults"></div>
+          <div id="countyResults" class="program-grid"></div>
         </div>
       </div>
     </div>
@@ -407,241 +446,149 @@
     const rebatePrograms = new RebatePrograms();
 
     // Helper function to create a program card
-    function createProgramCard(program) {
+    function createProgramCard(program, source = { googleSearch: false, openaiAnalysis: false }) {
       console.log('Creating card for program:', program);
       const card = document.createElement('div');
       card.className = 'program-card';
       
-      // 1. Program Name
+      // Add program type icon
+      const iconDiv = document.createElement('div');
+      iconDiv.className = 'program-type-icon';
+      
+      // Set icon based on program type
+      switch(program.category.toLowerCase()) {
+        case 'federal':
+          iconDiv.innerHTML = '<i class="fas fa-landmark federal-icon" title="Federal Program"></i>';
+          break;
+        case 'state':
+          iconDiv.innerHTML = '<i class="fas fa-flag-usa state-icon" title="State Program"></i>';
+          break;
+        case 'county':
+          iconDiv.innerHTML = '<i class="fas fa-map-marker-alt county-icon" title="County Program"></i>';
+          break;
+      }
+      card.appendChild(iconDiv);
+      
+      // Program Title
       const header = document.createElement('div');
       header.className = 'program-header';
       header.innerHTML = `
-        <h3>${program.programName || program.name || 'Untitled Program'}</h3>
+        <h3>${program.name || program.title || 'Untitled Program'}</h3>
       `;
       card.appendChild(header);
 
-      // 2. Summary
-      if (program.summary) {
+      // Description/Summary
+      if (program.description || program.summary) {
         const summary = document.createElement('div');
         summary.className = 'program-section';
         summary.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-info-circle"></i> Summary
+            <i class="fas fa-info-circle"></i> Description
           </div>
           <div class="info-item">
-            <p>${program.summary}</p>
+            <p>${program.description || program.summary}</p>
           </div>
         `;
         card.appendChild(summary);
       }
 
-      // 3. Amount
-      if (program.amount) {
-        const amount = document.createElement('div');
-        amount.className = 'program-section';
-        amount.innerHTML = `
+      // Eligibility
+      if (program.eligibility) {
+        const eligibility = document.createElement('div');
+        eligibility.className = 'program-section';
+        eligibility.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-dollar-sign"></i> Amount
+            <i class="fas fa-check-circle"></i> Eligibility
           </div>
           <div class="info-item">
-            <span>${program.amount}</span>
+            <p>${program.eligibility}</p>
           </div>
         `;
-        card.appendChild(amount);
+        card.appendChild(eligibility);
       }
 
-      // 4. Eligible Projects
-      if (program.eligibleProjects) {
-        const projects = document.createElement('div');
-        projects.className = 'program-section';
-        projects.innerHTML = `
+      // Benefits/Incentives
+      if (program.benefits || program.incentives) {
+        const benefits = document.createElement('div');
+        benefits.className = 'program-section';
+        benefits.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-tasks"></i> Eligible Projects
+            <i class="fas fa-gift"></i> Benefits
           </div>
           <div class="info-item">
-            ${Array.isArray(program.eligibleProjects)
-              ? program.eligibleProjects.map(project =>
-                  `<div><i class="fas fa-check"></i>${project}</div>`
-                ).join('')
-              : program.eligibleProjects
-                ? `<div><i class="fas fa-check"></i>${program.eligibleProjects}</div>`
-                : '<div>No specific projects listed</div>'
-            }
+            <p>${program.benefits || program.incentives}</p>
           </div>
         `;
-        card.appendChild(projects);
+        card.appendChild(benefits);
       }
 
-      // 5. Eligible Recipients
-      if (program.eligibleRecipients) {
-        const recipients = document.createElement('div');
-        recipients.className = 'program-section';
-        recipients.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-users"></i> Eligible Recipients
-          </div>
-          <div class="info-item">
-            ${Array.isArray(program.eligibleRecipients)
-              ? program.eligibleRecipients.map(recipient =>
-                  `<div><i class="fas fa-check"></i>${recipient}</div>`
-                ).join('')
-              : program.eligibleRecipients
-                ? `<div><i class="fas fa-check"></i>${program.eligibleRecipients}</div>`
-                : '<div>No specific recipients listed</div>'
-            }
-          </div>
-        `;
-        card.appendChild(recipients);
-      }
-
-      // 6. Geographic Scope
-      if (program.geographicScope) {
-        const scope = document.createElement('div');
-        scope.className = 'program-section';
-        scope.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-map-marker-alt"></i> Geographic Scope
-          </div>
-          <div class="info-item">
-            ${Array.isArray(program.geographicScope)
-              ? program.geographicScope.map(area =>
-                  `<div><i class="fas fa-map-pin"></i>${area}</div>`
-                ).join('')
-              : `<div><i class="fas fa-map-pin"></i>${program.geographicScope}</div>`
-            }
-          </div>
-        `;
-        card.appendChild(scope);
-      }
-
-      // 7. Requirements
-      if (program.requirements) {
-        const requirements = document.createElement('div');
-        requirements.className = 'program-section';
-        requirements.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-clipboard-list"></i> Requirements
-          </div>
-          <div class="info-item">
-            ${Array.isArray(program.requirements)
-              ? program.requirements.map(req =>
-                  `<div><i class="fas fa-check"></i>${req}</div>`
-                ).join('')
-              : program.requirements
-                ? `<div><i class="fas fa-check"></i>${program.requirements}</div>`
-                : '<div>No specific requirements listed</div>'
-            }
-          </div>
-        `;
-        card.appendChild(requirements);
-      }
-
-      // 8. Application Process
-      if (program.applicationProcess) {
+      // Application Process
+      if (program.applicationProcess || program.howToApply) {
         const application = document.createElement('div');
         application.className = 'program-section';
         application.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-file-alt"></i> Application Process
+            <i class="fas fa-file-alt"></i> How to Apply
           </div>
           <div class="info-item">
-            <span>${program.applicationProcess}</span>
+            <p>${program.applicationProcess || program.howToApply}</p>
           </div>
         `;
         card.appendChild(application);
       }
 
-      // 9. Deadline
-      if (program.deadline) {
-        const deadline = document.createElement('div');
-        deadline.className = 'program-section';
-        deadline.innerHTML = `
+      // Link/URL
+      if (program.link || program.url) {
+        const link = document.createElement('div');
+        link.className = 'program-section';
+        link.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-clock"></i> Deadline
+            <i class="fas fa-external-link-alt"></i> More Information
           </div>
           <div class="info-item">
-            <span>${program.deadline}</span>
+            <a href="${program.link || program.url}" target="_blank" rel="noopener noreferrer">Visit Program Website</a>
           </div>
         `;
-        card.appendChild(deadline);
-      }
-
-      // 10. Website Link
-      if (program.websiteLink || program.link) {
-        const website = document.createElement('div');
-        website.className = 'program-section';
-        website.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-link"></i> Website
-          </div>
-          <div class="info-item">
-            <a href="${program.websiteLink || program.link}" target="_blank" rel="noopener noreferrer">
-              Visit Program Website <i class="fas fa-external-link-alt"></i>
-            </a>
-          </div>
-        `;
-        card.appendChild(website);
-      }
-
-      // 11. Contact Information
-      if (program.contactInformation) {
-        const contact = document.createElement('div');
-        contact.className = 'program-section';
-        contact.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-address-card"></i> Contact Information
-          </div>
-          <div class="info-item">
-            <span>${program.contactInformation}</span>
-          </div>
-        `;
-        card.appendChild(contact);
-      }
-
-      // 12. Processing Time
-      if (program.processingTime) {
-        const processing = document.createElement('div');
-        processing.className = 'program-section';
-        processing.innerHTML = `
-          <div class="section-title">
-            <i class="fas fa-hourglass-half"></i> Processing Time
-          </div>
-          <div class="info-item">
-            <span>${program.processingTime}</span>
-          </div>
-        `;
-        card.appendChild(processing);
+        card.appendChild(link);
       }
 
       return card;
     }
 
     // Helper function to display programs
-    function displayPrograms(programs, category) {
-      const sectionId = `${category.toLowerCase()}Section`;
-      const section = document.getElementById(sectionId);
-      if (!section) {
-        console.error(`Section not found: ${sectionId}`);
+    function displayPrograms(programs, category, source) {
+      const sectionId = `${category.toLowerCase()}Results`; 
+      const programsContainer = document.getElementById(sectionId);
+      if (!programsContainer) {
+        console.error(`Container not found for category: ${category}`);
+        return;
+      }
+      
+      programsContainer.innerHTML = '';
+
+      // Check if we have valid programs array
+      if (!programs || programs.length === 0) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'program-card';
+        messageDiv.style.textAlign = 'center';
+        messageDiv.style.padding = '2rem';
+        messageDiv.innerHTML = `
+          <div class="program-header">
+            <h3 style="color: #666;">No Programs Found</h3>
+            <p>No ${category} rebate programs found that match the search criteria.</p>
+          </div>
+        `;
+        programsContainer.appendChild(messageDiv);
         return;
       }
 
-      const resultsDiv = section.querySelector(`#${category.toLowerCase()}Results`);
-      if (!resultsDiv) {
-        console.error(`Results div not found in section: ${sectionId}`);
-        return;
-      }
-
-      resultsDiv.innerHTML = '';
-
-      if (programs && Array.isArray(programs) && programs.length > 0) {
-        programs.forEach(program => {
-          const card = createProgramCard(program);
-          resultsDiv.appendChild(card);
-        });
-        section.style.display = 'block';
-      } else {
-        section.style.display = 'none';
-      }
+      // Create and append program cards
+      programs.forEach(program => {
+        // Set the category on the program object
+        program.category = category;
+        const card = createProgramCard(program, source);
+        programsContainer.appendChild(card);
+      });
     }
 
     // Handle form submission
@@ -667,7 +614,7 @@
         ['federal', 'state', 'county'].forEach(category => {
           const section = document.getElementById(`${category}Section`);
           if (section) {
-            const resultsDiv = section.querySelector(`#${category}Results`);
+            const resultsDiv = section.querySelector('.program-grid');
             if (resultsDiv) {
               resultsDiv.innerHTML = '';
             }
@@ -681,13 +628,8 @@
         // Display results for each category
         Object.entries(results).forEach(([category, categoryData]) => {
           console.log(`Displaying ${category} programs:`, categoryData);
-          if (categoryData && categoryData.programs) {
-            displayPrograms(categoryData.programs, category);
-          } else {
-            console.error(`No programs found for category: ${category}`);
-          }
+          displayPrograms(categoryData, category, results.source);
         });
-
       } catch (error) {
         console.error('Error:', error);
         errorDisplay.textContent = error.message || 'An error occurred while fetching programs';

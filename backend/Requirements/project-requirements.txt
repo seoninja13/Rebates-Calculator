@@ -1,5 +1,60 @@
 wINDSURF ASSISTANT:DO NOT MAKE ANY CHANGES TO THIS FILE!!!
 
+Instructions for Google Search:
+Step 1: Define Search Queries
+To ensure comprehensive coverage of state, federal, and county-level programs, we will use specific keywords for each category.
+
+1. State-Level Keywords
+state energy rebate programs
+California energy incentives
+California solar rebates
+California energy efficiency programs
+California home improvement incentives
+California renewable energy rebates
+state-level energy incentives
+2. Federal-Level Keywords
+federal energy rebate programs
+US government energy incentives
+federal renewable energy tax credits
+federal solar panel grants
+federal home improvement grants
+federal energy efficiency incentives
+3. County/Municipality-Level Keywords
+Use a dynamic query format where the selected county is combined with relevant keywords. Examples for "Alameda County" are shown below:
+
+Alameda County local energy rebate programs
+Alameda County energy efficiency incentives
+Alameda County solar rebates
+Alameda County renewable energy incentives
+Alameda County home improvement programs
+This logic can dynamically adapt to any selected county.
+
+Now when you search:
+
+For Federal:
+Frontend sends: "Federal"
+Backend constructs: "Federal energy rebate programs california" and other variations
+Google Sheet stores: "Federal energy rebate programs california"
+For State:
+Frontend sends: "California State"
+Backend constructs: "California State energy rebate programs" and other variations
+Google Sheet stores: "California State energy rebate programs"
+For County:
+Frontend sends: "Los Angeles"
+Backend constructs: "Los Angeles County local energy rebate programs" and other variations
+Google Sheet stores: "Los Angeles County local energy rebate programs"
+
+Now when you search, we whould implement the following: see detailed logs in the Chrome Console for each program category showing:
+
+Number of Google search results received
+Number of programs analyzed by OpenAI
+Source of the data (cache or fresh search)
+List of program titles found
+This will help us understand if the issue is with:
+
+Not getting enough results from Google, or
+OpenAI not extracting enough programs from the results
+
 Instructions for OpenAI/ChatGPT:
 1. Extract the following information from the search results:
 Title: [Program Name]
@@ -110,13 +165,15 @@ Storage Location:
 Using Google Sheets document with ID: "1lzUS63kvhh_ICyeZhdDs46fk7l72r0ulZ5tLSKNjcJc"
 All data is stored in a sheet named "Cache"
 Cache Structure (Columns):
-Query: The search query
-Category: Federal/State/County
-Results: The actual data (JSON stringified)
-Timestamp (PST): Converted to Pacific Standard Time
-Hash: Unique identifier for the query+category
-Google Search: Checkmark (✓) if it's a Google search result
-OpenAI Analysis: Checkmark (✓) if it's an OpenAI analysis result
+-Query: The search query
+-Category: Federal/State/County
+-Results: The actual data (JSON stringified)
+-Timestamp (PST): Converted to Pacific Standard Time
+-Hash: Unique identifier for the query+category
+-Google Search-Cache: Cache OR Search results. Display Cache OR Search.
+-OpenAI Search-Cache: Cache OR search results. Display Cache OR Search.
+
+
 Caching Process:
 First checks if results exist in cache for a given query+category
 If not found, makes the API call (Google or OpenAI)
@@ -140,5 +197,28 @@ Requirements for OpenAI API Response:
 1. Use version 4 of the OpenAI API for all requests.
 
 
-===> Backend Logic:
-Make sure we use the same configuration in both local and production/Netlify environment. For eaxple make sure we use the same ChatGPT model.
+Make sure we use the same UI configuration in both local and production/Netlify. In both environments  what is being displayed in the screen should be identical. Make sure we use the same ChatGPT 40 model.
+
+The caching flow now works like this:
+
+When a query comes in, it first checks if we have both Google search and OpenAI analysis results cached
+If we have complete cached results, return them immediately.
+If we only have Google search results cached, use those and just perform OpenAI analysis
+If we have nothing cached:
+Perform Google search and cache the results.
+Perform OpenAI analysis.
+Cache the complete results with both Google search ( in column "Google Results") and OpenAI analysis (in column "OpenAI Analysis") Note: We are storing both Google results and OpenAI analysis, each in a separate column.
+You can now test the caching by:
+
+Making a search query - this will cache both Google search and OpenAI analysis results
+Making the same query again - you should see it retrieve the complete results from cache
+Wait 14 days - the cache will expire and a fresh search will be performed.
+
+===> Logging:
+1. We are logging all requests and responses comprehensively.
+2. We are storing every search query in the "Cache" sheet.
+3. We are storing every response (both from Google Search and OpenAI API) in the "Cache" sheet.
+4. Ensure we can retrieve the cached data effectively.
+
+For detailed loggin flow, reffer to the docs/logging-flow.md.
+

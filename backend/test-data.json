@@ -1,0 +1,28 @@
+{
+    "programs": [
+        {
+            "name": "Federal Solar Tax Credit (ITC)",
+            "description": "Federal tax credit for solar energy systems installed on residential properties",
+            "eligibility": "Homeowners who install solar panels on their primary or secondary residence",
+            "incentiveAmount": "30% of total system cost through 2032",
+            "howToApply": "File Form 5695 with your federal tax return",
+            "sourceUrl": "https://www.energy.gov/savings/residential-clean-energy-credit"
+        },
+        {
+            "name": "California Clean Vehicle Rebate Project (CVRP)",
+            "description": "State rebate program for zero-emission and plug-in hybrid vehicles",
+            "eligibility": "California residents with household income requirements",
+            "incentiveAmount": "Up to $7,500 for eligible vehicles",
+            "howToApply": "Apply online after vehicle purchase or lease",
+            "sourceUrl": "https://cleanvehiclerebate.org/"
+        },
+        {
+            "name": "LADWP Solar Incentive Program",
+            "description": "Local rebate for installing solar panels in Los Angeles",
+            "eligibility": "LADWP customers in Los Angeles County",
+            "incentiveAmount": "Varies based on system size and type",
+            "howToApply": "Submit application through LADWP website",
+            "sourceUrl": "https://www.ladwp.com/solar"
+        }
+    ]
+}
