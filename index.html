@@ -450,46 +450,28 @@
       console.log('Creating card for program:', program);
       const card = document.createElement('div');
       card.className = 'program-card';
-      
-      // Add program type icon
-      const iconDiv = document.createElement('div');
-      iconDiv.className = 'program-type-icon';
-      
-      // Set icon based on program type
-      switch(program.category.toLowerCase()) {
-        case 'federal':
-          iconDiv.innerHTML = '<i class="fas fa-landmark federal-icon" title="Federal Program"></i>';
-          break;
-        case 'state':
-          iconDiv.innerHTML = '<i class="fas fa-flag-usa state-icon" title="State Program"></i>';
-          break;
-        case 'county':
-          iconDiv.innerHTML = '<i class="fas fa-map-marker-alt county-icon" title="County Program"></i>';
-          break;
-      }
-      card.appendChild(iconDiv);
-      
+
       // Program Title
       const header = document.createElement('div');
       header.className = 'program-header';
       header.innerHTML = `
-        <h3>${program.name || program.title || 'Untitled Program'}</h3>
+        <h3>${program.name || 'Untitled Program'}</h3>
       `;
       card.appendChild(header);
 
-      // Description/Summary
-      if (program.description || program.summary) {
-        const summary = document.createElement('div');
-        summary.className = 'program-section';
-        summary.innerHTML = `
+      // Description
+      if (program.description) {
+        const description = document.createElement('div');
+        description.className = 'program-section';
+        description.innerHTML = `
           <div class="section-title">
             <i class="fas fa-info-circle"></i> Description
           </div>
           <div class="info-item">
-            <p>${program.description || program.summary}</p>
+            <p>${program.description}</p>
           </div>
         `;
-        card.appendChild(summary);
+        card.appendChild(description);
       }
 
       // Eligibility
@@ -507,49 +489,49 @@
         card.appendChild(eligibility);
       }
 
-      // Benefits/Incentives
-      if (program.benefits || program.incentives) {
-        const benefits = document.createElement('div');
-        benefits.className = 'program-section';
-        benefits.innerHTML = `
+      // Incentive Amount
+      if (program.incentiveAmount) {
+        const amount = document.createElement('div');
+        amount.className = 'program-section';
+        amount.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-gift"></i> Benefits
+            <i class="fas fa-dollar-sign"></i> Incentive Amount
           </div>
           <div class="info-item">
-            <p>${program.benefits || program.incentives}</p>
+            <p>${program.incentiveAmount}</p>
           </div>
         `;
-        card.appendChild(benefits);
+        card.appendChild(amount);
       }
 
-      // Application Process
-      if (program.applicationProcess || program.howToApply) {
-        const application = document.createElement('div');
-        application.className = 'program-section';
-        application.innerHTML = `
+      // How to Apply
+      if (program.howToApply) {
+        const apply = document.createElement('div');
+        apply.className = 'program-section';
+        apply.innerHTML = `
           <div class="section-title">
             <i class="fas fa-file-alt"></i> How to Apply
           </div>
           <div class="info-item">
-            <p>${program.applicationProcess || program.howToApply}</p>
+            <p>${program.howToApply}</p>
           </div>
         `;
-        card.appendChild(application);
+        card.appendChild(apply);
       }
 
-      // Link/URL
-      if (program.link || program.url) {
-        const link = document.createElement('div');
-        link.className = 'program-section';
-        link.innerHTML = `
+      // Source URL
+      if (program.sourceUrl) {
+        const source = document.createElement('div');
+        source.className = 'program-section source-url';
+        source.innerHTML = `
           <div class="section-title">
-            <i class="fas fa-external-link-alt"></i> More Information
+            <i class="fas fa-link"></i> Source
           </div>
           <div class="info-item">
-            <a href="${program.link || program.url}" target="_blank" rel="noopener noreferrer">Visit Program Website</a>
+            <a href="${program.sourceUrl}" target="_blank" rel="noopener noreferrer">Visit Website</a>
           </div>
         `;
-        card.appendChild(link);
+        card.appendChild(source);
       }
 
       return card;

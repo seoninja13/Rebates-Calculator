@@ -80,12 +80,13 @@ export default class RebatePrograms {
     async processCategory(category, query) {
         let fullQuery = query;
         
+        // Build search queries based on category
         if (category === 'Federal') {
             fullQuery = `Federal energy rebate programs california`;
         } else if (category === 'State') {
-            fullQuery = `${query} State energy rebate programs`;
+            fullQuery = `California state energy rebate programs`;
         } else if (category === 'County') {
-            fullQuery = `${query} County local energy rebate programs`;
+            fullQuery = `${query} County energy rebate programs california`;
         }
         
         console.log('%cFrontend → API | Query', 'color: #4CAF50; font-weight: bold', {
@@ -96,12 +97,16 @@ export default class RebatePrograms {
         });
         
         try {
-            const response = await fetch('/api/analyze', {
+            const response = await fetch(`${this.baseUrl}/api/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ query: fullQuery, category }),
+                body: JSON.stringify({ 
+                    query: fullQuery, 
+                    category,
+                    maxResults: 10  // Explicitly request 10 results
+                }),
             });
 
             if (!response.ok) {
@@ -117,6 +122,14 @@ export default class RebatePrograms {
             }
 
             const data = await response.json();
+            
+            // Log the full response data
+            console.log('%cAPI → Frontend | Raw Response', 'color: #4CAF50; font-weight: bold', {
+                category,
+                data,
+                timestamp: new Date().toISOString(),
+                type: 'raw_response'
+            });
             
             // Ensure data.programs is always an array
             if (!data.programs) {
@@ -140,6 +153,7 @@ export default class RebatePrograms {
 
             this.updateIcons(category, false, true);
             
+            // Return the programs
             return data.programs;
         } catch (error) {
             console.error('%cAPI → Frontend | Error', 'color: #f44336; font-weight: bold', {
@@ -150,6 +164,39 @@ export default class RebatePrograms {
             });
             this.updateIcons(category, false, false);
             throw error;
+        }
+    }
+
+    async analyzeSearchResults(results, category) {
+        if (!results || results.length === 0) {
+            return "No results found to analyze.";
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}${this.analyzePath}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: results.map(result => ({
+                        title: result.title,
+                        link: result.link,
+                        snippet: result.snippet
+                    })),
+                    category: category
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.analysis;
+        } catch (error) {
+            console.error('Error analyzing results:', error);
+            return `Error analyzing results: ${error.message}`;
         }
     }
 }

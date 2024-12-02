@@ -6,9 +6,17 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync, mkdirSync } from 'fs';
 import fetch from 'node-fetch';
-import { OpenAI } from 'openai';
+import OpenAI from 'openai';
 import { writeFileSync, appendFileSync, readFileSync } from 'fs';
 import { GoogleSheetsCache } from './backend/services/sheets-cache.js';
+
+// Load environment variables
+dotenv.config();
+
+// Initialize OpenAI client
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 // Add at the top with other imports
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -118,11 +126,8 @@ function validateGoogleConfig() {
     return true;
 }
 
-// Initialize Express app and OpenAI client
+// Initialize Express app 
 const app = express();
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
 
 // Initialize Google Sheets Cache
 let sheetsCache;
@@ -224,130 +229,103 @@ function sendLogToClient(message, details = null) {
 }
 
 app.post('/api/analyze', async (req, res) => {
-    const { query, category } = req.body;
+    const { query, category, maxResults = 10 } = req.body;
     
     try {
-        // Frontend to API
-        sendLogToClient(`Frontend → API | Received | Query: "${query}" | Category: ${category}`, {
+        console.log('Frontend → API | Received | Query:', {
             query,
             category,
+            maxResults,
             timestamp: new Date().toISOString(),
             type: 'incoming_request'
         });
 
-        // Check cache first
-        const cachedResult = await sheetsCache.get(query, category);
-        let searchResults, analysis;
-        
-        if (cachedResult) {
-            sendLogToClient(`API → Frontend | Cache Hit | Category: ${category}`, {
-                category,
-                programsCount: cachedResult.results.length,
-                timestamp: new Date().toISOString(),
-                type: 'cache_hit'
-            });
+        // Get all search queries for this category
+        const searchQueries = getSearchQueries(category, query);
+        let allSearchResults = [];
+        let cacheHits = 0;
 
-            searchResults = cachedResult.results;
-            analysis = cachedResult.analysis;
-
-            // Log the cache hit to sheets
-            await sheetsCache.set(query, category, {
-                results: searchResults,
-                analysis: analysis,
-                source: {
-                    googleSearch: false,  // Mark as cached
-                    openaiAnalysis: false  // Mark as cached
+        // Process each search query
+        for (const searchQuery of searchQueries) {
+            // Try to get from cache first
+            const cachedResult = await sheetsCache.get(searchQuery, category);
+            
+            if (cachedResult) {
+                console.log('Cache → API | Hit | Using cached results for query:', searchQuery);
+                if (cachedResult.results) {
+                    allSearchResults = allSearchResults.concat(cachedResult.results);
                 }
-            });
-
-        } else {
-            // API to Google
-            sendLogToClient(`API → Google | Searching | Query: "${query}"`, {
-                query,
-                searchUrl: `https://www.googleapis.com/customsearch/v1?cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`,
-                timestamp: new Date().toISOString(),
-                type: 'google_request'
-            });
-            
-            searchResults = await searchGoogle(query);
-            
-            // Google to API
-            sendLogToClient(`Google → API | Results: ${searchResults.items.length} | Total: ${searchResults.searchInformation.totalResults}`, {
-                totalResults: parseInt(searchResults.searchInformation.totalResults),
-                returnedResults: searchResults.items.length,
-                searchTime: searchResults.searchInformation.searchTime,
-                items: searchResults.items.map(item => ({
-                    title: item.title,
-                    link: item.link,
-                    snippet: item.snippet
-                })),
-                timestamp: new Date().toISOString(),
-                type: 'google_response'
-            });
-
-            // API to OpenAI
-            sendLogToClient(`API → OpenAI | Analyzing | Results: ${searchResults.items.length} | Category: ${category}`, {
-                resultsCount: searchResults.items.length,
-                category,
-                model: "gpt-4-turbo-preview",
-                timestamp: new Date().toISOString(),
-                type: 'openai_request'
-            });
-            
-            analysis = await analyzeSearchResults(searchResults.items, category);
-            
-            // Cache the results
-            const cacheResult = await sheetsCache.set(query, category, {
-                results: searchResults.items,
-                analysis: analysis,
-                source: {
-                    googleSearch: true,  // Mark as new search
-                    openaiAnalysis: true  // Mark as new analysis
+                cacheHits++;
+            } else {
+                // API to Google
+                sendLogToClient(`API → Google | Searching | Query: "${searchQuery}"`, {
+                    query: searchQuery,
+                    searchUrl: `https://www.googleapis.com/customsearch/v1?cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(searchQuery)}`,
+                    timestamp: new Date().toISOString(),
+                    type: 'google_request'
+                });
+                
+                const googleData = await searchGoogle(searchQuery, maxResults);
+                if (googleData.items) {
+                    allSearchResults = allSearchResults.concat(googleData.items);
                 }
-            }, query);
+                
+                // Google to API
+                sendLogToClient(`Google → API | Results: ${googleData.items?.length || 0} | Total: ${googleData.searchInformation.totalResults}`, {
+                    totalResults: parseInt(googleData.searchInformation.totalResults),
+                    returnedResults: googleData.items?.length || 0,
+                    searchTime: googleData.searchInformation.searchTime,
+                    items: googleData.items?.map(item => ({
+                        title: item.title,
+                        link: item.link,
+                        snippet: item.snippet
+                    })),
+                    timestamp: new Date().toISOString(),
+                    type: 'google_response'
+                });
 
-            if (!cacheResult) {
-                console.error('Failed to cache results');
+                // Cache the results
+                await sheetsCache.set(searchQuery, category, {
+                    results: googleData.items,
+                    analysis: null,
+                    source: {
+                        googleSearch: true,
+                        openaiAnalysis: false
+                    }
+                });
             }
         }
 
-        // OpenAI to API
-        sendLogToClient(`OpenAI → API | Programs Found: ${analysis?.programs?.length || 0} | Category: ${category}`, {
-            programsFound: analysis?.programs?.length || 0,
-            programs: analysis?.programs || [],
+        // Remove duplicates based on URL
+        allSearchResults = allSearchResults.filter((result, index, self) =>
+            index === self.findIndex((r) => r.link === result.link)
+        );
+
+        // API to OpenAI for combined results
+        sendLogToClient(`API → OpenAI | Analyzing | Results: ${allSearchResults.length} | Category: ${category}`, {
+            resultsCount: allSearchResults.length,
             category,
+            model: "gpt-4-turbo-preview",
             timestamp: new Date().toISOString(),
-            type: 'openai_response'
+            type: 'openai_request'
         });
-
-        // API to Frontend
-        const response = {
-            programs: analysis?.programs || [],
-            timestamp: new Date().toISOString()
-        };
-
-        sendLogToClient(`API → Frontend | Sending | Programs: ${response.programs.length} | Category: ${category}`, {
-            programsCount: response.programs.length,
-            category,
-            programs: response.programs,
-            timestamp: response.timestamp,
-            type: 'outgoing_response'
-        });
-
-        res.json(response);
         
+        const analysis = await analyzeSearchResults(allSearchResults, category);
+        
+        // Cache the final analysis
+        await sheetsCache.set(`${category}_combined`, category, {
+            results: allSearchResults,
+            analysis: analysis,
+            source: {
+                googleSearch: cacheHits < searchQueries.length,
+                openaiAnalysis: true
+            }
+        });
+
+        res.json(analysis);
     } catch (error) {
-        sendLogToClient(`API → Frontend | Error | ${error.message} | Category: ${category}`, {
-            error: error.message,
-            category,
-            stack: error.stack,
-            timestamp: new Date().toISOString(),
-            type: 'error_response'
-        });
-        res.status(500).json({
-            error: true,
-            message: error.message
-        });
+        console.error('Error in /api/analyze:', error);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 });
 
@@ -538,11 +516,31 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Helper functions
-async function searchGoogle(query) {
+async function searchGoogle(query, maxResults = 10) {
     try {
-        console.log(`API → Google | Searching | Query: "${query}"`);
-        const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
-        const response = await fetch(url);
+        console.log(`API → Google | Searching | Query: "${query}" | Max Results: ${maxResults}`);
+        const searchParams = {
+            q: query,
+            cx: process.env.GOOGLE_SEARCH_ENGINE_ID,
+            key: process.env.GOOGLE_API_KEY,
+            num: maxResults,  // Use the requested number of results
+            fields: 'items(title,link,snippet),searchInformation',
+            prettyPrint: false,
+            safe: 'off'
+        };
+        
+        // Log search parameters (excluding API key)
+        console.log('Search parameters:', {
+            ...searchParams,
+            key: '[REDACTED]'
+        });
+
+        const url = new URL('https://www.googleapis.com/customsearch/v1');
+        Object.entries(searchParams).forEach(([key, value]) => {
+            url.searchParams.append(key, value);
+        });
+
+        const response = await fetch(url.toString());
         
         if (!response.ok) {
             const error = await response.text();
@@ -551,7 +549,22 @@ async function searchGoogle(query) {
         }
 
         const data = await response.json();
-        console.log(`Google → API | Results: ${data.items.length} | Total: ${data.searchInformation.totalResults}`);
+        
+        // Log detailed response info
+        console.log('Google Search Response:', {
+            totalResults: data.searchInformation.totalResults,
+            searchTime: data.searchInformation.searchTime,
+            itemsReturned: data.items?.length || 0,
+            firstResult: data.items?.[0]?.title || 'No results',
+            requestedResults: maxResults
+        });
+
+        if (!data.items || data.items.length === 0) {
+            console.warn('No search results returned from Google');
+            return { items: [], searchInformation: data.searchInformation };
+        }
+
+        console.log(`Google → API | Results: ${data.items.length} | Total: ${data.searchInformation.totalResults} | Requested: ${maxResults}`);
         return data;
     } catch (error) {
         console.error(`Google → API | Error | ${error.message}`);
@@ -564,7 +577,7 @@ async function analyzeSearchResults(searchResults, category) {
         console.log('Starting analysis for category:', category);
         console.log('Search results:', JSON.stringify(searchResults, null, 2));
 
-        const prompt = `Analyze these search results about ${category} energy rebate programs and extract specific programs available. For each program, provide:
+        const prompt = `Analyze these search results about ${category} energy rebate programs and extract ALL available programs. For each program found, provide:
         1. Program Name
         2. Description (brief)
         3. Eligibility (if mentioned)
@@ -572,8 +585,23 @@ async function analyzeSearchResults(searchResults, category) {
         5. How to Apply (if mentioned)
         6. Source URL
 
+        Format each program with markdown headers like this:
+        **Program Name**: [name]
+        **Description**: [description]
+        **Eligibility**: [eligibility]
+        **Incentive Amount**: [amount]
+        **How to Apply**: [process]
+        **Source URL**: [url]
+
         Search Results:
-        ${searchResults.map(result => `Title: ${result.title}\nURL: ${result.link}\nDescription: ${result.snippet}\n---`).join('\n')}`;
+        ${searchResults.map((result, index) => `
+Result ${index + 1}:
+Title: ${result.title}
+URL: ${result.link}
+Description: ${result.snippet}
+---`).join('\n')}
+
+        Important: Extract ALL unique programs mentioned in these results. Some results might mention multiple programs, while others might be duplicates.`;
 
         console.log('Generated prompt:', prompt);
 
@@ -587,12 +615,13 @@ async function analyzeSearchResults(searchResults, category) {
                     model: "gpt-4-turbo-preview",
                     messages: [{
                         role: "system",
-                        content: "You are a helpful assistant that analyzes search results about energy rebate programs and extracts specific program information in a structured format."
+                        content: "You are a helpful assistant that analyzes search results about energy rebate programs and extracts specific program information in a structured format. Be thorough and extract ALL unique programs mentioned, even if they are briefly referenced within the descriptions."
                     }, {
                         role: "user",
                         content: prompt
                     }],
-                    temperature: 0.2
+                    temperature: 0.2,
+                    max_tokens: 2000  // Increased to handle more results
                 });
 
                 console.log('OpenAI response:', completion.choices[0].message.content);
@@ -621,7 +650,6 @@ async function analyzeSearchResults(searchResults, category) {
         throw new Error('Failed after all retry attempts');
     } catch (error) {
         console.error('Error in analyzeSearchResults:', error);
-        // Return empty array instead of undefined
         return { programs: [] };
     }
 }
@@ -632,24 +660,18 @@ function getSearchQueries(category, baseQuery) {
         case 'Federal':
             return [
                 'federal energy rebate programs california',
-                'US government energy incentives california',
-                'federal renewable energy tax credits california',
-                'federal energy efficiency incentives california'
+                'US government energy incentives california'
             ];
         case 'State':
             return [
                 'California state energy rebate programs',
-                'California energy incentives',
-                'California solar rebates',
-                'California renewable energy grants'
+                'California energy incentives'
             ];
         case 'County':
             const county = baseQuery;
             return [
                 `${county} County local energy rebate programs`,
-                `${county} County energy efficiency incentives`,
-                `${county} County solar rebates`,
-                `${county} County renewable energy programs`
+                `${county} County energy efficiency incentives`
             ];
         default:
             return [];
@@ -659,65 +681,56 @@ function getSearchQueries(category, baseQuery) {
 function extractPrograms(analysis) {
     console.log('Extracting programs from analysis:', analysis);
     try {
-        // Try parsing as JSON first
-        try {
-            console.log('Attempting to parse as JSON...');
-            const parsedAnalysis = JSON.parse(analysis);
-            console.log('Successfully parsed as JSON:', parsedAnalysis);
-            return parsedAnalysis.programs || [];
-        } catch (jsonError) {
-            console.log('Not JSON, processing as markdown text...');
-            // If not JSON, process as markdown text
-            const programs = [];
-            const lines = analysis.split('\n');
-            let currentProgram = null;
+        const programs = [];
+        let currentProgram = null;
+        const lines = analysis.split('\n');
 
-            for (let line of lines) {
-                line = line.trim();
-                
-                // New program starts with a number or program name
-                if (line.match(/^(\d+\.|\*|\-)\s+(.+)$/)) {
-                    console.log('Found new program:', line);
-                    if (currentProgram) {
-                        programs.push(currentProgram);
-                    }
-                    currentProgram = {
-                        name: line.replace(/^(\d+\.|\*|\-)\s+/, ''),
-                        description: '',
-                        eligibility: '',
-                        incentiveAmount: '',
-                        howToApply: '',
-                        sourceUrl: ''
-                    };
-                } else if (currentProgram && line) {
-                    // Add details to current program
-                    if (line.toLowerCase().includes('description:')) {
-                        currentProgram.description = line.split(':')[1]?.trim() || '';
-                        console.log('Added description:', currentProgram.description);
-                    } else if (line.toLowerCase().includes('eligibility:')) {
-                        currentProgram.eligibility = line.split(':')[1]?.trim() || '';
-                        console.log('Added eligibility:', currentProgram.eligibility);
-                    } else if (line.toLowerCase().includes('incentive amount:') || line.toLowerCase().includes('amount:')) {
-                        currentProgram.incentiveAmount = line.split(':')[1]?.trim() || '';
-                        console.log('Added amount:', currentProgram.incentiveAmount);
-                    } else if (line.toLowerCase().includes('how to apply:') || line.toLowerCase().includes('application:')) {
-                        currentProgram.howToApply = line.split(':')[1]?.trim() || '';
-                        console.log('Added how to apply:', currentProgram.howToApply);
-                    } else if (line.toLowerCase().includes('source:') || line.toLowerCase().includes('url:')) {
-                        currentProgram.sourceUrl = line.split(':')[1]?.trim() || '';
-                        console.log('Added source URL:', currentProgram.sourceUrl);
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+
+            // Check for program name
+            if (line.toLowerCase().includes('**program name**:')) {
+                if (currentProgram) {
+                    programs.push(currentProgram);
+                }
+                currentProgram = {
+                    name: line.split(':')[1]?.trim().replace(/\*\*/g, '') || 'Untitled Program',
+                    description: '',
+                    eligibility: '',
+                    incentiveAmount: '',
+                    howToApply: '',
+                    sourceUrl: ''
+                };
+            } 
+            // Add details to current program
+            else if (currentProgram) {
+                if (line.toLowerCase().includes('**description**:')) {
+                    currentProgram.description = line.split(':')[1]?.trim().replace(/\*\*/g, '') || '';
+                } else if (line.toLowerCase().includes('**eligibility**:')) {
+                    currentProgram.eligibility = line.split(':')[1]?.trim().replace(/\*\*/g, '') || '';
+                } else if (line.toLowerCase().includes('**incentive amount**:')) {
+                    currentProgram.incentiveAmount = line.split(':')[1]?.trim().replace(/\*\*/g, '') || '';
+                } else if (line.toLowerCase().includes('**how to apply**:')) {
+                    currentProgram.howToApply = line.split(':')[1]?.trim().replace(/\*\*/g, '') || '';
+                } else if (line.toLowerCase().includes('**source url**:')) {
+                    currentProgram.sourceUrl = line.split(':')[1]?.trim().replace(/\*\*/g, '') || '';
+                    // Extract URL from markdown link if present
+                    const urlMatch = currentProgram.sourceUrl.match(/\[(.*?)\]\((.*?)\)/);
+                    if (urlMatch) {
+                        currentProgram.sourceUrl = urlMatch[2];
                     }
                 }
             }
-
-            // Add the last program
-            if (currentProgram) {
-                programs.push(currentProgram);
-            }
-
-            console.log('Extracted programs from markdown:', programs);
-            return programs;
         }
+
+        // Add the last program
+        if (currentProgram) {
+            programs.push(currentProgram);
+        }
+
+        console.log('Extracted programs:', programs);
+        return programs;
     } catch (error) {
         console.error('Error extracting programs:', error);
         return [];

@@ -88,75 +88,59 @@ class GoogleSheetsCache {
     }
 
     async initialize() {
-        if (!this.enabled) {
-            log('⚠️ GoogleSheetsCache: Cache is disabled, skipping initialization');
-            return;
-        }
         try {
-            log('🔄 Initializing Google Sheets API...');
-            
-            // Check if Cache sheet exists, if not create it
-            try {
-                log('🔍 Checking for Cache sheet in spreadsheet:', this.spreadsheetId);
-                const response = await this.sheets.spreadsheets.get({
-                    spreadsheetId: this.spreadsheetId
-                });
-                
-                log('📊 Spreadsheet info:', {
-                    title: response.data.properties.title,
-                    sheets: response.data.sheets.map(s => s.properties.title)
-                });
+            // Check if the sheet exists
+            const response = await this.sheets.spreadsheets.get({
+                spreadsheetId: this.spreadsheetId
+            });
 
-                const cacheSheet = response.data.sheets.find(
-                    sheet => sheet.properties.title === 'Cache'
-                );
-                
-                if (!cacheSheet) {
-                    log('📝 Creating Cache sheet...');
-                    await this.sheets.spreadsheets.batchUpdate({
-                        spreadsheetId: this.spreadsheetId,
-                        resource: {
-                            requests: [{
-                                addSheet: {
-                                    properties: {
-                                        title: 'Cache',
-                                        gridProperties: {
-                                            rowCount: 1000,
-                                            columnCount: 8
-                                        }
+            const sheets = response.data.sheets;
+            const cacheSheet = sheets.find(sheet => sheet.properties.title === 'Cache');
+
+            if (!cacheSheet) {
+                // Create the sheet if it doesn't exist
+                await this.sheets.spreadsheets.batchUpdate({
+                    spreadsheetId: this.spreadsheetId,
+                    resource: {
+                        requests: [{
+                            addSheet: {
+                                properties: {
+                                    title: 'Cache',
+                                    gridProperties: {
+                                        rowCount: 1000,
+                                        columnCount: 8
                                     }
                                 }
-                            }]
-                        }
-                    });
-                    
-                    // Add headers
-                    await this.sheets.spreadsheets.values.update({
-                        spreadsheetId: this.spreadsheetId,
-                        range: 'Cache!A:H',
-                        valueInputOption: 'RAW',
-                        resource: {
-                            values: [['Query', 'Category', 'Google Results', 'OpenAI Analysis', 'Timestamp', 'Hash', 'Google Search-Cache', 'OpenAI Search-Cache']]
-                        }
-                    });
-                    log('✅ Cache sheet created and headers added');
-                } else {
-                    log('✅ Cache sheet already exists');
-                }
-            } catch (error) {
-                log('❌ Error checking/creating Cache sheet:', true);
-                log('Error details:', {
-                    message: error.message,
-                    code: error.code,
-                    status: error.status,
-                    details: error.details
+                            }
+                        }]
+                    }
                 });
-                throw error;
             }
+
+            // Add headers
+            await this.sheets.spreadsheets.values.update({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Cache!A1:H1',
+                valueInputOption: 'RAW',
+                resource: {
+                    values: [[
+                        'Query',
+                        'Category',
+                        'Google Results',
+                        'OpenAI Analysis',
+                        'Timestamp',
+                        'Hash',
+                        'Google Search-Cache',
+                        'OpenAI Search-Cache'
+                    ]]
+                }
+            });
+
+            log('✅ Sheet initialized successfully');
+            return true;
         } catch (error) {
-            log('❌ GoogleSheetsCache: Failed to initialize sheets API:', true);
-            log('Stack trace:', error.stack);
-            this.enabled = false;
+            log('❌ Error initializing sheet:', error);
+            return false;
         }
     }
 
@@ -234,6 +218,13 @@ class GoogleSheetsCache {
 
     async appendRow(query, category, googleResults, openAIAnalysis, hash, timestamp, cacheStatus) {
         try {
+            // Clean up the data for storage
+            const cleanGoogleResults = googleResults ? googleResults.map(result => ({
+                title: result.title,
+                link: result.link,
+                snippet: result.snippet
+            })) : [];
+
             const appendResponse = await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.spreadsheetId,
                 range: 'Cache!A:H',
@@ -241,14 +232,14 @@ class GoogleSheetsCache {
                 insertDataOption: 'INSERT_ROWS',
                 resource: {
                     values: [[
-                        query,               // Query
-                        category,            // Category
-                        JSON.stringify(googleResults),  // Google Results - actual results
-                        openAIAnalysis,      // OpenAI Analysis - actual analysis
-                        timestamp,           // Timestamp
-                        hash,                // Hash
-                        cacheStatus.googleSearch ? 'Search' : 'Cache',    // Google Search-Cache
-                        cacheStatus.openaiAnalysis ? 'Search' : 'Cache'   // OpenAI Search-Cache
+                        query || '',
+                        category || '',
+                        JSON.stringify(cleanGoogleResults),
+                        JSON.stringify(openAIAnalysis) || '',
+                        timestamp || '',
+                        hash || '',
+                        (cacheStatus && cacheStatus.googleSearch) ? 'Search' : 'Cache',
+                        (cacheStatus && cacheStatus.openaiAnalysis) ? 'Search' : 'Cache'
                     ]]
                 }
             });
@@ -294,8 +285,8 @@ class GoogleSheetsCache {
                 const latestEntry = matchingRows[matchingRows.length - 1];
                 try {
                     return {
-                        results: JSON.parse(latestEntry[2]),  // Google Results
-                        analysis: latestEntry[3],  // OpenAI Analysis
+                        results: latestEntry[2] ? JSON.parse(latestEntry[2]) : null,  // Google Results
+                        analysis: latestEntry[3] || '',  // OpenAI Analysis
                         source: {
                             googleSearch: latestEntry[6] === 'Search',  // Google Search-Cache
                             openaiAnalysis: latestEntry[7] === 'Search'  // OpenAI Search-Cache
@@ -308,7 +299,7 @@ class GoogleSheetsCache {
             }
             return null;
         } catch (error) {
-            log('❌ Error in get:', error);
+            log('❌ Error getting from cache:', error);
             return null;
         }
     }

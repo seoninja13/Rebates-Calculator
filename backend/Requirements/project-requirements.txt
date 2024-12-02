@@ -55,9 +55,14 @@ This will help us understand if the issue is with:
 Not getting enough results from Google, or
 OpenAI not extracting enough programs from the results
 
+For Google saetch limit search results:
+1. Add "num" parameter to the search query to limit the number of results to 10. We feed them into openAI.
+2. OpenAI will analyze the results. For example, if for s State category we got 2 X 10 results, OpenAI will analyze top 20 results and send them back to the API, which will send the final analysis back to the UI.
+
+
 Instructions for OpenAI/ChatGPT:
 1. Extract the following information from the search results:
-Title: [Program Name]
+Title: [Program Name]. Exlude Rebates which are not Home Improvements(e.g exclude Electric vehicles).
 
 Summary: Brief description focusing on key benefits and eligibility (min 240 max 520 characters)
 
@@ -68,10 +73,15 @@ Amount: [Exact amount or range, with $ and commas]
 Eligible Projects:
 - Solar panels
 - HVAC systems
+- Heat Pumps
 - Insulation
-- Electric vehicles
 - Energy-efficient appliances
 - Home improvements
+- New Construction
+- Home Remodeling
+- Roofing
+- Windows & Doors
+- Other possible rebate types
 
 Eligible Recipients:
 - Homeowners
@@ -112,8 +122,11 @@ Processing Time: [e.g., "6-8 weeks" or "30 days after approval"]
 3. County programs must be available to residents within the county.
 4. State programs must be available to all California residents.
 5. All results should be unique, meaning, No overlap betwenn Federal, County and State programs.
+6. It is possible that a single Program might offer more than one Eligible Projects.
+For example a program might offer Windows and Doors and also Roofing rebates. Eligibe project should have a short summary of rebate. For example ($8000 rebate for Windows and Doors).
+Our goal is to create a list of eligible projects. When clicked on the type Eligible project ( e.g Windows and Doors), a dropdown will open which will display all the detailed information of the program. 
 
-What infomation from openAI to display in the UI, and the order top down?
+What detailed infomation from openAI to display in the UI, and the order top down?
 1. Program Name
 2. Summary
 4. Amount
