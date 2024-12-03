@@ -2,15 +2,13 @@ export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
         const isNetlify = window.location.port === '8888';
-        this.baseUrl = isNetlify ? '/.netlify/functions' : 'http://localhost:3000';
-        this.analyzePath = isNetlify ? '/analyze' : '/api/analyze';
+        this.baseUrl = isNetlify ? '' : 'http://localhost:3000';
         this.cache = new Map();
         this.results = {};
         this.setupLogging();
         console.log('RebatePrograms initialized with:', {
             isNetlify,
-            baseUrl: this.baseUrl,
-            analyzePath: this.analyzePath
+            baseUrl: this.baseUrl
         });
     }
 
@@ -173,7 +171,7 @@ export default class RebatePrograms {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}${this.analyzePath}`, {
+            const response = await fetch(`${this.baseUrl}/api/analyze-search-results`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -198,5 +196,92 @@ export default class RebatePrograms {
             console.error('Error analyzing results:', error);
             return `Error analyzing results: ${error.message}`;
         }
+    }
+
+    createProgramCard(program, category) {
+        const card = document.createElement('div');
+        card.className = 'program-card';
+        card.setAttribute('data-category', category.toLowerCase());
+
+        // Create the summary section (always visible)
+        const summary = document.createElement('div');
+        summary.className = 'program-summary';
+        
+        // Create the toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'toggle-details';
+        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
+        
+        // Create the summary content
+        const summaryContent = document.createElement('div');
+        summaryContent.className = 'summary-content';
+        summaryContent.innerHTML = `
+            <h3>${program.eligibleProjects}</h3>
+            <p class="amount-summary">${program.amount}</p>
+            <p class="program-brief">${program.summary}</p>
+        `;
+
+        summary.appendChild(summaryContent);
+        summary.appendChild(toggleBtn);
+
+        // Create the details section (hidden by default)
+        const details = document.createElement('div');
+        details.className = 'program-details';
+        details.style.display = 'none';
+        details.innerHTML = `
+            <div class="details-grid">
+                <div class="detail-item">
+                    <h4>Program Name</h4>
+                    <p>${program.programName || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Summary</h4>
+                    <p>${program.summary || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Amount</h4>
+                    <p>${program.amount || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Eligible Projects</h4>
+                    <p>${program.eligibleProjects || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Eligible Recipients</h4>
+                    <p>${program.eligibleRecipients || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Geographic Scope</h4>
+                    <p>${program.geographicScope || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Requirements</h4>
+                    <p>${program.requirements || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Application Process</h4>
+                    <p>${program.applicationProcess || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Deadline</h4>
+                    <p>${program.deadline || 'N/A'}</p>
+                </div>
+                <div class="detail-item">
+                    <h4>Website</h4>
+                    <p>${program.website ? `<a href="${program.website}" target="_blank">${program.website}</a>` : 'N/A'}</p>
+                </div>
+            </div>
+        `;
+
+        // Add click handler for toggle
+        toggleBtn.addEventListener('click', () => {
+            const isExpanded = details.style.display !== 'none';
+            details.style.display = isExpanded ? 'none' : 'block';
+            toggleBtn.querySelector('i').className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+        });
+
+        card.appendChild(summary);
+        card.appendChild(details);
+        return card;
     }
 }

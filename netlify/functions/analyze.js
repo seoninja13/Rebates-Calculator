@@ -12,6 +12,7 @@ console.log('Current directory:', process.cwd());
 
 // Initialize environment variables
 const cache = new GoogleSheetsCache();
+let cacheInitialized = false;
 
 // Load environment variables for local development
 if (process.env.NODE_ENV !== 'production') {
@@ -56,7 +57,14 @@ console.log('Environment variables status:', {
 });
 
 // Initialize cache at startup
-cache.initialize().catch(console.error);
+try {
+    await cache.initialize();
+    cacheInitialized = true;
+    console.log('✅ Cache initialized successfully');
+} catch (error) {
+    console.error('❌ Failed to initialize cache:', error);
+    cacheInitialized = false;
+}
 
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
@@ -74,27 +82,6 @@ async function performGoogleSearch(query) {
         
         if (!data.items || data.items.length === 0) {
             console.warn('⚠️ No items found in Google Search response');
-            // Add fallback search terms for federal rebates
-            const fallbackQueries = [
-                'federal energy efficiency tax credits',
-                'federal renewable energy rebates',
-                'US government energy incentives',
-                'federal solar tax credits'
-            ];
-            
-            for (const fallbackQuery of fallbackQueries) {
-                const fallbackUrl = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(fallbackQuery)}&num=10`;
-                console.log(`🔄 Trying fallback search: ${fallbackQuery}`);
-                
-                const fallbackResponse = await fetch(fallbackUrl);
-                const fallbackData = await fallbackResponse.json();
-                
-                if (fallbackData.items && fallbackData.items.length > 0) {
-                    console.log(`✅ Found results with fallback query: ${fallbackQuery}`);
-                    return fallbackData.items;
-                }
-            }
-            
             return [];
         }
         
@@ -116,228 +103,121 @@ async function storeAnalysisCache(query, category, result) {
 }
 
 async function analyzeResults(results, category) {
-    // Log raw search results
-    console.log('Raw Search Results:', JSON.stringify(results, null, 2));
-
-    // Build prompt for OpenAI
-    const resultsText = JSON.stringify(results, null, 2);
-    console.log('Results Text for OpenAI:', resultsText);
-
-    if (!resultsText) {
-        console.error('❌ NO SEARCH RESULTS FOUND');
-        return {
-            category: category,
-            programs: [],
-            error: 'No search results found',
-            timestamp: new Date().toISOString()
-        };
-    }
-
-    const prompt = `Extract information about ${category} energy rebate programs from the search results. 
-
-        CRITICAL REQUIREMENT - SUMMARY LENGTH:
-        The summary field should ideally be between 240 and 520 characters, but longer summaries are acceptable.
-        - Target range: 240-520 characters (about 3-7 sentences)
-        - Minimum: 240 characters (required)
-        - Current summaries are too short and need to be expanded
-        - Include more details about benefits, eligibility, and process
-        - Use complete sentences and active voice
-
-        REQUIREMENTS FOR PROGRAMS:
-        - Federal programs must be available to all California residents
-        - State programs must be California-specific
-        - County programs should include both county-specific and relevant utility programs
-        
-        For each program, you MUST provide ALL of the following fields:
-        1. programName: Full official program name
-        2. programType: Must be one of [Rebate/Grant/Tax Credit/Low-Interest Loan]
-        3. summary: CRITICAL - Write a detailed summary (aim for 240-520 characters) that includes:
-           * Comprehensive program description
-           * Key benefits and financial incentives
-           * Primary and secondary eligibility criteria
-           * Application process overview
-        4. amount: Specific rebate amount or range (use $ and commas)
-        5. eligibleProjects: MUST include applicable items:
-           * Solar panels
-           * HVAC systems
-           * Insulation
-           * Electric vehicles
-           * Energy-efficient appliances
-           * Home improvements
-        6. eligibleRecipients: MUST specify ALL that apply:
-           * Homeowners
-           * Businesses
-           * Municipalities
-           * Income requirements
-           * Other qualifying criteria
-        7. geographicScope: MUST be one of:
-           * Nationwide
-           * State-specific
-           * County/city-specific
-           * Utility service area
-        8. requirements: MUST include ALL applicable items:
-           * Application forms
-           * Proof of purchase/installation
-           * Contractor requirements
-           * Energy audits
-           * Income verification
-           * Property documentation
-        9. applicationProcess: 1-2 line description of how to apply
-        10. deadline: Specific date or "Ongoing"
-        11. websiteLink: Official program URL
-        12. contactInfo: MUST include when available:
-            * Phone numbers
-            * Email addresses
-            * Office locations
-        13. processingTime: Expected processing time (e.g., "6-8 weeks" or "30 days after approval")
-        
-        Return the data as a JSON object with this structure:
-        {
-          "programs": [
-            {
-              "programName": "string",
-              "programType": "string",
-              "summary": "string (aim for 240-520 chars)",
-              "amount": "string",
-              "eligibleProjects": ["string"],
-              "eligibleRecipients": ["string"],
-              "geographicScope": "string",
-              "requirements": ["string"],
-              "applicationProcess": "string",
-              "deadline": "string",
-              "websiteLink": "string",
-              "contactInfo": "string",
-              "processingTime": "string"
-            }
-          ]
-        }`;
-
     try {
-        console.log('🤖 Sending to OpenAI with prompt length:', prompt.length);
+        // Log raw search results
+        console.log('Raw Search Results:', JSON.stringify(results, null, 2));
+
+        // Validate input
+        if (!results || !Array.isArray(results) || results.length === 0) {
+            console.error('❌ Invalid or empty search results');
+            return {
+                category: category,
+                programs: [],
+                error: 'Invalid or empty search results',
+                timestamp: new Date().toISOString()
+            };
+        }
+
+        // Build prompt for OpenAI
+        const resultsText = results.map(result => `Title: ${result.title}\nLink: ${result.link}\nSnippet: ${result.snippet}`).join('\n\n');
+        console.log('Results Text for OpenAI:', resultsText);
+
+        const prompt = `Analyze these search results about ${category} energy rebate programs in California and extract program information in JSON format.
+        
+        REQUIRED OUTPUT FORMAT:
+        {
+            "programs": [
+                {
+                    "programName": "Program name",
+                    "summary": "Brief description (240-520 chars)",
+                    "programType": "One of: Rebate/Grant/Tax Credit/Low-Interest Loan",
+                    "amount": "Exact amount with $ and commas (e.g. $8,000 or Up to $10,000)",
+                    "eligibleProjects": ["List of eligible project types"],
+                    "eligibleRecipients": ["List of who can apply"],
+                    "geographicScope": "One of: Nationwide/State-specific/County-specific/Utility service area",
+                    "requirements": ["List of requirements"],
+                    "applicationProcess": "1-2 line description",
+                    "deadline": "Specific date or Ongoing",
+                    "websiteLink": "Full URL",
+                    "contactInfo": {
+                        "phone": "Phone number if available",
+                        "email": "Email if available",
+                        "office": "Office location if available"
+                    },
+                    "processingTime": "Expected processing time"
+                }
+            ]
+        }
+
+        VALIDATION RULES:
+        1. For Federal programs: Must be available to all California residents
+        2. For State programs: Must be California-specific programs
+        3. For County programs: Must be specific to the county or utility service area
+        4. Exclude any programs about electric vehicles
+        5. Each program MUST have amount and eligibleProjects fields
+        6. If exact information isn't available, use "Contact program administrator for details"
+        
+        Here are the search results to analyze:
+        ${resultsText}`;
+
+        console.log('Making OpenAI API call with prompt:', prompt);
+        
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-1106-preview",
+            model: "gpt-4",
             messages: [
                 {
                     role: "system",
-                    content: "You are a precise data extraction assistant that always returns valid JSON. Your primary focus is creating detailed program summaries between 240-520 characters, but longer summaries are acceptable. Current summaries are too short and need more detail. Include comprehensive information about benefits, eligibility, process, and requirements. Never return summaries shorter than 240 characters. For Federal and State programs, they must be available to all California residents. For County programs, include both county-specific programs and relevant utility/local government incentives available to county residents."
+                    content: "You are a specialized assistant that extracts energy rebate program information from search results. You MUST return a valid JSON object containing program information in the exact format specified. Each program MUST include amount and eligibleProjects fields."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            temperature: 0.7,
-            max_tokens: 2000,
+            temperature: 0.1,
+            max_tokens: 2500,
             response_format: { type: "json_object" }
         });
 
-        console.log('✅ OpenAI Response received');
+        // Parse and validate OpenAI response
+        console.log('Raw OpenAI Response:', completion.choices[0].message.content);
         
-        let programs = [];
         try {
-            const content = completion.choices[0].message.content;
-            console.log('Raw OpenAI response:', content);
-            const parsedResponse = JSON.parse(content);
-            console.log('📊 Parsed OpenAI response');
+            const parsedResponse = JSON.parse(completion.choices[0].message.content);
             
-            // Validate summaries before accepting the response
-            if (parsedResponse.programs && Array.isArray(parsedResponse.programs)) {
-                let allSummariesValid = true;
-                parsedResponse.programs.forEach((program, index) => {
-                    if (!program.summary || program.summary.length < 240) {
-                        console.error(`Invalid summary length for program ${index + 1}:`, {
-                            programName: program.programName,
-                            summaryLength: program.summary ? program.summary.length : 0,
-                            required: '240+'
-                        });
-                        allSummariesValid = false;
-                    }
-                });
-                
-                if (!allSummariesValid) {
-                    // If any summaries are invalid, try one more time with stronger emphasis
-                    console.log('🔄 Retrying due to invalid summary lengths...');
-                    const retryCompletion = await openai.chat.completions.create({
-                        model: "gpt-4-1106-preview",
-                        messages: [
-                            {
-                                role: "system",
-                                content: "CRITICAL: Previous summaries were too short. You MUST write detailed summaries that are at least 240 characters (aim for 240-520, but longer is acceptable). Include comprehensive details about benefits, eligibility, process, and requirements. This is your final attempt to provide adequate length summaries."
-                            },
-                            {
-                                role: "user",
-                                content: prompt
-                            }
-                        ],
-                        temperature: 0.7,
-                        max_tokens: 2000,
-                        response_format: { type: "json_object" }
-                    });
-                    const retryContent = retryCompletion.choices[0].message.content;
-                    console.log('Raw retry response:', retryContent);
-                    programs = JSON.parse(retryContent);
-                } else {
-                    programs = parsedResponse;
-                }
+            // Validate the response structure
+            if (!parsedResponse || !Array.isArray(parsedResponse.programs)) {
+                console.error('Invalid response structure from OpenAI');
+                throw new Error('Invalid response structure');
             }
-        } catch (parseError) {
-            console.error('❌ Error parsing OpenAI response:', parseError);
-            console.log('Raw OpenAI response:', completion.choices[0].message.content);
-            throw new Error('Failed to parse OpenAI response: ' + parseError.message);
-        }
 
-        // Final validation of programs
-        const validatedPrograms = (programs.programs || []).map(program => {
-            const summary = program.summary || "Summary Not Available";
-            console.log('\n=== Summary Length Analysis ===');
-            console.log(`Program: ${program.programName}`);
-            console.log(`Original Length: ${summary.length} characters`);
-            console.log(`Required Minimum: 240 characters`);
-            
-            let finalSummary = summary;
-            
-            if (summary.length < 240) {
-                console.error('❌ ERROR: Summary is too short!', {
-                    programName: program.programName,
-                    length: summary.length,
-                    required: '240+',
-                    summary: summary.slice(0, 50) + '...'
-                });
-                
-                finalSummary = `[Error: Summary length (${summary.length} chars) is below minimum requirement of 240 characters. This program needs manual review.]`;
-            } else {
-                console.log('✅ Summary length meets minimum requirement');
+            // Validate each program has required fields
+            parsedResponse.programs = parsedResponse.programs.filter(program => {
+                return program.amount && program.eligibleProjects && 
+                       program.programName && program.programType;
+            });
+
+            if (parsedResponse.programs.length === 0) {
+                console.error('No valid programs found in OpenAI response');
+                throw new Error('No valid programs found');
             }
-            
-            console.log(`Final Length: ${finalSummary.length} characters`);
-            console.log('=== End Summary Analysis ===\n');
-            
+
             return {
-                programName: program.programName || "Program Name Not Available",
-                programType: program.programType || "Program Type Not Available",
-                summary: finalSummary,
-                amount: program.amount || "Amount Not Available",
-                eligibleProjects: Array.isArray(program.eligibleProjects) ? program.eligibleProjects : ["Not Specified"],
-                eligibleRecipients: Array.isArray(program.eligibleRecipients) ? program.eligibleRecipients : ["Not Specified"],
-                geographicScope: program.geographicScope || "Geographic Scope Not Available",
-                requirements: Array.isArray(program.requirements) ? program.requirements : ["Requirements Not Available"],
-                applicationProcess: program.applicationProcess || "Application Process Not Available",
-                deadline: program.deadline || "Deadline Not Available",
-                websiteLink: program.websiteLink || "Website Link Not Available",
-                contactInfo: program.contactInfo || "Contact Information Not Available",
-                processingTime: program.processingTime || "Processing Time Not Available"
+                category: category,
+                programs: parsedResponse.programs,
+                timestamp: new Date().toISOString()
             };
-        });
-
-        console.log(`✅ Successfully processed ${validatedPrograms.length} programs for category: ${category}`);
-        
-        return {
-            category: category,
-            programs: validatedPrograms,
-            timestamp: new Date().toISOString()
-        };
+        } catch (error) {
+            console.error('Error parsing OpenAI response:', error);
+            return {
+                category: category,
+                programs: [],
+                error: error.message,
+                timestamp: new Date().toISOString()
+            };
+        }
     } catch (error) {
-        console.error('OpenAI API Error:', error);
+        console.error('Error in analyzeResults:', error);
         return {
             category: category,
             programs: [],
@@ -407,90 +287,93 @@ export const handler = async (event, context) => {
             const body = JSON.parse(event.body);
             console.log(`[${requestId}] ✅ Parsed request body:`, body);
 
-            // Extract and validate query and category
-            const { query, category } = body;
-            console.log(`[${requestId}] 🔍 Extracted parameters:`, { query, category });
-
-            if (!query || !category) {
-                const error = 'Missing required parameters';
-                console.error(`[${requestId}] ❌ VALIDATION ERROR:`, {
-                    error,
-                    received: { query, category }
-                });
+            const { query } = body;
+            if (!query) {
+                const error = 'Missing required parameter: query';
+                console.error(`[${requestId}] ❌ VALIDATION ERROR:`, { error });
                 return {
                     statusCode: 400,
-                    body: JSON.stringify({ 
-                        error,
-                        received: { query, category }
-                    })
+                    body: JSON.stringify({ error })
                 };
             }
 
-            // Check cache for Google search results
-            let searchResults;
-            const cachedSearchResults = await cache.get(query, category);
-            if (cachedSearchResults) {
-                console.log(`[${requestId}] 📦 Using cached search results`);
-                searchResults = cachedSearchResults;
-            } else {
-                console.log(`[${requestId}] 🔍 Cache miss - performing new Google search`);
-                searchResults = await performGoogleSearch(query);
-                if (searchResults && searchResults.length > 0) {
-                    console.log(`[${requestId}] 💾 Caching Google search results`);
-                    await cache.set(query, category, searchResults, 'google');
-                }
-            }
-
-            // Check cache for analysis results
-            const cachedAnalysis = await cache.get(query + '_analysis', category);
-            if (cachedAnalysis) {
-                console.log(`[${requestId}] 📦 Using cached analysis results`);
-                const response = {
-                    statusCode: 200,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Headers': 'Content-Type',
-                        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                    },
-                    body: JSON.stringify({
-                        category,
-                        programs: cachedAnalysis.programs.map(program => ({
-                            programName: program.programName || "Program Name Not Available",
-                            programType: program.programType || "Program Type Not Available",
-                            summary: program.summary || "Summary Not Available",
-                            amount: program.amount || "Amount Not Available",
-                            eligibleProjects: Array.isArray(program.eligibleProjects) ? program.eligibleProjects : ["Not Specified"],
-                            eligibleRecipients: Array.isArray(program.eligibleRecipients) ? program.eligibleRecipients : ["Not Specified"],
-                            geographicScope: program.geographicScope || "Geographic Scope Not Available",
-                            requirements: Array.isArray(program.requirements) ? program.requirements : ["Requirements Not Available"],
-                            applicationProcess: program.applicationProcess || "Application Process Not Available",
-                            deadline: program.deadline || "Deadline Not Available",
-                            websiteLink: program.websiteLink || "Website Link Not Available",
-                            contactInfo: program.contactInfo || "Contact Information Not Available",
-                            processingTime: program.processingTime || "Processing Time Not Available"
-                        })),
-                        source: cachedAnalysis.source,
-                        timestamp: new Date().toISOString()
-                    })
-                };
-                console.log(`[${requestId}] ✅ RESPONSE SENT (from cache):`, {
-                    statusCode: response.statusCode,
-                    timestamp: new Date().toISOString(),
-                    programCount: cachedAnalysis.programs.length,
-                    source: cachedAnalysis.source
-                });
-                return response;
-            }
-
-            // Analyze results if not in cache
-            console.log(`[${requestId}] 🧠 Cache miss - performing new OpenAI analysis`);
-            const analysisResults = await analyzeResults(searchResults, category);
+            // Process all program types
+            const programTypes = ['Federal', 'State', 'County'];
+            const allResults = {};
+            let isCached = true;  // Track if all results are from cache
             
-            // Cache analysis results
-            if (analysisResults) {
-                console.log(`[${requestId}] 💾 Caching OpenAI analysis results`);
-                await cache.set(query + '_analysis', category, analysisResults, 'openai');
+            for (const category of programTypes) {
+                console.log(`[${requestId}] 🔍 Processing ${category} programs...`);
+                
+                let searchResults, analysisResults;
+                let usedGoogleCache = false;
+                let usedOpenAICache = false;
+                let searchStartTime = new Date();
+
+                // Check cache if initialized
+                if (cacheInitialized) {
+                    console.log(`[${requestId}] 📦 Checking cache for ${category}...`);
+                    const cachedEntry = await cache.getCacheEntry(query, category);
+                    if (cachedEntry) {
+                        console.log(`[${requestId}] ✅ Cache hit for ${category}`);
+                        console.log(`[${requestId}] 📊 Found ${cachedEntry.searchResults.length} Google results and ${cachedEntry.analysis.programs?.length || 0} programs in cache`);
+                        searchResults = cachedEntry.searchResults;
+                        analysisResults = cachedEntry.analysis;
+                        usedGoogleCache = true;
+                        // Only mark OpenAI as cached if we have valid analysis results
+                        usedOpenAICache = cachedEntry.analysis && cachedEntry.analysis.programs;
+                    } else {
+                        console.log(`[${requestId}] ❌ Cache miss for ${category}`);
+                    }
+                } else {
+                    console.log(`[${requestId}] ⚠️ Cache not initialized, performing fresh search`);
+                }
+
+                // If no cache hit, do fresh search and analysis
+                if (!searchResults || !analysisResults) {
+                    console.log(`[${requestId}] 🔍 Performing new search for ${category}`);
+                    isCached = false;  // At least one result is not from cache
+                    
+                    // Perform fresh search
+                    console.log(`[${requestId}] 🌐 Making Google Search API call...`);
+                    searchResults = await performGoogleSearch(query + ' ' + category + ' rebates');
+                    console.log(`[${requestId}] ✅ Received ${searchResults.length} results from Google`);
+                    
+                    // Always perform OpenAI analysis for fresh search results
+                    console.log(`[${requestId}] 🤖 Sending results to OpenAI for analysis...`);
+                    analysisResults = await analyzeResults(searchResults, category);
+                    console.log(`[${requestId}] ✅ OpenAI analysis complete. Found ${analysisResults.programs?.length || 0} programs`);
+                }
+
+                // Calculate and log timing
+                const searchEndTime = new Date();
+                const searchDuration = searchEndTime - searchStartTime;
+                console.log(`[${requestId}] ⏱️ ${category} search completed in ${searchDuration}ms`);
+                console.log(`[${requestId}] 📊 Final results for ${category}:`, {
+                    googleResults: searchResults.length,
+                    programs: analysisResults.programs?.length || 0,
+                    source: usedGoogleCache ? 'Cache' : 'Fresh Search'
+                });
+
+                // Log search operation only if we have valid results
+                if (searchResults && analysisResults) {
+                    try {
+                        await cache.logSearchOperation(query, category, searchResults, analysisResults, {
+                            googleCache: usedGoogleCache,
+                            openaiCache: usedOpenAICache && analysisResults && analysisResults.programs && analysisResults.programs.length > 0
+                        });
+                        console.log(`[${requestId}] 📝 Search operation logged to Google Sheets`);
+                    } catch (error) {
+                        console.error(`[${requestId}] ❌ Error logging search operation:`, error);
+                    }
+                } else {
+                    console.warn(`[${requestId}] ⚠️ Missing results, skipping log operation`);
+                }
+                
+                allResults[category.toLowerCase()] = {
+                    programs: analysisResults?.programs || [],
+                    timestamp: new Date().toISOString()
+                };
             }
 
             const response = {
@@ -502,16 +385,21 @@ export const handler = async (event, context) => {
                     'Access-Control-Allow-Methods': 'POST, OPTIONS'
                 },
                 body: JSON.stringify({
-                    ...analysisResults,
-                    query,
-                    category
+                    federal: allResults.federal,
+                    state: allResults.state,
+                    county: allResults.county,
+                    timestamp: new Date().toISOString()
                 })
             };
 
-            console.log(`[${requestId}] ✅ RESPONSE SENT (fresh analysis):`, {
+            console.log(`[${requestId}] ✅ RESPONSE SENT:`, {
                 statusCode: response.statusCode,
                 timestamp: new Date().toISOString(),
-                programCount: analysisResults.programs.length
+                programCounts: {
+                    federal: allResults.federal.programs.length,
+                    state: allResults.state.programs.length,
+                    county: allResults.county.programs.length
+                }
             });
 
             return response;

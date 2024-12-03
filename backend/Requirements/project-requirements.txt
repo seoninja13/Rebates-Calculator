@@ -187,14 +187,47 @@ Cache Structure (Columns):
 -OpenAI Search-Cache: Cache OR search results. Display Cache OR Search.
 
 
+
 Caching Process:
 First checks if results exist in cache for a given query+category
 If not found, makes the API call (Google or OpenAI)
 Stores new results with appropriate source marked
-Removes old entries for the same query+category before storing new ones
+does not remove old entries for the same query+category.
+We are adding a new row for every search.
 Two Types of Cached Data:
 Google Search Results: Raw search results from Google API
 OpenAI Analysis: Processed and analyzed program information from OpenAI
+
+For EVERY search (whether cached or not), we add 6 rows (2 per program):
+
+Each row will have:
+Timestamp: Current time
+Two key columns: "Google Search-Cache" and "OpenAI Search-Cache"
+When using cached data:
+"Google Search-Cache" = "Cache"
+"OpenAI Search-Cache" = "Cache"
+Using existing data from cache (no API calls)
+When using fresh data (no cache/expired):
+"Google Search-Cache" = "Search"
+"OpenAI Search-Cache" = "Search"
+Making new API calls to get fresh data
+
+
+For EVERY search (whether cached or not), we add 6 rows (2 per program):
+1.	Each row will have:
+•	Timestamp: Current time
+•	Two key columns: "Google Search-Cache" and "OpenAI Search-Cache"
+2.	When using cached data:
+•	"Google Search-Cache" = "Cache"
+•	"OpenAI Search-Cache" = "Cache"
+•	Using existing data from cache (no API calls)
+3.	When using fresh data (no cache/expired):
+•	"Google Search-Cache" = "Search"
+•	"OpenAI Search-Cache" = "Search"
+•	Making new API calls to get fresh data
+So we're ALWAYS logging 6 rows per complete search, and the "Search-Cache" columns tell us whether we used cached data or had to make fresh API calls. This gives us a complete audit trail of all searches and when/how the data was retrieved.
+
+
 
 ===> Making changes to the UI:
 1. If you make any changes to the UI, do not change the backend code.

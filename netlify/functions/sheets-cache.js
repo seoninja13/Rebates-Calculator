@@ -50,7 +50,6 @@ export class GoogleSheetsCache {
         try {
             this.sheets = google.sheets({ version: 'v4', auth: this.auth });
             
-            // Check if Cache sheet exists, if not create it
             try {
                 const response = await this.sheets.spreadsheets.get({
                     spreadsheetId: this.spreadsheetId
@@ -79,13 +78,12 @@ export class GoogleSheetsCache {
                         }
                     });
                     
-                    // Add headers
                     await this.sheets.spreadsheets.values.update({
                         spreadsheetId: this.spreadsheetId,
                         range: 'Cache!A1:G1',
                         valueInputOption: 'RAW',
                         resource: {
-                            values: [['Query', 'Category', 'Results', 'Timestamp (PST)', 'Hash', 'Google Search', 'OpenAI Analysis']]
+                            values: [['Query', 'Category', 'Results', 'Timestamp (PST)', 'Hash', 'Google Search-Cache', 'OpenAI Search-Cache']]
                         }
                     });
                 }
@@ -102,8 +100,7 @@ export class GoogleSheetsCache {
     }
 
     convertToPST(timestamp) {
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
+        return new Date(timestamp).toLocaleString('en-US', {
             timeZone: 'America/Los_Angeles',
             year: 'numeric',
             month: '2-digit',
@@ -115,12 +112,15 @@ export class GoogleSheetsCache {
         });
     }
 
-    async get(query, category) {
-        if (!this.enabled) return null;
+    generateHash(query, category) {
+        return crypto.createHash('md5')
+            .update(`${query}-${category}`)
+            .digest('hex')
+            .slice(0, 8);
+    }
+
+    async getRows() {
         try {
-            console.log('GoogleSheetsCache: 🔍 Checking cache for query:', query, 'category:', category);
-            const hash = this._generateHash(query, category);
-            
             const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.spreadsheetId,
                 range: 'Cache!A:G'
@@ -132,124 +132,172 @@ export class GoogleSheetsCache {
                 return null;
             }
 
-            // Skip header row
-            const cacheEntry = rows.slice(1).find(row => row[4] === hash);
-
-            if (cacheEntry) {
-                console.log('GoogleSheetsCache: ✨ Cache entry found! Age:', this._getEntryAge(cacheEntry[3]), 'hours');
-                // Check if cache entry is still valid
-                if (this._isEntryValid(cacheEntry[3])) {
-                    console.log('GoogleSheetsCache: ✅ Cache entry is valid, returning cached results');
-                    return JSON.parse(cacheEntry[2]);
-                } else {
-                    console.log('GoogleSheetsCache: ⏰ Cache entry expired, will perform fresh search');
-                    await this._removeExpiredEntry(hash);
-                    return null;
-                }
-            } else {
-                console.log('GoogleSheetsCache: ❌ No cache entry found for this query');
-                return null;
-            }
+            return rows.slice(1).map(row => ({
+                query: row[0],
+                category: row[1],
+                results: row[2],
+                timestamp: row[3],
+                hash: row[4],
+                googleSearchCache: row[5],
+                openaiSearchCache: row[6]
+            }));
         } catch (error) {
-            console.error('GoogleSheetsCache: ❌ Error accessing cache:', error);
+            console.error('Error getting rows:', error);
             return null;
         }
     }
 
-    async storeInCache(query, category, results, type) {
-        if (!this.enabled) return;
-        
+    async appendRow(row) {
         try {
-            const timestamp = new Date().toISOString();
-            const pstTimestamp = this.convertToPST(timestamp);
-            const hash = this._generateHash(query, category);
-            
-            // Remove old entries for this query/category
-            await this._removeExpiredEntry(hash);
-            
-            // Store new entry
-            const googleSearch = type === 'google' ? '✓' : '';
-            const openaiAnalysis = type === 'openai' ? '✓' : '';
-            
             await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.spreadsheetId,
                 range: 'Cache!A:G',
                 valueInputOption: 'RAW',
                 resource: {
                     values: [[
-                        query,
-                        category,
-                        JSON.stringify(results),
-                        pstTimestamp,
-                        hash,
-                        googleSearch,
-                        openaiAnalysis
+                        row.query,
+                        row.category,
+                        row.results,
+                        row.timestamp,
+                        row.hash,
+                        row.googleSearchCache,
+                        row.openaiSearchCache
                     ]]
                 }
             });
-            
-            console.log('GoogleSheetsCache: ✅ Successfully cached results');
         } catch (error) {
-            console.error('GoogleSheetsCache: Error storing in cache:', error);
+            console.error('Error appending row:', error);
         }
     }
 
-    _isEntryValid(timestamp) {
-        const entryAge = this._getEntryAge(timestamp);
-        const isValid = entryAge < 336; // 14 days in hours
-        console.log(`GoogleSheetsCache: 🕒 Cache entry age: ${entryAge} hours, Valid: ${isValid}`);
-        return isValid;
-    }
-
-    _getEntryAge(timestamp) {
-        const entryDate = new Date(timestamp);
-        const now = new Date();
-        const ageInHours = (now - entryDate) / (1000 * 60 * 60);
-        return Math.round(ageInHours * 10) / 10; // Round to 1 decimal place
-    }
-
-    _generateHash(query, category) {
-        const str = `${query}-${category}`;
-        const hash = crypto.createHash('md5').update(str).digest('hex');
-        return hash.slice(0, 8); // Use first 8 characters of MD5 hash
-    }
-
-    async _removeExpiredEntry(hash) {
+    async getCacheEntry(query, category) {
         try {
-            console.log('GoogleSheetsCache: Removing entry with hash:', hash);
-            const range = 'Cache!A:G';
-            const response = await this.sheets.spreadsheets.values.get({
-                spreadsheetId: this.spreadsheetId,
-                range,
+            // Clean and normalize the query
+            const normalizedQuery = query.toLowerCase().trim();
+            const hash = this.generateHash(normalizedQuery, category);
+            
+            console.log('🔍 Looking for cache entry:', {
+                query: normalizedQuery,
+                category,
+                hash
             });
 
-            const rows = response.data.values || [];
-            if (rows.length <= 1) return; // Only header row or empty
-
-            const rowIndex = rows.findIndex(row => row[4] === hash);
-
-            if (rowIndex !== -1) {
-                console.log('GoogleSheetsCache: Found entry at row:', rowIndex + 1);
-                // Delete the row using batchUpdate
-                await this.sheets.spreadsheets.batchUpdate({
-                    spreadsheetId: this.spreadsheetId,
-                    resource: {
-                        requests: [{
-                            deleteDimension: {
-                                range: {
-                                    sheetId: 0,
-                                    dimension: 'ROWS',
-                                    startIndex: rowIndex,
-                                    endIndex: rowIndex + 1
-                                }
-                            }
-                        }]
-                    }
-                });
-                console.log('GoogleSheetsCache: Entry removed successfully');
+            // Get all rows from the sheet
+            const rows = await this.getRows();
+            if (!rows || rows.length === 0) {
+                console.log('❌ No rows found in cache');
+                return null;
             }
+
+            // Find all matching rows by hash
+            const matchingRows = rows.filter(row => row.hash === hash);
+            if (matchingRows.length === 0) {
+                console.log('❌ No matching cache entries found');
+                return null;
+            }
+
+            // Get the latest timestamp
+            const latestTimestamp = Math.max(...matchingRows.map(row => new Date(row.timestamp)));
+            
+            // Check if cache is still valid (14 days)
+            const cacheAge = new Date() - latestTimestamp;
+            const cacheValidDays = 14;
+            if (cacheAge > cacheValidDays * 24 * 60 * 60 * 1000) {
+                console.log(`❌ Cache entry expired (older than ${cacheValidDays} days)`);
+                return null;
+            }
+
+            // Get the most recent entries
+            const latestEntries = matchingRows.filter(row => {
+                const rowDate = new Date(row.timestamp);
+                return Math.abs(rowDate - latestTimestamp) < 1000; // within 1 second
+            });
+
+            // Find the search results and analysis results
+            const searchEntry = latestEntries.find(row => 
+                row.googleSearchCache === 'Search' || row.googleSearchCache === 'Cache'
+            );
+            const analysisEntry = latestEntries.find(row => {
+                // Only consider entries with valid analysis results
+                if (row.openaiSearchCache !== 'Search' && row.openaiSearchCache !== 'Cache') {
+                    return false;
+                }
+                try {
+                    const results = JSON.parse(row.results);
+                    return results && results.programs && results.programs.length > 0;
+                } catch (e) {
+                    console.warn('Invalid analysis results in cache:', e);
+                    return false;
+                }
+            });
+
+            if (!searchEntry || !analysisEntry) {
+                console.log('❌ No valid cache entries found');
+                return null;
+            }
+
+            console.log('✅ Found valid cache entry:', {
+                google: searchEntry.googleSearchCache,
+                openai: analysisEntry.openaiSearchCache,
+                timestamp: new Date(latestTimestamp).toISOString()
+            });
+
+            return {
+                searchResults: JSON.parse(searchEntry.results),
+                analysis: JSON.parse(analysisEntry.results)
+            };
         } catch (error) {
-            console.error('GoogleSheetsCache: Error removing entry:', error);
+            console.error('Error getting cache entry:', error);
+            return null;
+        }
+    }
+
+    async logSearchOperation(query, category, searchResults, analysisResults, cacheStatus) {
+        // Always try to log, even if cache is disabled
+        const hash = this.generateHash(query, category);
+        const timestamp = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' });
+        
+        console.log(`📝 Logging search operation for ${category}:`, {
+            query,
+            hash,
+            cacheStatus
+        });
+
+        // Log Google Search results
+        if (searchResults) {
+            await this.appendRow({
+                query,
+                category,
+                results: JSON.stringify(searchResults),
+                timestamp,
+                hash,
+                googleSearchCache: cacheStatus.googleCache ? 'Cache' : 'Search',
+                openaiSearchCache: 'None'
+            });
+        }
+
+        // Log OpenAI analysis results only if we have valid results
+        if (analysisResults && analysisResults.programs) {
+            await this.appendRow({
+                query,
+                category,
+                results: JSON.stringify(analysisResults),
+                timestamp,
+                hash,
+                googleSearchCache: 'None',
+                openaiSearchCache: cacheStatus.openaiCache ? 'Cache' : 'Search'
+            });
+        } else {
+            // If analysis is null or has no programs, log it as a Search attempt
+            await this.appendRow({
+                query,
+                category,
+                results: 'null',
+                timestamp,
+                hash,
+                googleSearchCache: 'None',
+                openaiSearchCache: 'Search'  // Mark as Search since it's a fresh attempt
+            });
         }
     }
 }
