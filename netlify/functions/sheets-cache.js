@@ -1,5 +1,6 @@
-import { google } from 'googleapis';
-import crypto from 'crypto';
+const { google } = require('googleapis');
+const crypto = require('crypto');
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
 const log = (message, details = null, type = 'info') => {
     const timestamp = new Date().toISOString();
@@ -17,28 +18,24 @@ const log = (message, details = null, type = 'info') => {
     }
 };
 
-export class GoogleSheetsCache {
+class GoogleSheetsCache {
     constructor() {
         log('Cache → System | Initializing cache service', null, 'system_init');
         try {
-            this.spreadsheetId = "1lzUS63kvhh_ICyeZhdDs46fk7l72r0ulZ5tLSKNjcJc";
-            this.credentialsJson = process.env.GOOGLE_SHEETS_CREDENTIALS;
-
-            log('Cache → System | Environment loaded', {
-                spreadsheetId: this.spreadsheetId ? '✅' : '❌',
-                credentials: this.credentialsJson ? '✅' : '❌'
-            }, 'system_status');
-
-            if (!this.credentialsJson) {
-                throw new Error('Missing credentials');
+            if (!process.env.GOOGLE_SHEETS_ID || !process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
+                throw new Error('Missing environment variables. Please set GOOGLE_SHEETS_ID, GOOGLE_CLIENT_EMAIL, and GOOGLE_PRIVATE_KEY');
             }
 
-            const credentials = JSON.parse(this.credentialsJson);
+            this.spreadsheetId = process.env.GOOGLE_SHEETS_ID;
             this.auth = new google.auth.GoogleAuth({
-                credentials,
-                scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+                credentials: {
+                    client_email: process.env.GOOGLE_CLIENT_EMAIL,
+                    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
+                },
+                scopes: ['https://www.googleapis.com/auth/spreadsheets']
             });
 
+            this.sheets = google.sheets({ version: 'v4', auth: this.auth });
             this.enabled = true;
             log('Cache → System | Initialization complete', { status: 'enabled' }, 'system_ready');
         } catch (error) {
@@ -47,6 +44,7 @@ export class GoogleSheetsCache {
                 error: error.message,
                 stack: error.stack
             }, 'error');
+            this.initError = error;
         }
     }
 
@@ -57,7 +55,6 @@ export class GoogleSheetsCache {
         }
 
         try {
-            this.sheets = google.sheets({ version: 'v4', auth: this.auth });
             const response = await this.sheets.spreadsheets.get({
                 spreadsheetId: this.spreadsheetId
             });
@@ -314,3 +311,6 @@ export class GoogleSheetsCache {
         }
     }
 }
+
+const instance = new GoogleSheetsCache();
+module.exports = instance;
