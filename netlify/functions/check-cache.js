@@ -15,7 +15,7 @@ function getSearchQueries(category, county) {
             ];
         case 'County':
             return [
-                `${county} County local energy rebate programs`,
+                `${county} County energy rebate programs california`,
                 `${county} County energy efficiency incentives`
             ];
         default:
@@ -36,7 +36,7 @@ export const handler = async (event, context) => {
         
         // Get all possible queries for this category
         const queries = getSearchQueries(category, county);
-        const combinedCacheKey = queries.join(' | ');
+        const combinedCacheKey = queries.join(',');
         
         // Check cache first before any operations
         if (cache.enabled) {

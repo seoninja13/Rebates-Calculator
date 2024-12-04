@@ -302,7 +302,7 @@ function getSearchQueries(category, county) {
             ];
         case 'County':
             return [
-                `${county} County local energy rebate programs`,
+                `${county} County energy rebate programs california`,
                 `${county} County energy efficiency incentives`
             ];
         default:
@@ -462,14 +462,27 @@ app.post('/api/analyze', async (req, res) => {
                     openaiProgramsCount: analysis.programs?.length
                 });
 
+                // Add row for Google search results
                 await cache.appendRow({
-                    query: getSearchQueries(category, county).join(' | '),
+                    query: getSearchQueries(category, county).join(','),
                     category: category,
                     googleResults: JSON.stringify(searchResults),
-                    openaiAnalysis: JSON.stringify(analysis),
+                    openaiAnalysis: '',  // Empty for Google row
                     timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
                     hash: cache._generateHash(`${category}:${county}`),
                     googleSearchCache: 'Search',  // New search
+                    openaiSearchCache: ''   // Empty for Google row
+                });
+
+                // Add row for OpenAI analysis
+                await cache.appendRow({
+                    query: getSearchQueries(category, county).join(','),
+                    category: category,
+                    googleResults: '',  // Empty for OpenAI row
+                    openaiAnalysis: JSON.stringify(analysis),
+                    timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
+                    hash: cache._generateHash(`${category}:${county}`),
+                    googleSearchCache: '',  // Empty for OpenAI row
                     openaiSearchCache: 'Search'   // New analysis
                 });
 
@@ -547,13 +560,14 @@ app.post('/api/check-cache', async (req, res) => {
 
         // Get all possible queries for this category
         const queries = getSearchQueries(category, county);
-        const combinedCacheKey = queries.join(' | ');
+        const combinedCacheKey = queries.join(',');
 
         try {
             sendLogToClient('API → Cache', 'cache_lookup', 'Looking up cache entry', {
                 category,
                 county,
-                queries
+                queries,
+                combinedCacheKey
             });
 
             const cachedResults = await cache.get(combinedCacheKey, category);
@@ -573,7 +587,7 @@ app.post('/api/check-cache', async (req, res) => {
                         googleResults: JSON.stringify(cachedResults.results || []),
                         openaiAnalysis: JSON.stringify(cachedResults.analysis || {}),
                         timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                        hash: cache._generateHash(`${category}:${county}`),
+                        hash: cache._generateHash(`${category}:${combinedCacheKey}`),
                         googleSearchCache: 'Cache',
                         openaiSearchCache: 'Cache'
                     });

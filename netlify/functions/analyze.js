@@ -150,61 +150,109 @@ async function analyzeResults(results, category) {
         const resultsText = results.map(result => `Title: ${result.title}\nLink: ${result.link}\nSnippet: ${result.snippet}`).join('\n\n');
         console.log('Results Text for OpenAI:', resultsText);
 
-        const prompt = `Analyze these search results about ${category} energy rebate programs in California, focusing on Federal programs. Convert all program budgets into specific per-household rebate amounts.
+        const prompt = `Analyze these search results about ${category} energy rebate programs in California. Convert ALL program budgets into specific per-household rebate amounts.
 
-        FEDERAL PROGRAMS EXACT AMOUNTS:
+        EXACT PROGRAM AMOUNTS BY LEVEL:
 
-        1. IRA Home Electrification:
+        1. FEDERAL PROGRAMS:
+        
+        IRA Home Electrification:
         collapsedSummary MUST be:
         "$8,000 for heat pumps, $840 for water heaters, stoves, and dryers (income-based)"
         amount MUST be:
         "Heat Pumps: $8,000, Water Heaters: $840, Electric Stoves: $840, Dryers: $840, Max: $14,000"
 
-        2. HOMES Program:
+        HOMES Program:
         collapsedSummary MUST be:
         "$2,000-$4,000 standard, up to $8,000 low-income based on energy savings"
         amount MUST be:
         "Base: $2,000-$4,000 for 20-35% savings, $4,000-$8,000 for 35%+ savings (income-based)"
 
-        MANDATORY CONVERSION RULES:
-        1. For IRA Programs:
-           ❌ WRONG: "Varies" or "$X,XXX rebate"
-           ✓ RIGHT: List specific amounts ($8,000, $840)
-           ✓ RIGHT: Show income-based variations
+        2. STATE PROGRAMS:
 
-        2. For HOMES Program:
-           ❌ WRONG: "$291 million in funding"
-           ❌ WRONG: "Up to $8,000"
-           ✓ RIGHT: "$2,000-$4,000 standard, up to $8,000 low-income"
-           ✓ RIGHT: Show both savings tiers and income levels
+        CA Climate Action:
+        collapsedSummary MUST be:
+        "$8,000 rebate for energy upgrades, additional low-income benefits available"
+        amount MUST be:
+        "Standard: Up to $8,000, Low-income: Up to $10,000, Multifamily: $2,000 per unit"
 
-        EXACT FORMAT REQUIRED:
+        TECH Clean California:
+        collapsedSummary MUST be:
+        "$3,000-$6,600 for heat pumps and efficient appliances"
+        amount MUST be:
+        "Heat Pumps: $3,000 base + $3,600 low-income bonus, Water Heaters: $3,100 + $2,500 bonus"
+
+        Energy Upgrade CA:
+        collapsedSummary MUST be:
+        "$2,000-$5,500 for whole-home efficiency upgrades"
+        amount MUST be:
+        "Basic Package: $2,000, Advanced: $3,500, Comprehensive: $5,500"
+
+        3. COUNTY/UTILITY PROGRAMS:
+
+        PG&E Territory:
+        collapsedSummary MUST be:
+        "$500-$4,500 for efficient equipment and weatherization"
+        amount MUST be:
+        "HVAC: $1,000-$4,500, Weatherization: $500-$2,000, Smart Thermostats: $120"
+
+        SCE Territory:
+        collapsedSummary MUST be:
+        "$200-$3,000 for electric appliances and cooling"
+        amount MUST be:
+        "AC Units: $1,000-$3,000, Smart Thermostats: $200, Pool Pumps: $1,000"
+
+        SDG&E Territory:
+        collapsedSummary MUST be:
+        "$100-$3,500 for energy-saving improvements"
+        amount MUST be:
+        "AC/Heat Pumps: $1,500-$3,500, Water Heaters: $500-$1,000, Insulation: $100-$750"
+
+        MANDATORY FORMATTING RULES:
+
+        1. ALL Programs Must Show:
+           ❌ WRONG: "Varies" or "$X,XXX"
+           ❌ WRONG: "Contact for details"
+           ❌ WRONG: Total program budgets
+           ✓ RIGHT: Specific dollar amounts
+           ✓ RIGHT: Income-based variations
+           ✓ RIGHT: Per-measure costs
+
+        2. Income-Based Variations:
+           ❌ WRONG: "Up to $X,XXX"
+           ✓ RIGHT: "Standard: $2,000, Low-income: $4,000"
+
+        3. Equipment-Specific:
+           ❌ WRONG: "Various rebates"
+           ✓ RIGHT: "Heat Pumps: $3,000, Water Heaters: $840"
+
+        REQUIRED OUTPUT FORMAT:
         {
             "programs": [
                 {
-                    "programName": "Inflation Reduction Act Residential Energy Rebate Programs",
-                    "type": "Rebate",
-                    "amount": "COPY EXACT AMOUNT FORMAT ABOVE",
-                    "collapsedSummary": "COPY EXACT SUMMARY FORMAT ABOVE",
-                    "description": "Brief description",
+                    "programName": "Full program name",
+                    "type": "Rebate/Grant/Tax Credit/Loan",
+                    "amount": "COPY EXACT AMOUNT FORMAT FROM ABOVE",
+                    "collapsedSummary": "COPY EXACT SUMMARY FORMAT FROM ABOVE",
+                    "description": "Program details (240-520 chars)",
                     "eligibility": {
-                        "recipients": ["Income-qualified homeowners"],
-                        "requirements": ["Must be primary residence"],
-                        "restrictions": ["Income limits apply"]
+                        "recipients": ["Eligible groups"],
+                        "requirements": ["Specific requirements"],
+                        "restrictions": ["Specific limitations"]
                     },
-                    "eligibleProjects": ["Heat pumps", "Water heaters", "Electric appliances"],
+                    "eligibleProjects": ["Eligible measures"],
                     "source": "Program URL"
                 }
             ]
         }
 
         FINAL VALIDATION:
-        Before returning results, verify each Federal program has:
+        Before returning results, verify each program has:
         1. Specific dollar amounts (no X,XXX)
-        2. Income-based variations
+        2. Income-based variations where applicable
         3. Per-measure breakdowns
         4. Maximum benefit caps
-        5. Energy savings tiers (for HOMES)
+        5. Energy savings tiers (where applicable)
         
         Here are the search results to analyze:
         ${resultsText}`;
@@ -216,7 +264,7 @@ async function analyzeResults(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a Federal energy rebate specialist. You MUST use the exact amount formats provided. When you see total program budgets or 'varies', you MUST convert them to specific per-household amounts. For IRA, use exact equipment amounts. For HOMES, show savings tiers and income-based amounts."
+                    content: "You are an energy rebate specialist covering Federal, State, and County programs. You MUST use the exact amount formats provided for each program level. When you see total budgets or 'varies', you MUST convert them to specific per-household amounts. Always show income variations and measure-specific costs."
                 },
                 {
                     role: "user",

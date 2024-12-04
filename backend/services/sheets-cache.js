@@ -52,11 +52,18 @@ export class GoogleSheetsCache {
     }
 
     // Generate a unique hash for the query and category
-    generateHash(query, category) {
-        return crypto
-            .createHash('md5')
-            .update(`${query}|${category}`)
-            .digest('hex');
+    _generateHash(text) {
+        // Normalize the text by removing extra spaces and converting to lowercase
+        const normalizedText = text.toLowerCase().replace(/\s*,\s*/g, ',').trim();
+        const hash = crypto.createHash('md5').update(normalizedText).digest('hex');
+        
+        log('Cache → System | Hash Generation', {
+            originalText: text,
+            normalizedText,
+            hash
+        }, 'debug');
+        
+        return hash;
     }
 
     // Convert to PST timestamp
@@ -70,7 +77,7 @@ export class GoogleSheetsCache {
     async logSearch(data) {
         if (!this.enabled) return;
 
-        const hash = this.generateHash(data.query, data.category);
+        const hash = this._generateHash(data.query, data.category);
         const timestamp = this.getPSTTimestamp();
 
         try {
@@ -132,7 +139,7 @@ export class GoogleSheetsCache {
     async checkCache(query, category) {
         if (!this.enabled) return null;
 
-        const hash = this.generateHash(query, category);
+        const hash = this._generateHash(query, category);
 
         try {
             const response = await this.sheets.spreadsheets.values.get({

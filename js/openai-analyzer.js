@@ -42,8 +42,8 @@ export default class RebatePrograms {
     }
 
     getCacheKey(category, query) {
-        // Normalize the text by removing all whitespace and converting to lowercase
-        const normalizedText = `${category}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
+        // Normalize the text by removing extra spaces and converting to lowercase
+        const normalizedText = `${category}:${query}`.toLowerCase().replace(/\s*,\s*/g, ',').trim();
         return normalizedText;
     }
 
@@ -51,39 +51,23 @@ export default class RebatePrograms {
         console.log('Starting analyze for county:', county, {
             timestamp: new Date().toISOString(),
             county,
-            categories: ['Federal', 'State', 'County'],
-            note: 'Temporarily only processing Federal category'
+            categories: ['Federal', 'State', 'County']
         });
 
         this.results = {}; // Reset results at start of analyze
         
         try {
-            // Temporarily only processing Federal category
+            // Process all categories
             await this.processCategory('Federal', county);
-            // Temporarily skipping State and County
-            // await this.processCategory('State', county);
-            // await this.processCategory('County', county);
+            await this.processCategory('State', county);
+            await this.processCategory('County', county);
             
             console.log('Final results:', this.results);
             
             return {
                 federal: this.results.federal?.programs || [],
-                state: [{
-                    programName: "Temporarily Excluded",
-                    summary: "State programs are temporarily excluded while we test Federal programs cache",
-                    programType: "N/A",
-                    amount: "N/A",
-                    eligibleProjects: ["N/A"],
-                    note: "This category is temporarily disabled"
-                }],
-                county: [{
-                    programName: "Temporarily Excluded",
-                    summary: "County programs are temporarily excluded while we test Federal programs cache",
-                    programType: "N/A",
-                    amount: "N/A",
-                    eligibleProjects: ["N/A"],
-                    note: "This category is temporarily disabled"
-                }]
+                state: this.results.state?.programs || [],
+                county: this.results.county?.programs || []
             };
         } catch (error) {
             console.error('Error in analyze:', {
@@ -96,19 +80,18 @@ export default class RebatePrograms {
     }
 
     async processCategory(category, query) {
-        let fullQuery = query;
+        let fullQuery = '';
         
         // Build search queries based on category
         if (category === 'Federal') {
             fullQuery = 'Federal energy rebate programs california, US government energy incentives california';
         } else if (category === 'State') {
-            fullQuery = `California state energy rebate programs`;
+            fullQuery = 'California state energy rebate programs, California energy incentives';
         } else if (category === 'County') {
-            fullQuery = `${query} County energy rebate programs california`;
+            fullQuery = `${query} County energy rebate programs california, ${query} County energy efficiency incentives`;
         }
 
-        // Single search request log
-        console.log('%cAPI → Google | Searching:', 'color: #4285f4; font-size: 16px; font-weight: bold;', {
+        console.log(`%cAPI → Google | Searching ${category}:`, 'color: #4285f4; font-size: 16px; font-weight: bold;', {
             query: fullQuery,
             category,
             timestamp: new Date().toISOString()
