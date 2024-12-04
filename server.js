@@ -142,10 +142,44 @@ async function analyzeWithOpenAI(results, category) {
         REQUIREMENTS:
         1. Federal programs must be available to all California residents
         2. State programs must be California-specific
-        3. County programs should include both county-specific and utility programs
-        4. Each summary must be at least 240 characters
-        5. Amount should include $ and commas
-        6. collapsedSummary should be a brief one-line summary with key amounts
+        3. County programs must include specific utility and local government rebates
+        
+        COUNTY PROGRAMS EXACT AMOUNTS:
+
+        1. Utility Rebate Programs:
+        collapsedSummary MUST be:
+        "$1,000 for HVAC, $500 for water heaters, up to $3,000 for home improvements"
+        amount MUST be:
+        "HVAC: $1,000, Water Heaters: $500, Insulation: $500-$1,000, Windows: $500-$1,500"
+
+        2. Local Energy Efficiency Programs:
+        collapsedSummary MUST be:
+        "$2,500-$5,000 for whole-home upgrades, plus utility rebates"
+        amount MUST be:
+        "Base: $2,500 for single measures, $5,000 for whole-home projects, Additional utility rebates available"
+
+        MANDATORY CONVERSION RULES FOR COUNTY PROGRAMS:
+        1. For Utility Rebates:
+           ❌ WRONG: "Contact utility for details" or "Varies by program"
+           ✓ RIGHT: List specific amounts for each improvement type
+           ✓ RIGHT: Show ranges when applicable
+
+        2. For Local Programs:
+           ❌ WRONG: "Amount varies" or "Multiple rebates available"
+           ✓ RIGHT: Show base amounts and additional incentives
+           ✓ RIGHT: List specific measure-by-measure breakdowns
+
+        3. For Combined Programs:
+           ❌ WRONG: "Multiple programs available"
+           ✓ RIGHT: "Base rebate $X,XXX plus utility incentives of $X,XXX"
+           ✓ RIGHT: Show total maximum combined benefits
+
+        Each program MUST include:
+        1. Specific dollar amounts for common improvements
+        2. Clear per-measure breakdowns
+        3. Income-based variations if applicable
+        4. Maximum benefit caps
+        5. Combined totals when programs can stack
         
         Return the data in this JSON format:
         {
@@ -185,7 +219,7 @@ async function analyzeWithOpenAI(results, category) {
             messages: [
                 {
                     role: "system",
-                    content: "You are a precise data extraction assistant. Extract detailed program information from search results and return it as a JSON object. Ensure summaries are at least 240 characters and include a brief collapsedSummary for each program. For Federal and State programs, verify California eligibility."
+                    content: "You are a precise data extraction assistant specializing in energy rebate programs. For County programs, always provide specific dollar amounts and avoid generic responses. Break down rebates by measure type and show combined benefits when programs can stack."
                 },
                 {
                     role: "user",
