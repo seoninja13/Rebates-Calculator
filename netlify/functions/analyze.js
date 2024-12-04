@@ -68,33 +68,61 @@ try {
 
 // Helper function to perform Google search
 async function performGoogleSearch(query) {
-    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
-    console.log('🔍 Performing Google search with URL:', url);
+    // Basic required parameters only
+    const baseUrl = 'https://www.googleapis.com/customsearch/v1';
+    const searchParams = {
+        key: GOOGLE_API_KEY,
+        cx: GOOGLE_SEARCH_ENGINE_ID,
+        q: query,
+        num: '10'
+    };
+
+    const url = `${baseUrl}?${new URLSearchParams(searchParams)}`;
     
+    // Log the actual request (with API key redacted)
+    const redactedParams = { ...searchParams };
+    redactedParams.key = 'REDACTED';
+    redactedParams.cx = 'REDACTED';
+    console.log('\n===> Google Search Request');
+    console.log(JSON.stringify(redactedParams, null, 2));
+    console.log('<=== End Request\n');
+
     try {
         const response = await fetch(url);
+
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('❌ Google Search failed:', response.status, errorText);
+            console.error('Google Search Error:', {
+                status: response.status,
+                error: errorText
+            });
             throw new Error(`Google Search failed: ${response.status} - ${errorText}`);
         }
+
         const data = await response.json();
         
-        if (!data.items || data.items.length === 0) {
-            console.warn('⚠️ No items found in Google Search response');
-            return [];
-        }
-        
-        return data.items;
+        // Log complete raw response
+        console.log('\n===> Google Search Response');
+        console.log('Status:', response.status);
+        console.log('Response Data:', JSON.stringify(data, null, 2));
+        console.log('<=== End Response\n');
+
+        // Return the results in the response to frontend
+        return {
+            status: response.status,
+            data: data,
+            items: data.items || [],
+            searchInfo: data.searchInformation
+        };
     } catch (error) {
-        console.error('❌ Google Search Error:', error);
+        console.error('Google Search Error:', error);
         throw error;
     }
 }
 
 // Helper function to check analysis cache
 async function checkAnalysisCache(query, category) {
-    return await cache.get(query, category);
+    return await cache.getCacheEntry(query, category);
 }
 
 // Helper function to store analysis in cache
@@ -122,40 +150,61 @@ async function analyzeResults(results, category) {
         const resultsText = results.map(result => `Title: ${result.title}\nLink: ${result.link}\nSnippet: ${result.snippet}`).join('\n\n');
         console.log('Results Text for OpenAI:', resultsText);
 
-        const prompt = `Analyze these search results about ${category} energy rebate programs in California and extract program information in JSON format.
-        
-        REQUIRED OUTPUT FORMAT:
+        const prompt = `Analyze these search results about ${category} energy rebate programs in California, focusing on Federal programs. Convert all program budgets into specific per-household rebate amounts.
+
+        FEDERAL PROGRAMS EXACT AMOUNTS:
+
+        1. IRA Home Electrification:
+        collapsedSummary MUST be:
+        "$8,000 for heat pumps, $840 for water heaters, stoves, and dryers (income-based)"
+        amount MUST be:
+        "Heat Pumps: $8,000, Water Heaters: $840, Electric Stoves: $840, Dryers: $840, Max: $14,000"
+
+        2. HOMES Program:
+        collapsedSummary MUST be:
+        "$2,000-$4,000 standard, up to $8,000 low-income based on energy savings"
+        amount MUST be:
+        "Base: $2,000-$4,000 for 20-35% savings, $4,000-$8,000 for 35%+ savings (income-based)"
+
+        MANDATORY CONVERSION RULES:
+        1. For IRA Programs:
+           ❌ WRONG: "Varies" or "$X,XXX rebate"
+           ✓ RIGHT: List specific amounts ($8,000, $840)
+           ✓ RIGHT: Show income-based variations
+
+        2. For HOMES Program:
+           ❌ WRONG: "$291 million in funding"
+           ❌ WRONG: "Up to $8,000"
+           ✓ RIGHT: "$2,000-$4,000 standard, up to $8,000 low-income"
+           ✓ RIGHT: Show both savings tiers and income levels
+
+        EXACT FORMAT REQUIRED:
         {
             "programs": [
                 {
-                    "programName": "Program name",
-                    "summary": "Brief description (240-520 chars)",
-                    "programType": "One of: Rebate/Grant/Tax Credit/Low-Interest Loan",
-                    "amount": "Exact amount with $ and commas (e.g. $8,000 or Up to $10,000)",
-                    "eligibleProjects": ["List of eligible project types"],
-                    "eligibleRecipients": ["List of who can apply"],
-                    "geographicScope": "One of: Nationwide/State-specific/County-specific/Utility service area",
-                    "requirements": ["List of requirements"],
-                    "applicationProcess": "1-2 line description",
-                    "deadline": "Specific date or Ongoing",
-                    "websiteLink": "Full URL",
-                    "contactInfo": {
-                        "phone": "Phone number if available",
-                        "email": "Email if available",
-                        "office": "Office location if available"
+                    "programName": "Inflation Reduction Act Residential Energy Rebate Programs",
+                    "type": "Rebate",
+                    "amount": "COPY EXACT AMOUNT FORMAT ABOVE",
+                    "collapsedSummary": "COPY EXACT SUMMARY FORMAT ABOVE",
+                    "description": "Brief description",
+                    "eligibility": {
+                        "recipients": ["Income-qualified homeowners"],
+                        "requirements": ["Must be primary residence"],
+                        "restrictions": ["Income limits apply"]
                     },
-                    "processingTime": "Expected processing time"
+                    "eligibleProjects": ["Heat pumps", "Water heaters", "Electric appliances"],
+                    "source": "Program URL"
                 }
             ]
         }
 
-        VALIDATION RULES:
-        1. For Federal programs: Must be available to all California residents
-        2. For State programs: Must be California-specific programs
-        3. For County programs: Must be specific to the county or utility service area
-        4. Exclude any programs about electric vehicles
-        5. Each program MUST have amount and eligibleProjects fields
-        6. If exact information isn't available, use "Contact program administrator for details"
+        FINAL VALIDATION:
+        Before returning results, verify each Federal program has:
+        1. Specific dollar amounts (no X,XXX)
+        2. Income-based variations
+        3. Per-measure breakdowns
+        4. Maximum benefit caps
+        5. Energy savings tiers (for HOMES)
         
         Here are the search results to analyze:
         ${resultsText}`;
@@ -163,19 +212,19 @@ async function analyzeResults(results, category) {
         console.log('Making OpenAI API call with prompt:', prompt);
         
         const completion = await openai.chat.completions.create({
-            model: "gpt-4",
+            model: "gpt-4-32k",
             messages: [
                 {
                     role: "system",
-                    content: "You are a specialized assistant that extracts energy rebate program information from search results. You MUST return a valid JSON object containing program information in the exact format specified. Each program MUST include amount and eligibleProjects fields."
+                    content: "You are a Federal energy rebate specialist. You MUST use the exact amount formats provided. When you see total program budgets or 'varies', you MUST convert them to specific per-household amounts. For IRA, use exact equipment amounts. For HOMES, show savings tiers and income-based amounts."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            temperature: 0.1,
-            max_tokens: 2500,
+            temperature: 0.3,
+            max_tokens: 4000,
             response_format: { type: "json_object" }
         });
 
@@ -230,225 +279,116 @@ async function analyzeResults(results, category) {
 // Export the handler function
 export const handler = async (event, context) => {
     const requestId = Math.random().toString(36).substring(7);
+    console.log('\x1b[35m%s\x1b[0m', `[${requestId}] 📝 REQUEST RECEIVED`);
+
     try {
-        // Log incoming request details
-        console.log(`[${requestId}] 📝 REQUEST RECEIVED:`, {
-            timestamp: new Date().toISOString(),
-            method: event.httpMethod,
-            path: event.path,
-            headers: event.headers,
-            queryParams: event.queryStringParameters,
-            body: event.body ? JSON.parse(event.body) : null
-        });
-
-        // Check environment variables
-        const requiredEnvVars = ['OPENAI_API_KEY', 'GOOGLE_API_KEY', 'GOOGLE_SEARCH_ENGINE_ID', 'GOOGLE_SHEETS_SPREADSHEET_ID', 'GOOGLE_SHEETS_CREDENTIALS'];
-        const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-        if (missingVars.length > 0) {
-            const error = `Missing required environment variables: ${missingVars.join(', ')}`;
-            console.error(`[${requestId}] ❌ CONFIG ERROR:`, error);
-            return {
-                statusCode: 500,
-                body: JSON.stringify({ 
-                    error,
-                    environment: process.env.NODE_ENV
-                })
-            };
-        }
-
-        // Handle OPTIONS request for CORS
-        if (event.httpMethod === 'OPTIONS') {
-            console.log(`[${requestId}] ✨ CORS preflight request handled`);
-            return {
-                statusCode: 200,
-                headers: {
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                },
-                body: ''
-            };
-        }
-
-        // Only allow POST requests
         if (event.httpMethod !== 'POST') {
-            const error = 'Method not allowed';
-            console.error(`[${requestId}] ❌ METHOD ERROR: ${error}`);
-            return {
-                statusCode: 405,
-                body: JSON.stringify({ error })
-            };
+            return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
         }
 
-        try {
-            // Parse and validate request body
-            console.log(`[${requestId}] 📦 Raw request body:`, event.body);
-            const body = JSON.parse(event.body);
-            console.log(`[${requestId}] ✅ Parsed request body:`, body);
+        const body = JSON.parse(event.body);
+        
+        // Extract only the fields we need
+        const searchRequest = {
+            query: String(body.query || '').trim(),
+            category: String(body.category || '').trim(),
+            timestamp: new Date().toISOString()
+        };
 
-            const { query } = body;
-            if (!query) {
-                const error = 'Missing required parameter: query';
-                console.error(`[${requestId}] ❌ VALIDATION ERROR:`, { error });
-                return {
-                    statusCode: 400,
-                    body: JSON.stringify({ error })
-                };
-            }
-
-            // Process all program types
-            const programTypes = ['Federal', 'State', 'County'];
-            const allResults = {};
-            let isCached = true;  // Track if all results are from cache
-            
-            for (const category of programTypes) {
-                console.log(`[${requestId}] 🔍 Processing ${category} programs...`);
-                
-                let searchResults, analysisResults;
-                let usedGoogleCache = false;
-                let usedOpenAICache = false;
-                let searchStartTime = new Date();
-
-                // Check cache if initialized
-                if (cacheInitialized) {
-                    console.log(`[${requestId}] 📦 Checking cache for ${category}...`);
-                    const cachedEntry = await cache.getCacheEntry(query, category);
-                    if (cachedEntry) {
-                        console.log(`[${requestId}] ✅ Cache hit for ${category}`);
-                        console.log(`[${requestId}] 📊 Found ${cachedEntry.searchResults.length} Google results and ${cachedEntry.analysis.programs?.length || 0} programs in cache`);
-                        searchResults = cachedEntry.searchResults;
-                        analysisResults = cachedEntry.analysis;
-                        usedGoogleCache = true;
-                        // Only mark OpenAI as cached if we have valid analysis results
-                        usedOpenAICache = cachedEntry.analysis && cachedEntry.analysis.programs;
-                    } else {
-                        console.log(`[${requestId}] ❌ Cache miss for ${category}`);
-                    }
-                } else {
-                    console.log(`[${requestId}] ⚠️ Cache not initialized, performing fresh search`);
-                }
-
-                // If no cache hit, do fresh search and analysis
-                if (!searchResults || !analysisResults) {
-                    console.log(`[${requestId}] 🔍 Performing new search for ${category}`);
-                    isCached = false;  // At least one result is not from cache
-                    
-                    // Perform fresh search
-                    console.log(`[${requestId}] 🌐 Making Google Search API call...`);
-                    searchResults = await performGoogleSearch(query + ' ' + category + ' rebates');
-                    console.log(`[${requestId}] ✅ Received ${searchResults.length} results from Google`);
-                    
-                    // Always perform OpenAI analysis for fresh search results
-                    console.log(`[${requestId}] 🤖 Sending results to OpenAI for analysis...`);
-                    analysisResults = await analyzeResults(searchResults, category);
-                    console.log(`[${requestId}] ✅ OpenAI analysis complete. Found ${analysisResults.programs?.length || 0} programs`);
-                }
-
-                // Calculate and log timing
-                const searchEndTime = new Date();
-                const searchDuration = searchEndTime - searchStartTime;
-                console.log(`[${requestId}] ⏱️ ${category} search completed in ${searchDuration}ms`);
-                console.log(`[${requestId}] 📊 Final results for ${category}:`, {
-                    googleResults: searchResults.length,
-                    programs: analysisResults.programs?.length || 0,
-                    source: usedGoogleCache ? 'Cache' : 'Fresh Search'
-                });
-
-                // Log search operation only if we have valid results
-                if (searchResults && analysisResults) {
-                    try {
-                        await cache.logSearchOperation(query, category, searchResults, analysisResults, {
-                            googleCache: usedGoogleCache,
-                            openaiCache: usedOpenAICache && analysisResults && analysisResults.programs && analysisResults.programs.length > 0
-                        });
-                        console.log(`[${requestId}] 📝 Search operation logged to Google Sheets`);
-                    } catch (error) {
-                        console.error(`[${requestId}] ❌ Error logging search operation:`, error);
-                    }
-                } else {
-                    console.warn(`[${requestId}] ⚠️ Missing results, skipping log operation`);
-                }
-                
-                allResults[category.toLowerCase()] = {
-                    programs: analysisResults?.programs || [],
-                    timestamp: new Date().toISOString()
-                };
-            }
-
-            const response = {
+        // Log with explicit formatting
+        console.log('\x1b[32m%s\x1b[0m', 'API → Google | Search Request:', 
+            JSON.stringify({
+                query: searchRequest.query,
+                category: searchRequest.category,
+                timestamp: searchRequest.timestamp
+            }, null, 2)
+        );
+        
+        // Only handle Federal category for now
+        if (searchRequest.category !== 'Federal') {
+            return {
                 statusCode: 200,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                },
                 body: JSON.stringify({
-                    federal: allResults.federal,
-                    state: allResults.state,
-                    county: allResults.county,
-                    timestamp: new Date().toISOString()
-                })
-            };
-
-            console.log(`[${requestId}] ✅ RESPONSE SENT:`, {
-                statusCode: response.statusCode,
-                timestamp: new Date().toISOString(),
-                programCounts: {
-                    federal: allResults.federal.programs.length,
-                    state: allResults.state.programs.length,
-                    county: allResults.county.programs.length
-                }
-            });
-
-            return response;
-        } catch (error) {
-            console.error('Error details:', {
-                message: error.message,
-                stack: error.stack,
-                name: error.name,
-                type: error.constructor.name
-            });
-
-            return {
-                statusCode: 500,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type',
-                    'Access-Control-Allow-Methods': 'POST, OPTIONS'
-                },
-                body: JSON.stringify({
-                    error: 'Internal server error',
-                    details: error.message,
-                    type: error.name,
-                    errorType: error.constructor.name
+                    programs: [],
+                    message: 'Only Federal category is supported for now'
                 })
             };
         }
-    } catch (error) {
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name,
-            type: error.constructor.name
-        });
+        
+        // Perform search with clean query
+        const googleResults = await performGoogleSearch(searchRequest.query);
 
+        // Log what we're sending back
+        console.log('\x1b[32m%s\x1b[0m', 'Google → API | Results received:');
+        console.log('\n===> Google Search Response');
+        console.log(JSON.stringify(googleResults.data, null, 2));
+        console.log('<=== End Google Search Response\n');
+
+        // Return Google results directly
+        return {
+            statusCode: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            },
+            body: JSON.stringify({
+                googleResults: googleResults.data,
+                resultCount: googleResults.items.length,
+                searchRequest: {
+                    query: searchRequest.query,
+                    category: searchRequest.category,
+                    timestamp: searchRequest.timestamp
+                }
+            })
+        };
+
+        /* COMMENTED OUT: All OpenAI Analysis Code
+        const analysis = await analyzeResults(results, category);
+        
+        // Store in cache
+        if (cacheInitialized) {
+            console.log('Attempting to store Federal results in cache:', {
+                query: searchRequest.query,
+                category,
+                hasResults: results.length > 0,
+                hasAnalysis: !!analysis,
+            });
+            
+            try {
+                await cache.appendRow({
+                    query: searchRequest.query,
+                    category,
+                    googleResults: JSON.stringify(results),
+                    openaiAnalysis: JSON.stringify(analysis),
+                    timestamp: new Date().toISOString(),
+                    hash: cache._generateHash(searchRequest.query + category),
+                    googleSearchCache: 'Search',
+                    openaiSearchCache: 'Search'
+                });
+                console.log('✅ Successfully stored results in cache');
+            } catch (error) {
+                console.error('❌ Failed to store in cache:', error);
+            }
+        }
+
+        return {
+            statusCode: 200,
+            body: JSON.stringify(analysis)
+        };
+        */
+    } catch (error) {
+        console.error('\x1b[31m%s\x1b[0m', `[${requestId}] ❌ Error:`, error);
         return {
             statusCode: 500,
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*',
-                'Access-Control-Allow-Headers': 'Content-Type',
-                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+                'Access-Control-Allow-Origin': '*'
             },
             body: JSON.stringify({
-                error: 'Internal server error',
-                details: error.message,
-                type: error.name,
-                errorType: error.constructor.name
+                error: 'Search failed',
+                message: error.message,
+                timestamp: new Date().toISOString()
             })
         };
     }
-}
+};

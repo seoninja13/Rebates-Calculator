@@ -6,9 +6,10 @@ export default class RebatePrograms {
         this.cache = new Map();
         this.results = {};
         this.setupLogging();
-        console.log('RebatePrograms initialized with:', {
+        console.log('%cUI | Initialization', 'color: #2196F3; font-weight: bold', {
             isNetlify,
-            baseUrl: this.baseUrl
+            baseUrl: this.baseUrl,
+            timestamp: new Date().toISOString()
         });
     }
 
@@ -41,29 +42,48 @@ export default class RebatePrograms {
     }
 
     getCacheKey(category, query) {
-        return `${category}-${query}`;
+        // Normalize the text by removing all whitespace and converting to lowercase
+        const normalizedText = `${category}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
+        return normalizedText;
     }
 
     async analyze(county) {
         console.log('Starting analyze for county:', county, {
             timestamp: new Date().toISOString(),
             county,
-            categories: ['Federal', 'State', 'County']
+            categories: ['Federal', 'State', 'County'],
+            note: 'Temporarily only processing Federal category'
         });
 
         this.results = {}; // Reset results at start of analyze
         
         try {
+            // Temporarily only processing Federal category
             await this.processCategory('Federal', county);
-            await this.processCategory('State', county);
-            await this.processCategory('County', county);
+            // Temporarily skipping State and County
+            // await this.processCategory('State', county);
+            // await this.processCategory('County', county);
             
             console.log('Final results:', this.results);
             
             return {
                 federal: this.results.federal?.programs || [],
-                state: this.results.state?.programs || [],
-                county: this.results.county?.programs || []
+                state: [{
+                    programName: "Temporarily Excluded",
+                    summary: "State programs are temporarily excluded while we test Federal programs cache",
+                    programType: "N/A",
+                    amount: "N/A",
+                    eligibleProjects: ["N/A"],
+                    note: "This category is temporarily disabled"
+                }],
+                county: [{
+                    programName: "Temporarily Excluded",
+                    summary: "County programs are temporarily excluded while we test Federal programs cache",
+                    programType: "N/A",
+                    amount: "N/A",
+                    eligibleProjects: ["N/A"],
+                    note: "This category is temporarily disabled"
+                }]
             };
         } catch (error) {
             console.error('Error in analyze:', {
@@ -80,20 +100,20 @@ export default class RebatePrograms {
         
         // Build search queries based on category
         if (category === 'Federal') {
-            fullQuery = `Federal energy rebate programs california`;
+            fullQuery = 'Federal energy rebate programs california, US government energy incentives california';
         } else if (category === 'State') {
             fullQuery = `California state energy rebate programs`;
         } else if (category === 'County') {
             fullQuery = `${query} County energy rebate programs california`;
         }
-        
-        console.log('%cFrontend → API | Query', 'color: #4CAF50; font-weight: bold', {
+
+        // Single search request log
+        console.log('%cAPI → Google | Searching:', 'color: #4285f4; font-size: 16px; font-weight: bold;', {
             query: fullQuery,
             category,
-            timestamp: new Date().toISOString(),
-            type: 'outgoing_request'
+            timestamp: new Date().toISOString()
         });
-        
+
         try {
             const response = await fetch(`${this.baseUrl}/api/analyze`, {
                 method: 'POST',
@@ -102,65 +122,62 @@ export default class RebatePrograms {
                 },
                 body: JSON.stringify({ 
                     query: fullQuery, 
-                    category,
-                    maxResults: 10  // Explicitly request 10 results
+                    category
                 }),
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('%cAPI → Frontend | Error', 'color: #f44336; font-weight: bold', {
-                    status: response.status,
-                    error: errorData,
-                    category,
-                    timestamp: new Date().toISOString(),
-                    type: 'error_response'
-                });
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
             const data = await response.json();
             
-            // Log the full response data
-            console.log('%cAPI → Frontend | Raw Response', 'color: #4CAF50; font-weight: bold', {
-                category,
-                data,
-                timestamp: new Date().toISOString(),
-                type: 'raw_response'
-            });
-            
-            // Ensure data.programs is always an array
-            if (!data.programs) {
-                data.programs = [];
-            }
-            
-            console.log('%cAPI → Frontend | Success', 'color: #4CAF50; font-weight: bold', {
-                category,
-                programsCount: data.programs.length,
-                programs: data.programs,
-                timestamp: new Date().toISOString(),
-                type: 'success_response'
-            });
-            
-            // Store the programs directly
+            // Log the raw response data
+            console.log('\n=== Raw Response Data ===');
+            console.log('Full response:', data);
+
+            // Store results
             this.results[category.toLowerCase()] = {
-                programs: data.programs,
+                results: data.googleResults,
+                programs: data.analysis?.programs.map(program => {
+                    // Log each program as it's being mapped
+                    console.log('\n=== Program During Mapping ===');
+                    console.log('Program before mapping:', program);
+                    const mappedProgram = {
+                        ...program,
+                        category: category.toLowerCase()
+                    };
+                    console.log('Program after mapping:', mappedProgram);
+                    return mappedProgram;
+                }) || [],
                 error: false,
-                loading: false
+                loading: false,
+                source: data.source || 'fresh'
             };
 
-            this.updateIcons(category, false, true);
-            
-            // Return the programs
-            return data.programs;
+            // Log the stored results
+            console.log('\n=== Stored Results ===');
+            console.log('Category results:', this.results[category.toLowerCase()]);
+
+            // Update the UI
+            const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
+            if (resultsContainer) {
+                console.log('\n=== Before Creating Cards ===');
+                console.log('Programs to display:', this.results[category.toLowerCase()].programs);
+                
+                resultsContainer.innerHTML = '';
+                this.results[category.toLowerCase()].programs.forEach((program, index) => {
+                    console.log(`\n=== Creating Card ${index + 1} ===`);
+                    console.log('Program data for card:', program);
+                    console.log('collapsedSummary value:', program.collapsedSummary);
+                    const card = this.createProgramCard(program);
+                    resultsContainer.appendChild(card);
+                });
+            }
+
+            return this.results[category.toLowerCase()].programs;
         } catch (error) {
-            console.error('%cAPI → Frontend | Error', 'color: #f44336; font-weight: bold', {
-                error: error.message,
-                category,
-                timestamp: new Date().toISOString(),
-                type: 'error_response'
-            });
-            this.updateIcons(category, false, false);
+            console.error('Error processing category:', error);
             throw error;
         }
     }
@@ -198,90 +215,104 @@ export default class RebatePrograms {
         }
     }
 
-    createProgramCard(program, category) {
+    createProgramCard(program) {
+        console.log('\n%c=== Creating Program Card ===', 'color: #FF9800; font-size: 14px; font-weight: bold');
+        console.log('Full program data:', program);
+        console.log('Program collapsedSummary:', program.collapsedSummary);
+
         const card = document.createElement('div');
         card.className = 'program-card';
-        card.setAttribute('data-category', category.toLowerCase());
-
+        
         // Create the summary section (always visible)
         const summary = document.createElement('div');
         summary.className = 'program-summary';
-        
+
         // Create the toggle button
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'toggle-details';
         toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-        
+
         // Create the summary content
         const summaryContent = document.createElement('div');
         summaryContent.className = 'summary-content';
+
+        // Log the values being used in the HTML
+        console.log('Values for HTML:', {
+            programName: program.programName || 'Program Name Not Available',
+            type: program.type || 'Rebate',
+            collapsedSummary: program.collapsedSummary || 'Rebate Type Not Available'
+        });
+
+        // Create the HTML
         summaryContent.innerHTML = `
-            <h3>${program.eligibleProjects}</h3>
-            <p class="amount-summary">${program.amount}</p>
-            <p class="program-brief">${program.summary}</p>
+            <div class="program-header">
+                <h3>${program.programName || 'Program Name Not Available'}</h3>
+                <span class="program-type">${program.type || 'Rebate'}</span>
+            </div>
+            <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
         `;
+
+        // Log the generated HTML
+        console.log('Generated summary HTML:', summaryContent.innerHTML);
 
         summary.appendChild(summaryContent);
         summary.appendChild(toggleBtn);
 
-        // Create the details section (hidden by default)
+        // Create the details section
         const details = document.createElement('div');
-        details.className = 'program-details';
-        details.style.display = 'none';
+        details.className = 'program-details hidden';
         details.innerHTML = `
-            <div class="details-grid">
-                <div class="detail-item">
-                    <h4>Program Name</h4>
-                    <p>${program.programName || 'N/A'}</p>
+            <div class="details-content">
+                <p class="description">${program.description || 'No description available'}</p>
+                <div class="eligibility">
+                    <h4>Eligibility</h4>
+                    <ul>
+                        ${program.eligibility?.recipients ? 
+                            program.eligibility.recipients.map(recipient => `<li>${recipient}</li>`).join('') :
+                            '<li>Eligibility information not available</li>'}
+                    </ul>
                 </div>
-                <div class="detail-item">
-                    <h4>Summary</h4>
-                    <p>${program.summary || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
-                    <h4>Amount</h4>
-                    <p>${program.amount || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
-                    <h4>Eligible Projects</h4>
-                    <p>${program.eligibleProjects || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
-                    <h4>Eligible Recipients</h4>
-                    <p>${program.eligibleRecipients || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
-                    <h4>Geographic Scope</h4>
-                    <p>${program.geographicScope || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
+                <div class="requirements">
                     <h4>Requirements</h4>
-                    <p>${program.requirements || 'N/A'}</p>
+                    <ul>
+                        ${program.eligibility?.requirements ? 
+                            program.eligibility.requirements.map(req => `<li>${req}</li>`).join('') :
+                            '<li>Requirements information not available</li>'}
+                    </ul>
                 </div>
-                <div class="detail-item">
-                    <h4>Application Process</h4>
-                    <p>${program.applicationProcess || 'N/A'}</p>
+                <div class="application">
+                    <h4>How to Apply</h4>
+                    <p>${program.applicationProcess || 'Application process information not available'}</p>
                 </div>
-                <div class="detail-item">
-                    <h4>Deadline</h4>
-                    <p>${program.deadline || 'N/A'}</p>
-                </div>
-                <div class="detail-item">
-                    <h4>Website</h4>
-                    <p>${program.website ? `<a href="${program.website}" target="_blank">${program.website}</a>` : 'N/A'}</p>
-                </div>
+                ${program.source ? `<div class="source">
+                    <h4>Source</h4>
+                    <a href="${program.source}" target="_blank" rel="noopener noreferrer">Program Website</a>
+                </div>` : ''}
             </div>
         `;
 
-        // Add click handler for toggle
+        // Add click handler for toggle button
         toggleBtn.addEventListener('click', () => {
-            const isExpanded = details.style.display !== 'none';
-            details.style.display = isExpanded ? 'none' : 'block';
-            toggleBtn.querySelector('i').className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+            details.classList.toggle('hidden');
+            toggleBtn.querySelector('i').classList.toggle('fa-chevron-up');
+            toggleBtn.querySelector('i').classList.toggle('fa-chevron-down');
         });
 
         card.appendChild(summary);
         card.appendChild(details);
+
+        // Log the final card HTML
+        console.log('Final card HTML:', card.innerHTML);
+
         return card;
+    }
+
+    // Helper method to get the final results
+    getFinalResults() {
+        return {
+            federal: this.results.federal?.programs || [],
+            state: this.results.state?.programs || [],
+            county: this.results.county?.programs || []
+        };
     }
 }

@@ -576,7 +576,7 @@
       const summaryContent = document.createElement('div');
       summaryContent.className = 'summary-content';
       summaryContent.innerHTML = `
-          <h3 class="rebate-summary">${program.rebateTypeDisplay || 'Rebate Type Not Available'}</h3>
+          <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
       `;
 
       summary.appendChild(summaryContent);

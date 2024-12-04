@@ -1,6 +1,6 @@
-const { google } = require('googleapis');
-const crypto = require('crypto');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+import { google } from 'googleapis';
+import crypto from 'crypto';
+import fetch from 'node-fetch';
 
 const log = (message, details = null, type = 'info') => {
     const timestamp = new Date().toISOString();
@@ -22,22 +22,29 @@ class GoogleSheetsCache {
     constructor() {
         log('Cache → System | Initializing cache service', null, 'system_init');
         try {
-            if (!process.env.GOOGLE_SHEETS_ID || !process.env.GOOGLE_CLIENT_EMAIL || !process.env.GOOGLE_PRIVATE_KEY) {
-                throw new Error('Missing environment variables. Please set GOOGLE_SHEETS_ID, GOOGLE_CLIENT_EMAIL, and GOOGLE_PRIVATE_KEY');
+            if (!process.env.GOOGLE_SHEETS_SPREADSHEET_ID || !process.env.GOOGLE_SHEETS_CREDENTIALS) {
+                throw new Error('Missing environment variables. Please set GOOGLE_SHEETS_SPREADSHEET_ID and GOOGLE_SHEETS_CREDENTIALS');
             }
 
-            this.spreadsheetId = process.env.GOOGLE_SHEETS_ID;
+            log('Cache → System | Environment variables present', {
+                hasSpreadsheetId: !!process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
+                hasCredentials: !!process.env.GOOGLE_SHEETS_CREDENTIALS
+            }, 'debug');
+
+            this.spreadsheetId = process.env.GOOGLE_SHEETS_SPREADSHEET_ID;
+            const credentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
             this.auth = new google.auth.GoogleAuth({
-                credentials: {
-                    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-                    private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
-                },
+                credentials,
                 scopes: ['https://www.googleapis.com/auth/spreadsheets']
             });
 
             this.sheets = google.sheets({ version: 'v4', auth: this.auth });
             this.enabled = true;
-            log('Cache → System | Initialization complete', { status: 'enabled' }, 'system_ready');
+            log('Cache → System | Cache service initialized', {
+                enabled: this.enabled,
+                hasSheets: !!this.sheets,
+                hasAuth: !!this.auth
+            }, 'debug');
         } catch (error) {
             this.enabled = false;
             log('Cache → System | Initialization failed', {
@@ -55,16 +62,32 @@ class GoogleSheetsCache {
         }
 
         try {
+            log('Cache → System | Checking spreadsheet', {
+                spreadsheetId: this.spreadsheetId
+            }, 'debug');
+
             const response = await this.sheets.spreadsheets.get({
                 spreadsheetId: this.spreadsheetId
             });
 
             const sheets = response.data.sheets;
+            log('Cache → System | Found sheets', {
+                sheetCount: sheets.length,
+                sheetNames: sheets.map(s => s.properties.title)
+            }, 'debug');
+
             const cacheSheet = sheets.find(sheet => sheet.properties.title === 'Cache');
 
             if (!cacheSheet) {
-                log('Cache → Sheets | Creating cache sheet', null, 'sheets_operation');
+                log('Cache → Sheets | Creating cache sheet', {
+                    spreadsheetId: this.spreadsheetId
+                }, 'sheets_operation');
                 await this._createCacheSheet();
+            } else {
+                log('Cache → System | Cache sheet exists', {
+                    sheetId: cacheSheet.properties.sheetId,
+                    title: cacheSheet.properties.title
+                }, 'debug');
             }
 
             log('Cache → System | Sheet initialization complete', null, 'system_ready');
@@ -72,7 +95,8 @@ class GoogleSheetsCache {
         } catch (error) {
             log('Cache → System | Sheet initialization failed', {
                 error: error.message,
-                stack: error.stack
+                stack: error.stack,
+                spreadsheetId: this.spreadsheetId
             }, 'error');
             return false;
         }
@@ -149,16 +173,39 @@ class GoogleSheetsCache {
 
     async appendRow(data) {
         try {
-            // Skip if OpenAI analysis is empty
-            if (data.openaiAnalysis === '{}') {
-                log('Cache → System | Skipping empty OpenAI analysis', null, 'cache_skip');
+            // Skip if OpenAI analysis is empty or invalid JSON
+            try {
+                const analysis = JSON.parse(data.openaiAnalysis);
+                if (!analysis || Object.keys(analysis).length === 0) {
+                    log('Cache → System | Invalid analysis data', {
+                        analysis,
+                        openaiAnalysis: data.openaiAnalysis
+                    }, 'cache_skip');
+                    return null;
+                }
+            } catch (e) {
+                log('Cache → System | Failed to parse analysis', {
+                    error: e.message,
+                    openaiAnalysis: data.openaiAnalysis
+                }, 'cache_skip');
                 return null;
             }
+
+            log('Cache → System | Appending row', {
+                spreadsheetId: this.spreadsheetId,
+                range: 'Cache!A:H',
+                query: data.query,
+                category: data.category,
+                timestamp: data.timestamp,
+                hasSheets: !!this.sheets,
+                hasAuth: !!this.auth
+            }, 'debug');
 
             const response = await this.sheets.spreadsheets.values.append({
                 spreadsheetId: this.spreadsheetId,
                 range: 'Cache!A:H',
                 valueInputOption: 'RAW',
+                insertDataOption: 'INSERT_ROWS',
                 resource: {
                     values: [[
                         data.query || '',
@@ -168,28 +215,41 @@ class GoogleSheetsCache {
                         data.timestamp || '',
                         data.hash || '',
                         data.googleSearchCache || 'Search',
-                        'Search'  // Always set to "Search"
+                        'Search'
                     ]]
                 }
             });
 
-            log('Cache → Sheets | Row appended', {
-                category: data.category,
-                type: 'Combined Results'
-            }, 'cache_append');
+            log('Cache → System | Row appended', {
+                updatedRange: response.data.updates.updatedRange,
+                updatedRows: response.data.updates.updatedRows,
+                spreadsheetId: this.spreadsheetId
+            }, 'debug');
 
             return response;
         } catch (error) {
-            log('Cache → Sheets | Row append failed', {
+            log('Cache → System | Row append failed', {
                 error: error.message,
-                stack: error.stack
+                stack: error.stack,
+                spreadsheetId: this.spreadsheetId,
+                data
             }, 'error');
             throw error;
         }
     }
 
     _generateHash(text) {
-        return crypto.createHash('md5').update(text).digest('hex');
+        // Normalize the text by removing all whitespace and converting to lowercase
+        const normalizedText = text.trim().toLowerCase().replace(/\s+/g, '');
+        const hash = crypto.createHash('md5').update(normalizedText).digest('hex');
+        
+        log('Cache → System | Hash Generation', {
+            originalText: text,
+            normalizedText,
+            hash
+        }, 'debug');
+        
+        return hash;
     }
 
     _isEntryValid(timestamp) {
@@ -199,35 +259,60 @@ class GoogleSheetsCache {
         return ageInHours < 336; // 14 days
     }
 
-    async getCacheEntry(query, category) {
+    async get(query, category) {
         if (!this.enabled) {
             log('Cache → System | Cache disabled', null, 'cache_skip');
             return null;
         }
 
-        // Skip if query contains "_combined"
-        if (query.includes('_combined')) {
-            log('Cache → System | Skipping _combined query', { query }, 'cache_skip');
-            return null;
-        }
-
         try {
             const hash = this._generateHash(`${category}:${query}`);
-            log('Cache → Sheets | Looking up entry', {
-                query,
-                category,
-                hash
-            }, 'cache_lookup');
+            
+            log('Cache → System | Cache Lookup Debug', {
+                input: {
+                    query,
+                    category,
+                    lookupKey: `${category}:${query}`,
+                    hash
+                }
+            }, 'debug');
 
             const rows = await this.getRows();
+            
+            // Log all rows for debugging
+            log('Cache → System | All Cache Rows', {
+                rowCount: rows ? rows.length : 0,
+                rows: rows ? rows.map(row => ({
+                    query: row.query,
+                    category: row.category,
+                    hash: row.hash,
+                    timestamp: row.timestamp
+                })) : []
+            }, 'debug');
+
             if (!rows || rows.length === 0) {
                 log('Cache → System | Cache empty', null, 'cache_miss');
                 return null;
             }
 
             const matchingRows = rows.filter(row => row.hash === hash);
+            
+            log('Cache → System | Hash Comparison', {
+                lookingFor: hash,
+                foundMatches: matchingRows.length,
+                matches: matchingRows.map(row => ({
+                    query: row.query,
+                    category: row.category,
+                    hash: row.hash,
+                    timestamp: row.timestamp
+                }))
+            }, 'debug');
+
             if (matchingRows.length === 0) {
-                log('Cache → System | No matching entry', null, 'cache_miss');
+                log('Cache → System | No matching entry', {
+                    searchHash: hash,
+                    availableHashes: rows.map(row => row.hash)
+                }, 'cache_miss');
                 return null;
             }
 
@@ -244,7 +329,7 @@ class GoogleSheetsCache {
                 analysis: JSON.parse(latestRow.openaiAnalysis || '{}'),
                 source: {
                     googleSearch: latestRow.googleSearchCache === 'Search',
-                    openaiAnalysis: true  // Always true since we only store Search entries
+                    openaiAnalysis: true
                 }
             };
 
@@ -266,29 +351,28 @@ class GoogleSheetsCache {
 
     async logSearchOperation(query, category, data) {
         if (!this.enabled) {
-            log('Cache → System | Cache disabled, skipping log', null, 'cache_skip');
-            return;
-        }
-
-        // Skip if query contains "_combined"
-        if (query.includes('_combined')) {
-            log('Cache → System | Skipping _combined query', { query }, 'cache_skip');
+            log('Cache → System | Cache disabled', null, 'cache_skip');
             return;
         }
 
         try {
-            log('Cache → Sheets | Logging search operation', {
+            log('Cache → System | Starting cache operation', {
                 query,
-                category
-            }, 'cache_write');
+                category,
+                hasResults: !!data.results,
+                resultsCount: data.results?.length || 0,
+                hasAnalysis: !!data.analysis,
+                analysisPrograms: data.analysis?.programs?.length || 0,
+                enabled: this.enabled,
+                spreadsheetId: this.spreadsheetId
+            }, 'debug');
 
             const hash = this._generateHash(`${category}:${query}`);
             const timestamp = new Date().toLocaleString("en-US", {
                 timeZone: "America/Los_Angeles"
             });
 
-            // Single row with both Google results and OpenAI analysis
-            await this.appendRow({
+            const rowData = {
                 query,
                 category,
                 googleResults: JSON.stringify(data.results || []),
@@ -296,21 +380,43 @@ class GoogleSheetsCache {
                 timestamp,
                 hash,
                 googleSearchCache: data.source.googleSearch ? 'Search' : 'Cache',
-                openaiSearchCache: 'Search'  // Always set to "Search"
-            });
+                openaiSearchCache: 'Search'
+            };
 
-            log('Cache → System | Search operation logged', {
+            log('Cache → System | Prepared row data', {
+                query,
                 category,
-                entriesAdded: 1
-            }, 'cache_write_complete');
+                hash,
+                timestamp,
+                googleResultsLength: rowData.googleResults.length,
+                openaiAnalysisLength: rowData.openaiAnalysis.length
+            }, 'debug');
+
+            // Single row with both Google results and OpenAI analysis
+            const appendResult = await this.appendRow(rowData);
+            
+            log('Cache → System | Append result', {
+                success: !!appendResult,
+                updatedRange: appendResult?.data?.updates?.updatedRange,
+                updatedRows: appendResult?.data?.updates?.updatedRows,
+                spreadsheetId: this.spreadsheetId
+            }, 'debug');
+
+            return appendResult;
         } catch (error) {
-            log('Cache → System | Log operation failed', {
+            log('Cache → System | Cache operation failed', {
                 error: error.message,
-                stack: error.stack
+                stack: error.stack,
+                query,
+                category,
+                spreadsheetId: this.spreadsheetId
             }, 'error');
+            throw error;
         }
     }
 }
 
+// Create and export a single instance
 const instance = new GoogleSheetsCache();
-module.exports = instance;
+export { GoogleSheetsCache };
+export default instance;

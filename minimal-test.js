@@ -2,6 +2,7 @@ import express from 'express';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { GoogleSheetsCache } from './backend/services/sheets-cache.js';
 
 try {
     // Get __dirname equivalent in ES modules
@@ -103,3 +104,33 @@ try {
     console.error('\nStack trace:', error.stack);
     process.exit(1);
 }
+
+async function testCache() {
+    const cache = new GoogleSheetsCache();
+    await cache.initialize();
+    
+    // Test connection
+    const connected = await cache.testConnection();
+    console.log('Connection test:', connected ? 'SUCCESS' : 'FAILED');
+
+    // Test caching
+    const testData = {
+        results: [{ title: 'Test Result' }],
+        analysis: { summary: 'Test Analysis' },
+        source: {
+            googleSearch: true,
+            openaiAnalysis: true
+        }
+    };
+
+    // Test set
+    const setResult = await cache.set('test query', 'Federal', testData);
+    console.log('Cache set test:', setResult ? 'SUCCESS' : 'FAILED');
+
+    // Test get
+    const getData = await cache.get('test query', 'Federal');
+    console.log('Cache get test:', getData ? 'SUCCESS' : 'FAILED');
+    console.log('Retrieved data:', getData);
+}
+
+testCache().catch(console.error);

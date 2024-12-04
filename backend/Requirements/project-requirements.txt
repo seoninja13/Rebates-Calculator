@@ -61,10 +61,13 @@ For Google saetch limit search results:
 
 
 Instructions for OpenAI/ChatGPT:
-1. Extract the following information from the search results:
+Colapsed view summary: Short description of the Rebate type/Eligible projcts and amount. For example ($8000 rebate for Windows and Doors, $10000 rebate for HVAC, 3,000 - $5,000 rebate for Home Improvement,etc).
+
+1. Extract the following information from the search results: (they show up when expanded the "Colapsed view summary").
+
 Title: [Program Name]. Exlude Rebates which are not Home Improvements(e.g exclude Electric vehicles).
 
-Summary: Brief description focusing on key benefits and eligibility (min 240 max 520 characters)
+Expanded Summary: Brief description focusing on key benefits and eligibility (min 240 max 520 characters)
 
 Program Type: [Rebate/Grant/Tax Credit/Low-Interest Loan]
 

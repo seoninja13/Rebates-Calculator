@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Energy rebates calculator",
   "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node --experimental-modules server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
