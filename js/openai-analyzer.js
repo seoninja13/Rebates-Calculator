@@ -58,11 +58,26 @@ export default class RebatePrograms {
         this.results = {}; // Reset results at start of analyze
         
         try {
-            await this.processCategory('Federal', county);
-            await this.processCategory('State', county);
-            await this.processCategory('County', county);
+            // Process all categories but don't update UI yet
+            await this.processCategory('Federal', county, false);
+            await this.processCategory('State', county, false);
+            await this.processCategory('County', county, false);
             
             console.log('Final results:', this.results);
+            
+            // Now update UI for all categories at once
+            ['federal', 'state', 'county'].forEach(category => {
+                const resultsContainer = document.getElementById(`${category}Results`);
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = '';
+                    if (this.results[category] && this.results[category].programs) {
+                        this.results[category].programs.forEach((program) => {
+                            const card = this.createProgramCard(program);
+                            resultsContainer.appendChild(card);
+                        });
+                    }
+                }
+            });
             
             return {
                 federal: this.results.federal?.programs || [],
@@ -79,7 +94,7 @@ export default class RebatePrograms {
         }
     }
 
-    async processCategory(category, query) {
+    async processCategory(category, query, updateUI = true) {
         let fullQuery = query;
         
         // Build search queries based on category
@@ -166,14 +181,16 @@ export default class RebatePrograms {
                 timestamp: new Date().toISOString()
             });
 
-            // Update the UI
-            const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
-            if (resultsContainer) {
-                resultsContainer.innerHTML = '';
-                this.results[category.toLowerCase()].programs.forEach((program) => {
-                    const card = this.createProgramCard(program);
-                    resultsContainer.appendChild(card);
-                });
+            // Only update UI if flag is true
+            if (updateUI) {
+                const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = '';
+                    this.results[category.toLowerCase()].programs.forEach((program) => {
+                        const card = this.createProgramCard(program);
+                        resultsContainer.appendChild(card);
+                    });
+                }
             }
 
             return this.results[category.toLowerCase()].programs;

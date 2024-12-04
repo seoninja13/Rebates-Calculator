@@ -343,21 +343,61 @@
       }
     }
 
-    /* Loading Spinner */
-    .spinner {
+    /* Updated Loading Animation */
+    .construction-loader {
       display: none;
-      width: 40px;
-      height: 40px;
-      margin: 20px auto;
+      width: 200px;
+      height: 200px;
+      margin: 5vh auto 40px auto;
+      position: relative;
+    }
+
+    .worker {
+      position: absolute;
+      left: 50%;
+      bottom: -20px;
+      transform: translateX(-50%);
+      font-size: 60px;
+      line-height: 1;
+      z-index: 2;
+    }
+
+    .worker::before {
+      content: '👷';
+    }
+
+    /* Loading circle */
+    .loading-circle {
+      position: absolute;
+      left: 50%;
+      bottom: -30px;
+      transform: translate(-50%, 0);
+      width: 120px;
+      height: 120px;
       border: 4px solid #f3f3f3;
-      border-top: 4px solid #4a90e2;
+      border-top: 4px solid #4CAF50;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
 
     @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+      0% { transform: translate(-50%, 0) rotate(0deg); }
+      100% { transform: translate(-50%, 0) rotate(360deg); }
+    }
+
+    .loading-text {
+      text-align: center;
+      color: #4CAF50;
+      font-size: 1.5rem;
+      font-weight: bold;
+      margin-top: 20px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0% { opacity: 0.5; }
+      50% { opacity: 1; }
+      100% { opacity: 0.5; }
     }
 
     /* Additional Styles */
@@ -508,7 +548,11 @@
           <button type="submit">Search</button>
         </div>
         <!-- Loading Spinner -->
-        <div id="rebatesLoadingSpinner" class="spinner"></div>
+        <div id="rebatesLoadingSpinner" class="construction-loader">
+          <div class="loading-circle"></div>
+          <div class="worker"></div>
+          <div class="loading-text">Building Your Rebate Report...</div>
+        </div>
         <!-- Error Display -->
         <div id="errorDisplay" class="error-message"></div>
       </form>
@@ -703,10 +747,10 @@
       
       try {
         console.log('Starting search...');
-        // Show loading spinner
+        // Show loading spinner and hide results
         loadingSpinner.style.display = 'block';
         errorDisplay.style.display = 'none';
-        resultsContainer.style.display = 'block';
+        resultsContainer.style.display = 'none';
         
         // Clear existing results
         ['federal', 'state', 'county'].forEach(category => {
@@ -723,6 +767,10 @@
         const results = await rebatePrograms.analyze(county);
         console.log('Got results:', results);
         
+        // Show results container and hide loading spinner
+        resultsContainer.style.display = 'block';
+        loadingSpinner.style.display = 'none';
+        
         // Display results for each category
         Object.entries(results).forEach(([category, categoryData]) => {
           console.log(`Displaying ${category} programs:`, categoryData);
@@ -732,6 +780,7 @@
         console.error('Error:', error);
         errorDisplay.textContent = error.message || 'An error occurred while fetching programs';
         errorDisplay.style.display = 'block';
+        resultsContainer.style.display = 'none';
       } finally {
         loadingSpinner.style.display = 'none';
       }
