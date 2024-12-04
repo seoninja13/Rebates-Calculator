@@ -52,33 +52,24 @@ export default class RebatePrograms {
             timestamp: new Date().toISOString(),
             county,
             categories: ['Federal', 'State', 'County'],
-            note: 'Temporarily only processing Federal category'
+            note: 'Processing Federal and State categories'
         });
 
         this.results = {}; // Reset results at start of analyze
         
         try {
-            // Temporarily only processing Federal category
             await this.processCategory('Federal', county);
-            // Temporarily skipping State and County
-            // await this.processCategory('State', county);
+            await this.processCategory('State', county);
             // await this.processCategory('County', county);
             
             console.log('Final results:', this.results);
             
             return {
                 federal: this.results.federal?.programs || [],
-                state: [{
-                    programName: "Temporarily Excluded",
-                    summary: "State programs are temporarily excluded while we test Federal programs cache",
-                    programType: "N/A",
-                    amount: "N/A",
-                    eligibleProjects: ["N/A"],
-                    note: "This category is temporarily disabled"
-                }],
+                state: this.results.state?.programs || [],
                 county: [{
                     programName: "Temporarily Excluded",
-                    summary: "County programs are temporarily excluded while we test Federal programs cache",
+                    summary: "County programs are temporarily excluded while we test Federal and State programs",
                     programType: "N/A",
                     amount: "N/A",
                     eligibleProjects: ["N/A"],
@@ -102,7 +93,7 @@ export default class RebatePrograms {
         if (category === 'Federal') {
             fullQuery = 'Federal energy rebate programs california, US government energy incentives california';
         } else if (category === 'State') {
-            fullQuery = `California state energy rebate programs`;
+            fullQuery = 'California state energy rebate programs, California state government energy incentives';
         } else if (category === 'County') {
             fullQuery = `${query} County energy rebate programs california`;
         }
