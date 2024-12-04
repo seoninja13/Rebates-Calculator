@@ -121,162 +121,154 @@ function getSearchQueries(category, userQuery) {
 }
 
 // Function to analyze search results with OpenAI
-async function analyzeWithOpenAI(results) {
+async function analyzeWithOpenAI(results, category) {
     try {
-        const prompt = `Analyze these search results for energy rebate programs in California. You MUST provide specific dollar estimates - NEVER use X,XXX placeholders. Here's real market data from California contractors and rebate programs:
+        // Log the incoming request to OpenAI
+        console.log('\nAPI → OpenAI | Analysis Request:', {
+            category,
+            resultCount: results.length,
+            timestamp: new Date().toISOString()
+        });
 
-CALIFORNIA HOME IMPROVEMENT COSTS & TYPICAL REBATES:
+        const prompt = `Extract information about ${category} energy rebate programs from these search results and format it as a JSON object:
+        ${JSON.stringify(results, null, 2)}
 
-1. HVAC & Heating:
-   - Central AC + Heat Pump: $15,000-$25,000 installation
-   → Typical rebate: $6,000-$8,000
-   - Mini-Split Heat Pump: $8,000-$15,000 installation
-   → Typical rebate: $3,000-$6,000
-   - Ductwork Replacement: $2,000-$6,000 installation
-   → Typical rebate: $1,000-$2,000
+        REQUIREMENTS:
+        1. Federal programs must be available to all California residents
+        2. State programs must be California-specific
+        3. County programs should include both county-specific and utility programs
+        4. Each summary must be at least 240 characters
+        5. Amount should include $ and commas
+        6. collapsedSummary should be a brief one-line summary with key amounts
+        
+        Return the data in this JSON format:
+        {
+            "programs": [{
+                "programName": "string",
+                "programType": "string",
+                "summary": "string (240+ chars)",
+                "collapsedSummary": "string (brief one-line summary with key amounts)",
+                "amount": "string",
+                "eligibleProjects": ["string"],
+                "eligibleRecipients": ["string"],
+                "geographicScope": "string",
+                "requirements": ["string"],
+                "applicationProcess": "string",
+                "deadline": "string",
+                "websiteLink": "string",
+                "contactInfo": "string",
+                "processingTime": "string"
+            }]
+        }
 
-2. Water Heating:
-   - Heat Pump Water Heater: $4,000-$6,500 installation
-   → Typical rebate: $1,500-$2,000
-   - Solar Water Heater: $6,000-$10,000 installation
-   → Typical rebate: $3,000-$4,500
-   - Tankless Gas Water Heater: $3,500-$6,000 installation
-   → Typical rebate: $1,000-$1,500
+        For Federal programs, use these exact formats:
+        1. IRA Home Electrification collapsedSummary:
+           "$8,000 for heat pumps, $840 for water heaters, stoves, and dryers (income-based)"
+        
+        2. HOMES Program collapsedSummary:
+           "$2,000-$4,000 standard, up to $8,000 low-income based on energy savings"`;
 
-3. Home Electrification:
-   - Electric Panel Upgrade: $2,500-$4,000
-   → Typical rebate: $2,500-$4,000
-   - Home Rewiring: $2,000-$4,000
-   → Typical rebate: $1,500-$2,500
-   - Electric Appliances Package: $4,000-$8,000
-   → Typical rebate: $1,500-$3,000
-
-4. Insulation & Windows:
-   - Whole Home Insulation: $3,000-$7,000
-   → Typical rebate: $1,000-$2,500
-   - Energy Efficient Windows: $8,000-$15,000
-   → Typical rebate: $2,000-$4,000
-   - Air Sealing: $500-$2,500
-   → Typical rebate: $300-$800
-
-5. Solar & Battery:
-   - Solar Panel System: $15,000-$25,000
-   → Typical rebate: $4,000-$6,000 (plus 30% tax credit)
-   - Battery Storage: $10,000-$15,000
-   → Typical rebate: $3,000-$4,500
-   - Solar + Battery Package: $25,000-$40,000
-   → Typical rebate: $7,000-$12,000
-
-6. Whole Home Projects:
-   - Basic Energy Upgrade: $10,000-$20,000
-   → Typical rebate: $3,000-$8,000
-   - Deep Energy Retrofit: $30,000-$50,000
-   → Typical rebate: $8,000-$14,000
-   - Electrification Package: $20,000-$35,000
-   → Typical rebate: $6,000-$12,000
-
-IMPORTANT NOTES FOR YOUR ANALYSIS:
-1. These are REAL costs from California contractors - use them as your baseline
-2. Providing ballpark estimates based on these ranges is MUCH BETTER than using X,XXX
-3. When in doubt:
-   - For small projects: Estimate $1,500-$3,000 rebate
-   - For medium projects: Estimate $3,000-$6,000 rebate
-   - For large projects: Estimate $6,000-$10,000 rebate
-   - For whole-home: Estimate $8,000-$14,000 rebate
-
-4. Income Considerations:
-   - Low-income households typically get 2x these amounts
-   - Moderate-income get 1.5x
-   - Use "Up to" format for maximum amounts
-
-5. Program-Specific Guidelines:
-   - IRA: Use official caps ($8,000 HVAC, $2,000 water heater, etc.)
-   - HOMES: Use $8,000-$10,000 for whole-home based on budget
-   - CSI: Use 30-50% of installation cost
-   - State programs: Match confirmed $8,000 amount
-
-Remember: ANY reasonable estimate based on these real costs is better than showing X,XXX to users!
-
-Search Results:
-${results.map(result => `Title: ${result.title}\nURL: ${result.link}\nDescription: ${result.snippet}\n---`).join('\n')}`;
+        console.log('\nAPI → OpenAI | Sending Prompt:', {
+            category,
+            promptLength: prompt.length,
+            timestamp: new Date().toISOString()
+        });
 
         const completion = await openai.chat.completions.create({
             model: "gpt-4-1106-preview",
             messages: [
                 {
                     role: "system",
-                    content: `You are a California energy rebate expert. NEVER use the word "vary" or "varies" - instead, always provide specific amounts based on this data:
-
-PROGRAM SPECIFIC GUIDELINES:
-
-1. IRA Programs:
-   - Home Electrification: "$8,000 - $14,000 rebate"
-   - HVAC: "$4,000 - $8,000 rebate"
-   - Appliances: "$2,000 - $4,000 rebate"
-   - Water Heaters: "$1,500 - $2,500 rebate"
-
-2. HOMES Program:
-   - Whole-Home Efficiency: "$8,000 - $10,000 rebate"
-   - Single Measures: "$3,000 - $6,000 rebate"
-   - Low-Income: Add "Up to $16,000 rebate"
-
-3. Comfortably CA HVAC:
-   - Residential: "$3,000 - $8,000 rebate"
-   - Commercial: "$5,000 - $10,000 rebate"
-   - Heat Pumps: "$4,000 - $8,000 rebate"
-
-4. California Solar Initiative:
-   - Solar Water Heating: "$3,000 - $4,500 rebate"
-   - Solar Thermal: "$4,000 - $6,000 rebate"
-   - Commercial Systems: "$10,000 - $50,000 rebate"
-
-RULES:
-1. NEVER say "varies" or "vary" - use specific amounts
-2. When unsure, use these formats:
-   - Range: "$3,000 - $6,000 rebate for [Project]"
-   - Maximum: "Up to $8,000 rebate for [Project]"
-   - Minimum: "Starting at $3,000 rebate for [Project]"
-
-3. Default Minimums (if program unclear):
-   - HVAC/Heat Pumps: at least $3,000
-   - Water Heating: at least $1,500
-   - Solar: at least $3,000
-   - Whole-Home: at least $5,000
-   - Appliances: at least $1,000
-
-4. Always consider:
-   - Program budget allocations
-   - California's higher incentive levels
-   - Current market installation costs
-   - Similar program benchmarks
-
-Remember: Users need specific numbers - never use "varies" or "vary". If uncertain, provide a reasonable range based on similar programs.`
+                    content: "You are a precise data extraction assistant. Extract detailed program information from search results and return it as a JSON object. Ensure summaries are at least 240 characters and include a brief collapsedSummary for each program. For Federal and State programs, verify California eligibility."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            temperature: 0.8,
+            temperature: 0.7,
+            max_tokens: 4000,
             response_format: { type: "json_object" }
         });
 
-        // Log the OpenAI analysis
-        console.log('\n=== OpenAI Analysis ===');
-        const parsedResponse = JSON.parse(completion.choices[0].message.content);
-        console.log('Full response:', JSON.stringify(parsedResponse, null, 2));
-        console.log('\n=== CollapsedSummary Values ===');
-        parsedResponse.programs?.forEach((program, index) => {
-            console.log(`Program ${index + 1}:`, {
-                name: program.programName,
-                collapsedSummary: program.collapsedSummary
-            });
+        console.log('\nOpenAI → API | Raw Response:', {
+            model: completion.model,
+            usage: completion.usage,
+            timestamp: new Date().toISOString()
         });
+
+        const content = completion.choices[0].message.content;
+        console.log('\nOpenAI → API | Response Content:', content);
         
+        const parsedResponse = JSON.parse(content);
+        if (!parsedResponse.programs || !Array.isArray(parsedResponse.programs)) {
+            console.error('\nOpenAI → API | Invalid Response Format:', {
+                error: 'Missing or invalid programs array',
+                response: parsedResponse,
+                timestamp: new Date().toISOString()
+            });
+            throw new Error('Invalid response format from OpenAI');
+        }
+
+        // Validate each program has required fields
+        const validPrograms = parsedResponse.programs.filter(program => {
+            const isValid = program.programName && 
+                   program.programType && 
+                   program.summary && 
+                   program.collapsedSummary && 
+                   program.amount && 
+                   program.eligibleProjects;
+
+            if (!isValid) {
+                console.warn('\nOpenAI → API | Invalid Program:', {
+                    programName: program.programName,
+                    missingFields: [
+                        !program.programName && 'programName',
+                        !program.programType && 'programType',
+                        !program.summary && 'summary',
+                        !program.collapsedSummary && 'collapsedSummary',
+                        !program.amount && 'amount',
+                        !program.eligibleProjects && 'eligibleProjects'
+                    ].filter(Boolean),
+                    timestamp: new Date().toISOString()
+                });
+            }
+            return isValid;
+        });
+
+        parsedResponse.programs = validPrograms;
+
+        console.log('\nOpenAI → API | Final Programs:', {
+            category,
+            totalPrograms: validPrograms.length,
+            programs: validPrograms.map(p => ({
+                name: p.programName,
+                type: p.programType,
+                collapsedSummary: p.collapsedSummary
+            })),
+            timestamp: new Date().toISOString()
+        });
+
         return parsedResponse;
+
     } catch (error) {
-        console.error('OpenAI Analysis Error:', error);
+        console.error('\nOpenAI → API | Error:', {
+            error: error.message,
+            stack: error.stack,
+            category,
+            timestamp: new Date().toISOString()
+        });
         throw error;
+    }
+}
+
+// Add this helper function for frontend logging
+function logToFrontend(logData) {
+    if (global.frontendSocket) {
+        global.frontendSocket.emit('log', {
+            source: 'OpenAI',
+            ...logData
+        });
     }
 }
 
@@ -388,23 +380,7 @@ app.post('/api/analyze', async (req, res) => {
             timestamp: new Date().toISOString()
         });
 
-        let analysis;
-        try {
-            analysis = await analyzeWithOpenAI(allResults);
-            console.log('\nOpenAI → API | Analysis complete:', {
-                programsFound: analysis.programs?.length || 0,
-                category,
-                timestamp: new Date().toISOString()
-            });
-        } catch (openaiError) {
-            console.error('OpenAI Analysis Error:', {
-                error: openaiError.message,
-                stack: openaiError.stack,
-                category,
-                resultCount: allResults.length
-            });
-            throw openaiError;
-        }
+        const analysis = await analyzeWithOpenAI(allResults, category);
 
         // Store in cache
         const googleResults = {

@@ -108,9 +108,10 @@ export default class RebatePrograms {
         }
 
         // Single search request log
-        console.log('%cAPI → Google | Searching:', 'color: #4285f4; font-size: 16px; font-weight: bold;', {
+        console.log('\nAPI To Google | Search Request:', {
             query: fullQuery,
             category,
+            requestedResults: 10,
             timestamp: new Date().toISOString()
         });
 
@@ -132,44 +133,60 @@ export default class RebatePrograms {
 
             const data = await response.json();
             
-            // Log the raw response data
-            console.log('\n=== Raw Response Data ===');
-            console.log('Full response:', data);
+            // Log Google search results with proper format
+            console.log('\nGoogle TO API | Search Results:', {
+                resultCount: data.googleResults?.items?.length || 0,
+                results: data.googleResults?.items?.map(item => ({
+                    title: item.title,
+                    link: item.link
+                })) || [],
+                category,
+                timestamp: new Date().toISOString()
+            });
+
+            console.log('\nAPI → OpenAI | Sending Request:', {
+                category,
+                searchResults: data.googleResults?.items?.length || 0,
+                timestamp: new Date().toISOString()
+            });
+
+            console.log('\nOpenAI → API | Analysis Results:', {
+                category,
+                programCount: data.analysis?.programs?.length || 0,
+                timestamp: new Date().toISOString()
+            });
 
             // Store results
             this.results[category.toLowerCase()] = {
                 results: data.googleResults,
-                programs: data.analysis?.programs.map(program => {
-                    // Log each program as it's being mapped
-                    console.log('\n=== Program During Mapping ===');
-                    console.log('Program before mapping:', program);
+                programs: (data.analysis && data.analysis.programs) ? data.analysis.programs.map(program => {
                     const mappedProgram = {
                         ...program,
                         category: category.toLowerCase()
                     };
-                    console.log('Program after mapping:', mappedProgram);
                     return mappedProgram;
-                }) || [],
+                }) : [],
                 error: false,
                 loading: false,
                 source: data.source || 'fresh'
             };
 
-            // Log the stored results
-            console.log('\n=== Stored Results ===');
-            console.log('Category results:', this.results[category.toLowerCase()]);
+            console.log('\nAPI → UI | Final Programs:', {
+                category,
+                totalPrograms: this.results[category.toLowerCase()].programs.length,
+                programs: this.results[category.toLowerCase()].programs.map(p => ({
+                    name: p.programName,
+                    type: p.programType,
+                    collapsedSummary: p.collapsedSummary
+                })),
+                timestamp: new Date().toISOString()
+            });
 
             // Update the UI
             const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
             if (resultsContainer) {
-                console.log('\n=== Before Creating Cards ===');
-                console.log('Programs to display:', this.results[category.toLowerCase()].programs);
-                
                 resultsContainer.innerHTML = '';
-                this.results[category.toLowerCase()].programs.forEach((program, index) => {
-                    console.log(`\n=== Creating Card ${index + 1} ===`);
-                    console.log('Program data for card:', program);
-                    console.log('collapsedSummary value:', program.collapsedSummary);
+                this.results[category.toLowerCase()].programs.forEach((program) => {
                     const card = this.createProgramCard(program);
                     resultsContainer.appendChild(card);
                 });
@@ -177,7 +194,12 @@ export default class RebatePrograms {
 
             return this.results[category.toLowerCase()].programs;
         } catch (error) {
-            console.error('Error processing category:', error);
+            console.error('\nAPI → UI | Error:', {
+                error: error.message,
+                category,
+                stack: error.stack,
+                timestamp: new Date().toISOString()
+            });
             throw error;
         }
     }
