@@ -212,7 +212,7 @@ async function analyzeResults(results, category) {
         console.log('Making OpenAI API call with prompt:', prompt);
         
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-32k",
+            model: "gpt-4-1106-preview",
             messages: [
                 {
                     role: "system",

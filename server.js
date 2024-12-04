@@ -201,7 +201,7 @@ Search Results:
 ${results.map(result => `Title: ${result.title}\nURL: ${result.link}\nDescription: ${result.snippet}\n---`).join('\n')}`;
 
         const completion = await openai.chat.completions.create({
-            model: "gpt-4-32k",
+            model: "gpt-4-1106-preview",
             messages: [
                 {
                     role: "system",
