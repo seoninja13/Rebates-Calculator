@@ -52,7 +52,7 @@ export default class RebatePrograms {
             timestamp: new Date().toISOString(),
             county,
             categories: ['Federal', 'State', 'County'],
-            note: 'Processing Federal and State categories'
+            note: 'Processing Federal, State, and County categories'
         });
 
         this.results = {}; // Reset results at start of analyze
@@ -60,21 +60,14 @@ export default class RebatePrograms {
         try {
             await this.processCategory('Federal', county);
             await this.processCategory('State', county);
-            // await this.processCategory('County', county);
+            await this.processCategory('County', county);
             
             console.log('Final results:', this.results);
             
             return {
                 federal: this.results.federal?.programs || [],
                 state: this.results.state?.programs || [],
-                county: [{
-                    programName: "Temporarily Excluded",
-                    summary: "County programs are temporarily excluded while we test Federal and State programs",
-                    programType: "N/A",
-                    amount: "N/A",
-                    eligibleProjects: ["N/A"],
-                    note: "This category is temporarily disabled"
-                }]
+                county: this.results.county?.programs || []
             };
         } catch (error) {
             console.error('Error in analyze:', {
@@ -95,7 +88,7 @@ export default class RebatePrograms {
         } else if (category === 'State') {
             fullQuery = 'California state energy rebate programs, California state government energy incentives';
         } else if (category === 'County') {
-            fullQuery = `${query} County energy rebate programs california`;
+            fullQuery = `${query} County energy rebate programs california, ${query} County utility incentives california`;
         }
 
         // Single search request log
@@ -230,9 +223,7 @@ export default class RebatePrograms {
 
     createProgramCard(program) {
         console.log('\n%c=== Creating Program Card ===', 'color: #FF9800; font-size: 14px; font-weight: bold');
-        console.log('Full program data:', program);
-        console.log('Program collapsedSummary:', program.collapsedSummary);
-
+        
         const card = document.createElement('div');
         card.className = 'program-card';
         
@@ -249,14 +240,6 @@ export default class RebatePrograms {
         const summaryContent = document.createElement('div');
         summaryContent.className = 'summary-content';
 
-        // Log the values being used in the HTML
-        console.log('Values for HTML:', {
-            programName: program.programName || 'Program Name Not Available',
-            type: program.type || 'Rebate',
-            collapsedSummary: program.collapsedSummary || 'Rebate Type Not Available'
-        });
-
-        // Create the HTML
         summaryContent.innerHTML = `
             <div class="program-header">
                 <h3>${program.programName || 'Program Name Not Available'}</h3>
@@ -265,42 +248,76 @@ export default class RebatePrograms {
             <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
         `;
 
-        // Log the generated HTML
-        console.log('Generated summary HTML:', summaryContent.innerHTML);
-
         summary.appendChild(summaryContent);
         summary.appendChild(toggleBtn);
 
         // Create the details section
         const details = document.createElement('div');
         details.className = 'program-details hidden';
+        
         details.innerHTML = `
             <div class="details-content">
-                <p class="description">${program.description || 'No description available'}</p>
-                <div class="eligibility">
-                    <h4>Eligibility</h4>
-                    <ul>
-                        ${program.eligibility?.recipients ? 
-                            program.eligibility.recipients.map(recipient => `<li>${recipient}</li>`).join('') :
-                            '<li>Eligibility information not available</li>'}
-                    </ul>
+                ${program.collapsedSummary ? `<p class="expanded-summary">${program.collapsedSummary}</p>` : ''}
+
+                <div class="program-section">
+                    <h4>Program Name</h4>
+                    <p>${program.programName || 'Not Available'}</p>
                 </div>
-                <div class="requirements">
+
+                <div class="program-section">
+                    <h4>Program Type</h4>
+                    <p>${program.type || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Amount</h4>
+                    <p>${program.amount || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Eligible Projects</h4>
+                    <p>${program.eligibleProjects ? program.eligibleProjects.join(', ') : 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Eligible Recipients</h4>
+                    <p>${program.eligibility?.recipients ? program.eligibility.recipients.join(', ') : 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Geographic Scope</h4>
+                    <p>${program.geographicScope || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
                     <h4>Requirements</h4>
-                    <ul>
-                        ${program.eligibility?.requirements ? 
-                            program.eligibility.requirements.map(req => `<li>${req}</li>`).join('') :
-                            '<li>Requirements information not available</li>'}
-                    </ul>
+                    <p>${program.requirements ? program.requirements.join(', ') : 'Not Available'}</p>
                 </div>
-                <div class="application">
-                    <h4>How to Apply</h4>
-                    <p>${program.applicationProcess || 'Application process information not available'}</p>
+
+                <div class="program-section">
+                    <h4>Application Process</h4>
+                    <p>${program.applicationProcess || 'Not Available'}</p>
                 </div>
-                ${program.source ? `<div class="source">
-                    <h4>Source</h4>
-                    <a href="${program.source}" target="_blank" rel="noopener noreferrer">Program Website</a>
-                </div>` : ''}
+
+                <div class="program-section">
+                    <h4>Deadline</h4>
+                    <p>${program.deadline || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Website</h4>
+                    <p>${program.websiteLink || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Contact Information</h4>
+                    <p>${program.contactInfo || 'Not Available'}</p>
+                </div>
+
+                <div class="program-section">
+                    <h4>Processing Time</h4>
+                    <p>${program.processingTime || 'Not Available'}</p>
+                </div>
             </div>
         `;
 
@@ -313,9 +330,6 @@ export default class RebatePrograms {
 
         card.appendChild(summary);
         card.appendChild(details);
-
-        // Log the final card HTML
-        console.log('Final card HTML:', card.innerHTML);
 
         return card;
     }
