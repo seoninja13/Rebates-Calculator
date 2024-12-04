@@ -118,7 +118,10 @@ function getSearchQueries(category, userQuery) {
             'California state government energy incentives'
         ];
     } else if (category === 'County') {
-        return [`${userQuery} County energy rebate programs california`];
+        return [
+            `${userQuery} County energy rebate programs california`,
+            `${userQuery} County utility incentives california`
+        ];
     }
     return [userQuery];
 }
