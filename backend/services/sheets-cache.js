@@ -52,7 +52,7 @@ export class GoogleSheetsCache {
     }
 
     // Generate a unique hash for the query and category
-    generateHash(query, category) {
+    localGenerateHash(query, category) {
         return crypto
             .createHash('md5')
             .update(`${query}|${category}`)
@@ -60,18 +60,18 @@ export class GoogleSheetsCache {
     }
 
     // Convert to PST timestamp
-    getPSTTimestamp() {
+    localGetPSTTimestamp() {
         return new Date().toLocaleString('en-US', {
             timeZone: 'America/Los_Angeles'
         });
     }
 
     // Log a new search to the cache
-    async logSearch(data) {
+    async localLogSearch(data) {
         if (!this.enabled) return;
 
-        const hash = this.generateHash(data.query, data.category);
-        const timestamp = this.getPSTTimestamp();
+        const hash = this.localGenerateHash(data.query, data.category);
+        const timestamp = this.localGetPSTTimestamp();
 
         try {
             await this.appendRow({
@@ -132,7 +132,7 @@ export class GoogleSheetsCache {
     async checkCache(query, category) {
         if (!this.enabled) return null;
 
-        const hash = this.generateHash(query, category);
+        const hash = this.localGenerateHash(query, category);
 
         try {
             const response = await this.sheets.spreadsheets.values.get({

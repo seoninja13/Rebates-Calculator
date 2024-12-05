@@ -1,116 +1,199 @@
-import cache from './sheets-cache.js';
+import { GoogleSheetsCache } from './services/sheets-cache.mjs';
 
-// Helper function to get search queries
-function getSearchQueries(category, county) {
-    switch (category) {
-        case 'Federal':
-            return [
-                'federal energy rebate programs california',
-                'US government energy incentives california'
-            ];
-        case 'State':
-            return [
-                'California state energy rebate programs',
-                'California energy incentives'
-            ];
-        case 'County':
-            return [
-                `${county} County local energy rebate programs`,
-                `${county} County energy efficiency incentives`
-            ];
-        default:
-            throw new Error(`Invalid category: ${category}`);
-    }
-}
-
-export const handler = async (event, context) => {
+export const handler = async (event) => {
     const requestId = Math.random().toString(36).substring(7);
-    console.log(`[${requestId}] 📝 CACHE CHECK REQUEST RECEIVED`);
+    console.log(`[${requestId}] 🔍 NETLIFY: Cache check request received`);
+
+    // Handle CORS preflight requests
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            }
+        };
+    }
 
     try {
         if (event.httpMethod !== 'POST') {
-            return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+            throw new Error('Method not allowed');
         }
 
-        const { query, category, county } = JSON.parse(event.body);
+        // Parse and validate request body
+        if (!event.body) {
+            throw new Error('Request body is required');
+        }
+
+        const body = JSON.parse(event.body);
+        const { category, county } = body;
+
+        // Validate required fields
+        if (!category || !county) {
+            console.log(`[${requestId}] ❌ NETLIFY: Missing required fields`, { category, county });
+            return {
+                statusCode: 400,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: 'Missing required fields',
+                    required: ['category', 'county'],
+                    received: { category, county }
+                })
+            };
+        }
+
+        console.log(`[${requestId}] 📝 NETLIFY: Check cache request:`, {
+            category,
+            county,
+            body: JSON.stringify(body)
+        });
+
+        const cache = new GoogleSheetsCache();
+        const initialized = await cache.initialize();
+
+        if (!initialized) {
+            console.log(`[${requestId}] ❌ NETLIFY: Cache not initialized`);
+            console.log(`
+%c
+╔════════════════════════════════════════╗
+║     NETLIFY CACHE NOT INITIALIZED      ║
+║    Category: ${category.padEnd(20)}    ║
+║    County: ${(county || 'N/A').padEnd(22)}    ║
+╚════════════════════════════════════════╝
+`, 'color: #FF0000; font-weight: bold; font-size: 14px;');
+            return {
+                statusCode: 503,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    error: 'Cache not initialized',
+                    category,
+                    county
+                })
+            };
+        }
+
+        // Generate cache key using same format as local environment
+        const cacheKey = `${category}:${county}`;
+        console.log(`[${requestId}] 🔑 NETLIFY: Cache Check Debug:`, {
+            receivedQuery: body.query,
+            receivedCategory: category,
+            receivedCounty: county,
+            generatedCacheKey: cacheKey,
+            normalizedKey: cache.netlifyGenerateHash(cacheKey, category)
+        });
+
+        const cachedResult = await cache.netlifyGetCache(cacheKey, category);
         
-        // Get all possible queries for this category
-        const queries = getSearchQueries(category, county);
-        const combinedCacheKey = queries.join(' | ');
-        
-        // Check cache first before any operations
-        if (cache.enabled) {
+        if (cachedResult) {
+            // Big visual indicator for cache hit - Google Results
+            console.log(`
+%c
+╔════════════════════════════════════════╗
+║   NETLIFY: USING CACHED GOOGLE DATA    ║
+║   Category: ${category.padEnd(20)}    ║
+║   County: ${(county || 'N/A').padEnd(22)}    ║
+╚════════════════════════════════════════╝
+`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+
+            // Big visual indicator for cache hit - OpenAI Results
+            console.log(`
+%c
+╔════════════════════════════════════════╗
+║   NETLIFY: USING CACHED OPENAI DATA    ║
+║   Category: ${category.padEnd(20)}    ║
+║   Programs: ${(JSON.parse(cachedResult.openaiAnalysis).programs?.length || 0).toString().padEnd(20)}    ║
+╚════════════════════════════════════════╝
+`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+
+            // Log the cache hit
             try {
-                console.log(`[${requestId}] 🔍 Checking cache for ${category}`);
-                const cachedResults = await cache.getCacheEntry(combinedCacheKey, category);
-                
-                if (cachedResults && cachedResults.results && cachedResults.analysis) {
-                    console.log(`[${requestId}] ✅ Cache hit for ${category}`);
-                    
-                    // Log cache hit
-                    await cache.logSearchOperation(combinedCacheKey, category, {
-                        results: cachedResults.results,
-                        analysis: cachedResults.analysis,
-                        source: {
-                            googleSearch: 'Cache',
-                            openaiAnalysis: 'Cache'
-                        }
-                    });
-
-                    // Return cached results immediately
-                    return {
-                        statusCode: 200,
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Access-Control-Allow-Origin': '*'
-                        },
-                        body: JSON.stringify({
-                            found: true,
-                            programs: cachedResults.analysis.programs || [],
-                            source: {
-                                googleSearch: 'Cache',
-                                openaiAnalysis: 'Cache'
-                            }
-                        })
-                    };
-                }
-                console.log(`[${requestId}] ❌ Cache miss for ${category}`);
-                return {
-                    statusCode: 200,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*'
-                    },
-                    body: JSON.stringify({ found: false })
-                };
-            } catch (cacheError) {
-                console.error(`[${requestId}] ❌ Cache error:`, cacheError);
-                return {
-                    statusCode: 500,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*'
-                    },
-                    body: JSON.stringify({ error: 'Cache lookup failed' })
-                };
+                await cache.appendRow({
+                    query: cacheKey,
+                    category: category,
+                    googleResults: cachedResult.googleResults,
+                    openaiAnalysis: cachedResult.openaiAnalysis,
+                    timestamp: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
+                    hash: cache.netlifyGenerateHash(cacheKey),
+                    googleSearchCache: 'Cache',
+                    openaiSearchCache: 'Cache'
+                });
+                console.log(`[${requestId}] 📝 NETLIFY: Cache hit logged`);
+            } catch (error) {
+                console.error(`[${requestId}] ❌ NETLIFY: Failed to log cache hit:`, error);
             }
+
+            return {
+                statusCode: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    found: true,
+                    programs: JSON.parse(cachedResult.openaiAnalysis).programs,
+                    source: {
+                        googleSearch: 'Cache',
+                        openaiAnalysis: 'Cache'
+                    }
+                })
+            };
         }
+
+        // Big visual indicator for cache miss - Will need fresh data
+        console.log(`
+%c
+╔════════════════════════════════════════╗
+║   NETLIFY: NO CACHED DATA FOUND        ║
+║   Will need:                           ║
+║   1. Fresh Google Search               ║
+║   2. Fresh OpenAI Analysis            ║
+║   Category: ${category.padEnd(20)}    ║
+║   County: ${(county || 'N/A').padEnd(22)}    ║
+╚════════════════════════════════════════╝
+`, 'color: #FFA500; font-weight: bold; font-size: 14px;');
+
+        console.log(`[${requestId}] ❌ NETLIFY: Cache missing`);
+        console.log(`
+╔════════════════════════════════════════╗
+║         NETLIFY: CACHE MISSING         ║
+║         Performing fresh search        ║
+╚════════════════════════════════════════╝`);
 
         return {
-            statusCode: 503,
+            statusCode: 200,
             headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ error: 'Cache not initialized' })
+            body: JSON.stringify({
+                found: false,
+                category,
+                county
+            })
         };
     } catch (error) {
-        console.error(`[${requestId}] ❌ Error:`, error);
+        console.error(`[${requestId}] ❌ NETLIFY: Error:`, error);
+        // Big visual indicator for error
+        console.log(`
+%c
+╔════════════════════════════════════════╗
+║         NETLIFY: ERROR                 ║
+║    Error: ${error.message.slice(0, 20).padEnd(22)}    ║
+╚════════════════════════════════════════╝
+`, 'color: #FF0000; font-weight: bold; font-size: 14px;');
+
         return {
             statusCode: 500,
             headers: {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 error: 'Cache check failed',

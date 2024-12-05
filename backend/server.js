@@ -150,45 +150,66 @@ try {
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 const GOOGLE_SEARCH_ENGINE_ID = process.env.GOOGLE_SEARCH_ENGINE_ID;
 
-// Helper function to perform Google search
-async function performGoogleSearch(query) {
-    const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
-    console.log('🔍 Sending search request to Google:', url);
-    
-    try {
-        sendLogToClient('API → Google', 'search_request', 'Sending search request to Google', {
-            query
-        });
+// Helper function for Google search
+async function localPerformGoogleSearch(query) {
+    const searchUrl = new URL('https://customsearch.googleapis.com/customsearch/v1');
+    searchUrl.searchParams.append('key', process.env.GOOGLE_API_KEY);
+    searchUrl.searchParams.append('cx', process.env.GOOGLE_SEARCH_ENGINE_ID);
+    searchUrl.searchParams.append('q', query);
+    searchUrl.searchParams.append('num', '10');
 
-        const response = await fetch(url);
+    try {
+        const response = await fetch(searchUrl.toString());
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Google Search API error:', response.status, errorText);
-            throw new Error(`Google Search API error: ${response.status} - ${errorText}`);
+            throw new Error(`Google API error: ${response.status}`);
         }
         const data = await response.json();
         
-        sendLogToClient('Google → API', 'search_results', 'Received search results from Google', {
-            query,
-            resultCount: data.items?.length || 0
+        // Log detailed search results
+        console.log('\n=== Google Search Results ===');
+        console.log('Total Results:', data.searchInformation?.totalResults);
+        console.log('Search Time:', data.searchInformation?.searchTime, 'seconds');
+        console.log('\nResults:');
+        data.items?.forEach((item, index) => {
+            console.log(`\n[Result ${index + 1}]`);
+            console.log('Title:', item.title);
+            console.log('Link:', item.link);
+            console.log('Snippet:', item.snippet);
+            console.log('---');
         });
         
-        if (!data.items || data.items.length === 0) {
-            sendLogToClient('Google → API', 'search_empty', 'No results found by Google', {
-                query
-            });
-            return [];
-        }
-        
-        return data.items;
+        return data;
     } catch (error) {
-        console.error('❌ Google Search API Error:', error);
+        console.error('Google Search Error:', error);
         throw error;
     }
 }
 
-// Helper function to analyze results with OpenAI
-async function analyzeResults(results, category) {
+// Helper function to get search queries
+function localGetSearchQueries(category, county) {
+    switch (category) {
+        case 'Federal':
+            return [
+                'federal energy rebate programs california',
+                'US government energy incentives california'
+            ];
+        case 'State':
+            return [
+                'California state energy rebate programs',
+                'California energy incentives'
+            ];
+        case 'County':
+            return [
+                `${county} County local energy rebate programs`,
+                `${county} County energy efficiency incentives`
+            ];
+        default:
+            throw new Error(`Invalid category: ${category}`);
+    }
+}
+
+// Helper function to analyze with OpenAI
+async function localAnalyzeWithOpenAI(results, category) {
     try {
         // Build prompt for OpenAI
         const resultsText = JSON.stringify(results, null, 2);
@@ -287,32 +308,9 @@ function logMessage(direction, type, message, details = null) {
     sendLogToClient(message, details);
 }
 
-// Helper function to get search queries for a category
-function getSearchQueries(category, county) {
-    switch (category) {
-        case 'Federal':
-            return [
-                'federal energy rebate programs california',
-                'US government energy incentives california'
-            ];
-        case 'State':
-            return [
-                'California state energy rebate programs',
-                'California energy incentives'
-            ];
-        case 'County':
-            return [
-                `${county} County local energy rebate programs`,
-                `${county} County energy efficiency incentives`
-            ];
-        default:
-            throw new Error(`Invalid category: ${category}`);
-    }
-}
-
 // Helper function to perform multiple searches
 async function performMultipleSearches(category, county) {
-    const queries = getSearchQueries(category, county);
+    const queries = localGetSearchQueries(category, county);
     let allResults = [];
 
     sendLogToClient('API → Google', 'search_batch_start', `Starting ${queries.length} Google searches for ${category}`, {
@@ -329,16 +327,16 @@ async function performMultipleSearches(category, county) {
                 query
             });
 
-            const results = await performGoogleSearch(query);
+            const results = await localPerformGoogleSearch(query);
             
             sendLogToClient('Google → API', 'search_results_received', 'Received results from Google', {
                 category,
                 query,
-                resultCount: results.length
+                resultCount: results.items?.length || 0
             });
 
             if (results) {
-                allResults = allResults.concat(results);
+                allResults = allResults.concat(results.items);
             }
         } catch (error) {
             sendLogToClient('Google → API', 'search_error', 'Error from Google Search API', {
@@ -370,42 +368,73 @@ async function performMultipleSearches(category, county) {
 app.post('/api/analyze', async (req, res) => {
     const { query, category, county } = req.body;
     const shouldSearch = req.body.shouldSearch === true;  // Explicitly check for true
-    const startTime = Date.now();
 
     try {
-        // Debug log the entire request body
-        console.log('Analyze request body:', {
-            query,
-            category,
-            county,
-            shouldSearch,
-            rawBody: req.body
-        });
-
         sendLogToClient('UI → API', 'analyze_request', 'Received analyze request', {
             category,
             county,
             query,
-            shouldSearch,
-            requestBody: req.body
+            shouldSearch
         });
 
         // Only proceed with search if explicitly requested
         if (!shouldSearch) {
-            console.log('Search not requested, shouldSearch is false');
             sendLogToClient('API → UI', 'search_skipped', 'Search not requested', { 
                 category, 
                 county,
-                shouldSearch,
-                requestBody: req.body
+                shouldSearch
             });
             return res.status(400).json({ 
                 error: 'Search not requested. Check cache first.',
-                shouldSearch,
-                requestBody: req.body
+                shouldSearch
             });
         }
 
+        // Check cache first
+        if (cacheInitialized) {
+            try {
+                const cacheKey = `${category}:${county}`;
+                const cachedResults = await cache.localGetCache(cacheKey, category);
+                
+                if (cachedResults) {
+                    sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
+                        category,
+                        county,
+                        timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+                    });
+
+                    // Log the cache hit
+                    try {
+                        await cache.appendRow({
+                            query: cacheKey,
+                            category: category,
+                            googleResults: JSON.stringify(cachedResults.results || []),
+                            openaiAnalysis: JSON.stringify(cachedResults.analysis || {}),
+                            timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
+                            hash: cache.localGenerateHash(cacheKey),
+                            googleSearchCache: 'Cache',
+                            openaiSearchCache: 'Cache'
+                        });
+
+                        return res.json({
+                            programs: cachedResults.analysis.programs || [],
+                            source: {
+                                googleSearch: 'Cache',
+                                openaiAnalysis: 'Cache'
+                            }
+                        });
+                    } catch (logError) {
+                        console.error('Failed to log cache hit:', logError);
+                    }
+                }
+            } catch (cacheError) {
+                console.error('Cache check failed:', cacheError);
+                // Continue with search if cache check fails
+            }
+        }
+
+        // If we reach here, either cache wasn't initialized, check failed, or no cache hit
+        // Proceed with search
         console.log('Proceeding with search, shouldSearch is true');
         sendLogToClient('API → Internal', 'search_start', 'Starting new search', {
             category,
@@ -415,14 +444,14 @@ app.post('/api/analyze', async (req, res) => {
         });
 
         // Perform multiple Google searches
-        sendLogToClient('API → Google', 'search_start', `Starting ${getSearchQueries(category, county).length} Google searches for ${category}`, {
+        sendLogToClient('API → Google', 'search_start', `Starting ${localGetSearchQueries(category, county).length} Google searches for ${category}`, {
             category,
             county,
-            queryCount: getSearchQueries(category, county).length,
-            queries: getSearchQueries(category, county)
+            queryCount: localGetSearchQueries(category, county).length,
+            queries: localGetSearchQueries(category, county)
         });
 
-        const searchResults = await performMultipleSearches(category, county);
+        const searchResults = await localPerformGoogleSearch(query);
         
         if (!searchResults || searchResults.length === 0) {
             sendLogToClient('Google → API', 'search_error', 'No search results found', { category, county });
@@ -440,10 +469,10 @@ app.post('/api/analyze', async (req, res) => {
         sendLogToClient('API → OpenAI', 'analysis_request', 'Sending combined Google results to OpenAI for analysis', {
             category,
             resultCount: formattedResults.length,
-            searchQueries: getSearchQueries(category, county)
+            searchQueries: localGetSearchQueries(category, county)
         });
         
-        const analysis = await analyzeResults(formattedResults, category);
+        const analysis = await localAnalyzeWithOpenAI(formattedResults, category);
         
         sendLogToClient('OpenAI → API', 'analysis_complete', 'Received program analysis from OpenAI', {
             category,
@@ -457,18 +486,18 @@ app.post('/api/analyze', async (req, res) => {
                 sendLogToClient('API → Cache', 'cache_store', 'Storing Google and OpenAI results in Google Sheets', {
                     category,
                     county,
-                    queries: getSearchQueries(category, county),
+                    queries: localGetSearchQueries(category, county),
                     googleResultsCount: searchResults.length,
                     openaiProgramsCount: analysis.programs?.length
                 });
 
                 await cache.appendRow({
-                    query: getSearchQueries(category, county).join(' | '),
+                    query: localGetSearchQueries(category, county).join(' | '),
                     category: category,
                     googleResults: JSON.stringify(searchResults),
                     openaiAnalysis: JSON.stringify(analysis),
                     timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                    hash: cache._generateHash(`${category}:${county}`),
+                    hash: cache.localGenerateHash(`${category}:${county}`),
                     googleSearchCache: 'Search',  // New search
                     openaiSearchCache: 'Search'   // New analysis
                 });
@@ -489,9 +518,9 @@ app.post('/api/analyze', async (req, res) => {
 
         // Add metadata about the search process to the response
         analysis.searchMetadata = {
-            totalQueries: getSearchQueries(category, county).length,
+            totalQueries: localGetSearchQueries(category, county).length,
             totalResults: searchResults.length,
-            queries: getSearchQueries(category, county),
+            queries: localGetSearchQueries(category, county),
             timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
             source: 'search'
         };
@@ -546,7 +575,7 @@ app.post('/api/check-cache', async (req, res) => {
         }
 
         // Get all possible queries for this category
-        const queries = getSearchQueries(category, county);
+        const queries = localGetSearchQueries(category, county);
         const combinedCacheKey = queries.join(' | ');
 
         try {
@@ -556,7 +585,7 @@ app.post('/api/check-cache', async (req, res) => {
                 queries
             });
 
-            const cachedResults = await cache.get(combinedCacheKey, category);
+            const cachedResults = await cache.localGetCache(combinedCacheKey, category);
             
             if (cachedResults && cachedResults.results && cachedResults.analysis) {
                 sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
@@ -573,7 +602,7 @@ app.post('/api/check-cache', async (req, res) => {
                         googleResults: JSON.stringify(cachedResults.results || []),
                         openaiAnalysis: JSON.stringify(cachedResults.analysis || {}),
                         timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                        hash: cache._generateHash(`${category}:${county}`),
+                        hash: cache.localGenerateHash(`${category}:${county}`),
                         googleSearchCache: 'Cache',
                         openaiSearchCache: 'Cache'
                     });

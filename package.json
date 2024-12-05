@@ -5,14 +5,16 @@
   "main": "server.js",
   "type": "module",
   "scripts": {
-    "start": "node --experimental-modules server.js"
+    "start": "node --experimental-modules server.js",
+    "dev": "node --experimental-modules server.js",
+    "build": "echo 'No build step needed'"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "googleapis": "^126.0.1",
+    "googleapis": "^128.0.0",
     "node-fetch": "^3.3.2",
-    "openai": "^4.0.0"
+    "openai": "^4.20.1"
   }
 }

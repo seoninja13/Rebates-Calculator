@@ -1,20 +1,21 @@
 export default class RebatePrograms {
     constructor() {
-        // Use environment-specific API URL
-        const isNetlify = window.location.port === '8888';
-        this.baseUrl = isNetlify ? '' : 'http://localhost:3000';
-        this.cache = new Map();
+        this.isNetlify = window.location.port === '8888';
+        this.baseUrl = this.isNetlify ? '/.netlify/functions' : 'http://localhost:3000/api';
         this.results = {};
+        this.searchHistory = new Map();
         this.setupLogging();
-        console.log('%cUI | Initialization', 'color: #2196F3; font-weight: bold', {
-            isNetlify,
+        console.log('\n===> INITIALIZED:', {
+            isNetlify: this.isNetlify,
             baseUrl: this.baseUrl,
             timestamp: new Date().toISOString()
         });
     }
 
     setupLogging() {
-        const eventSource = new EventSource('/api/logs');
+        const isNetlify = window.location.port === '8888';
+        const logsUrl = isNetlify ? '/.netlify/functions/logs' : '/api/logs';
+        const eventSource = new EventSource(logsUrl);
         eventSource.onmessage = (event) => {
             const { message, details } = JSON.parse(event.data);
             if (details) {
@@ -59,23 +60,46 @@ export default class RebatePrograms {
         
         try {
             // Process all categories but don't update UI yet
-            await this.processCategory('Federal', county, false);
-            await this.processCategory('State', county, false);
-            await this.processCategory('County', county, false);
+            console.log('\n===> PROCESSING FEDERAL CATEGORY');
+            const federalResults = await this.processCategory('Federal', county, false);
+            this.results.federal = federalResults.analysis;
+
+            console.log('\n===> PROCESSING STATE CATEGORY');
+            const stateResults = await this.processCategory('State', county, false);
+            this.results.state = stateResults.analysis;
+
+            console.log('\n===> PROCESSING COUNTY CATEGORY');
+            const countyResults = await this.processCategory('County', county, false);
+            this.results.county = countyResults.analysis;
             
-            console.log('Final results:', this.results);
+            console.log('\n===> FINAL RESULTS:', {
+                federal: {
+                    programCount: this.results.federal?.programs?.length || 0,
+                    source: federalResults.source
+                },
+                state: {
+                    programCount: this.results.state?.programs?.length || 0,
+                    source: stateResults.source
+                },
+                county: {
+                    programCount: this.results.county?.programs?.length || 0,
+                    source: countyResults.source
+                }
+            });
             
             // Now update UI for all categories at once
             ['federal', 'state', 'county'].forEach(category => {
                 const resultsContainer = document.getElementById(`${category}Results`);
                 if (resultsContainer) {
                     resultsContainer.innerHTML = '';
-                    if (this.results[category] && this.results[category].programs) {
-                        this.results[category].programs.forEach((program) => {
-                            const card = this.createProgramCard(program);
-                            resultsContainer.appendChild(card);
-                        });
-                    }
+                    const programs = this.results[category]?.programs || [];
+                    console.log(`\n===> UPDATING UI FOR ${category.toUpperCase()}:`, {
+                        programCount: programs.length
+                    });
+                    programs.forEach((program) => {
+                        const card = this.createProgramCard(program);
+                        resultsContainer.appendChild(card);
+                    });
                 }
             });
             
@@ -85,7 +109,7 @@ export default class RebatePrograms {
                 county: this.results.county?.programs || []
             };
         } catch (error) {
-            console.error('Error in analyze:', {
+            console.error('\n===> ERROR IN ANALYZE:', {
                 error: error.message,
                 county,
                 stack: error.stack
@@ -106,103 +130,227 @@ export default class RebatePrograms {
             fullQuery = `${query} County energy rebate programs california, ${query} County utility incentives california`;
         }
 
-        // Single search request log
-        console.log('\nAPI To Google | Search Request:', {
-            query: fullQuery,
+        console.log('\n===> REQUESTING DATA:', {
             category,
-            requestedResults: 10,
-            timestamp: new Date().toISOString()
+            query: fullQuery,
+            environment: this.isNetlify ? 'Netlify' : 'Local'
         });
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/analyze`, {
+            this.updateIcons(category, true, false);
+            
+            // Use different logic based on environment
+            const data = this.isNetlify 
+                ? await this.processNetlifyRequest(category, fullQuery, query)
+                : await this.processLocalRequest(category, fullQuery);
+
+            // Update UI if needed
+            if (updateUI) {
+                this.updateUIWithResults(category, data);
+            }
+
+            return data;
+        } catch (error) {
+            console.error('\n===> ERROR:', {
+                category,
+                error: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
+    }
+
+    // Preserve original local environment logic exactly
+    async processLocalRequest(category, query) {
+        console.log('\n===> LOCAL REQUEST:', { category, query });
+        
+        // First check cache
+        const cacheResponse = await fetch(`${this.baseUrl}/check-cache`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                query, 
+                category,
+                shouldSearch: false
+            }),
+        });
+
+        if (!cacheResponse.ok) {
+            throw new Error(`Cache check failed: ${cacheResponse.status}`);
+        }
+
+        const cacheResult = await cacheResponse.json();
+        
+        if (cacheResult.found) {
+            console.log('\n===> LOCAL CACHE HIT:', {
+                category,
+                source: 'cache',
+                programCount: cacheResult.programs?.length || 0
+            });
+            return {
+                analysis: { programs: cacheResult.programs },
+                source: 'cache'
+            };
+        }
+
+        // If not in cache, do a fresh search
+        console.log('\n===> LOCAL CACHE MISS - Proceeding with search');
+        const response = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                query, 
+                category,
+                shouldSearch: true
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('\n===> LOCAL SEARCH COMPLETE:', {
+            category,
+            source: 'search',
+            programCount: data.programs?.length || 0
+        });
+
+        return {
+            analysis: { programs: data.programs },
+            source: 'search'
+        };
+    }
+
+    // Netlify-specific logic
+    async processNetlifyRequest(category, fullQuery, county) {
+        console.log('\n===> NETLIFY REQUEST:', { 
+            category, 
+            fullQuery,
+            county 
+        });
+
+        // First check cache
+        try {
+            const cacheResponse = await fetch(`${this.baseUrl}/check-cache`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ 
-                    query: fullQuery, 
-                    category
+                    query: fullQuery,
+                    category,
+                    county,
+                    shouldSearch: false // Always check cache first
                 }),
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            if (!cacheResponse.ok) {
+                const errorData = await cacheResponse.json();
+                console.group('🚨 NETLIFY CACHE ERROR');
+                console.error('Cache check failed:', {
+                    status: cacheResponse.status,
+                    error: errorData.error,
+                    message: errorData.message,
+                    details: errorData.details
+                });
+                console.groupEnd();
+                throw new Error(`Cache check failed: ${errorData.message}`);
             }
 
-            const data = await response.json();
-            
-            // Log Google search results with proper format
-            console.log('\nGoogle TO API | Search Results:', {
-                resultCount: data.googleResults?.items?.length || 0,
-                results: data.googleResults?.items?.map(item => ({
-                    title: item.title,
-                    link: item.link
-                })) || [],
-                category,
-                timestamp: new Date().toISOString()
-            });
+            const cacheResult = await cacheResponse.json();
 
-            console.log('\nAPI → OpenAI | Sending Request:', {
-                category,
-                searchResults: data.googleResults?.items?.length || 0,
-                timestamp: new Date().toISOString()
-            });
+            if (cacheResult.found) {
+                console.group('📦 NETLIFY CACHE STATUS');
+                console.log('%c=== USING CACHED RESULTS ===', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+                console.log('✓ Using Cached Google Search Results');
+                console.log('✓ Using Cached OpenAI Analysis');
+                console.log('Category:', category);
+                console.log('Programs Found:', cacheResult.programs?.length || 0);
+                console.groupEnd();
 
-            console.log('\nOpenAI → API | Analysis Results:', {
-                category,
-                programCount: data.analysis?.programs?.length || 0,
-                timestamp: new Date().toISOString()
-            });
-
-            // Store results
-            this.results[category.toLowerCase()] = {
-                results: data.googleResults,
-                programs: (data.analysis && data.analysis.programs) ? data.analysis.programs.map(program => {
-                    const mappedProgram = {
-                        ...program,
-                        category: category.toLowerCase()
-                    };
-                    return mappedProgram;
-                }) : [],
-                error: false,
-                loading: false,
-                source: data.source || 'fresh'
-            };
-
-            console.log('\nAPI → UI | Final Programs:', {
-                category,
-                totalPrograms: this.results[category.toLowerCase()].programs.length,
-                programs: this.results[category.toLowerCase()].programs.map(p => ({
-                    name: p.programName,
-                    type: p.programType,
-                    collapsedSummary: p.collapsedSummary
-                })),
-                timestamp: new Date().toISOString()
-            });
-
-            // Only update UI if flag is true
-            if (updateUI) {
-                const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = '';
-                    this.results[category.toLowerCase()].programs.forEach((program) => {
-                        const card = this.createProgramCard(program);
-                        resultsContainer.appendChild(card);
-                    });
-                }
+                return {
+                    analysis: { programs: cacheResult.programs },
+                    source: 'cache'
+                };
             }
 
-            return this.results[category.toLowerCase()].programs;
+            console.group('🔍 NETLIFY CACHE STATUS');
+            console.log('%c=== CACHE MISSING - STARTING FRESH SEARCH ===', 'color: #2196F3; font-weight: bold; font-size: 14px');
+            console.log('➤ Will perform new Google Search');
+            console.log('➤ Will perform new OpenAI Analysis');
+            console.log('Category:', category);
+            console.groupEnd();
         } catch (error) {
-            console.error('\nAPI → UI | Error:', {
-                error: error.message,
-                category,
-                stack: error.stack,
-                timestamp: new Date().toISOString()
-            });
-            throw error;
+            console.group('🚨 NETLIFY CACHE ERROR');
+            console.error('Cache check failed:', error);
+            console.groupEnd();
         }
+
+        // If not in cache or cache check failed, do fresh analysis
+        console.group('🔄 NETLIFY FRESH SEARCH');
+        console.log('%c=== PERFORMING FRESH SEARCH AND ANALYSIS ===', 'color: #FF9800; font-weight: bold; font-size: 14px');
+        console.log('➤ Sending Google Search Request');
+        console.log('Category:', category);
+        console.log('Query:', fullQuery);
+        console.groupEnd();
+
+        const analyzeResponse = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                query: fullQuery,
+                category,
+                county,
+                shouldSearch: true
+            }),
+        });
+
+        if (!analyzeResponse.ok) {
+            const errorData = await analyzeResponse.json();
+            console.group('🚨 NETLIFY ANALYZE ERROR');
+            console.error('Analysis failed:', {
+                status: analyzeResponse.status,
+                error: errorData.error,
+                message: errorData.message,
+                details: errorData.details
+            });
+            console.groupEnd();
+            throw new Error(`Analysis failed: ${errorData.message}`);
+        }
+
+        const data = await analyzeResponse.json();
+        console.group('✨ NETLIFY SEARCH COMPLETE');
+        console.log('%c=== FRESH SEARCH COMPLETED ===', 'color: #4CAF50; font-weight: bold; font-size: 14px');
+        console.log('✓ Google Search Complete');
+        console.log('✓ OpenAI Analysis Complete');
+        console.log('Category:', category);
+        console.log('Programs Found:', data.programs?.length || 0);
+        console.groupEnd();
+
+        return {
+            analysis: { programs: data.programs },
+            source: 'search'
+        };
+    }
+
+    updateUIWithResults(category, data) {
+        const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '';
+            const programs = data.analysis?.programs || [];
+            programs.forEach((program) => {
+                const card = this.createProgramCard(program);
+                resultsContainer.appendChild(card);
+            });
+        }
+        this.updateIcons(category, false, data.source === 'cache');
     }
 
     async analyzeSearchResults(results, category) {
@@ -358,5 +506,53 @@ export default class RebatePrograms {
             state: this.results.state?.programs || [],
             county: this.results.county?.programs || []
         };
+    }
+
+    // Make sure cache persists between page reloads
+    saveCache() {
+        const cacheData = Array.from(this.cache.entries()).map(([key, value]) => ({
+            key,
+            value
+        }));
+        localStorage.setItem('rebateCache', JSON.stringify(cacheData));
+        console.log('\n===> CACHE SAVED TO LOCAL STORAGE:', {
+            entries: cacheData.length
+        });
+    }
+
+    loadCache() {
+        const savedCache = localStorage.getItem('rebateCache');
+        if (savedCache) {
+            const cacheData = JSON.parse(savedCache);
+            cacheData.forEach(({key, value}) => {
+                this.cache.set(key, value);
+            });
+            console.log('\n===> CACHE LOADED FROM LOCAL STORAGE:', {
+                entries: cacheData.length
+            });
+        }
+    }
+
+    isRepeatSearch(category, county) {
+        const searchKey = `${category}:${county || 'ALL'}`;
+        const lastSearch = this.searchHistory.get(searchKey);
+        
+        if (lastSearch) {
+            console.log('\n===> REPEAT SEARCH DETECTED:', {
+                category,
+                county,
+                lastSearchTime: lastSearch.timestamp
+            });
+            return true;
+        }
+        
+        // Track this search
+        this.searchHistory.set(searchKey, {
+            timestamp: new Date().toISOString(),
+            category,
+            county
+        });
+        
+        return false;
     }
 }
