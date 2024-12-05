@@ -36,7 +36,8 @@ async function netlifyPerformGoogleSearch(query) {
         timestamp: new Date().toISOString()
     });
 
-    const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}`;
+    // Limit to 7 results
+    const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=7`;
     
     const response = await fetch(url);
     if (!response.ok) {
@@ -102,13 +103,13 @@ function normalizeRebateType(type) {
 function createProgramEntries(program) {
     if (!program) return [];
     
-    const type = program.programType || 'Not Available';
+    const type = normalizeRebateType(program.programType);
     const projects = Array.isArray(program.eligibleProjects) ? program.eligibleProjects : [];
     
     if (projects.length === 0) {
         // If no specific projects, return single program
         return [{
-            title: program.programName || 'Program Name Not Available',
+            title: program.programName,
             type: type,
             summary: program.summary || 'No summary available',
             collapsedSummary: `${program.amount || 'Not specified'} ${type.toLowerCase()} available`,
@@ -132,7 +133,7 @@ function createProgramEntries(program) {
         const projectAmount = (typeof project === 'object' && project.amount) ? project.amount : program.amount;
         
         return {
-            title: `${program.programName} - ${projectName}`,
+            title: program.programName,
             type: type,
             summary: program.summary || 'No summary available',
             collapsedSummary: `${projectAmount || 'Not specified'} ${type.toLowerCase()} for ${projectName}`,
@@ -157,78 +158,66 @@ async function netlifyAnalyzeResults(results, category) {
         throw new Error('OpenAI API key is missing');
     }
 
+    // Prepare a more concise version of results
+    const processedResults = results.map(r => ({
+        title: r.title,
+        snippet: r.snippet,
+        link: r.link
+    }));
+
     console.log('📊 ANALYSIS INPUT:', {
         category: category,
-        resultsCount: results.length,
-        searchResults: results.map(r => ({
-            title: r.title,
-            snippet: r.snippet,
-            link: r.link
-        })),
+        resultsCount: processedResults.length,
         timestamp: new Date().toISOString()
     });
 
-    const systemInstruction = `You are a home improvement rebate analysis expert. Extract rebate programs from search results.
-Key requirements:
-1. Include ANY program related to home improvements, energy efficiency, or renovations
-2. For Federal programs, verify California eligibility
-3. For County programs, include utility company programs
-4. Include programs even if amounts are not specified
-5. If a program looks relevant but lacks details, include it with "Not specified" for missing fields
-6. Return results in this JSON format:
+    const systemInstruction = `Extract detailed home improvement rebate programs from search results. Be specific and avoid using "Varies" or "Not Available". Return in JSON format:
 {
   "programs": [
     {
-      "programName": "Program name",
-      "programType": "One of: Rebate, Grant, Tax Credit, Low-Interest Loan",
-      "summary": "Program description (240-520 chars)",
-      "amount": "Dollar amount or range",
+      "programName": "Full official program name (e.g., 'Energy Upgrade California Home Upgrade Program')",
+      "programType": "Must be one of: Rebate, Grant, Tax Credit, or Low-Interest Loan",
+      "summary": "240-520 char description",
+      "amount": "Specific dollar amount or range. If varies, list example amounts",
       "eligibleProjects": [
         {
-          "name": "Project name",
-          "amount": "Amount for this specific project"
+          "name": "Specific project type (e.g., HVAC, Windows, Solar)",
+          "amount": "Specific amount for this project"
         }
       ],
-      "eligibleRecipients": "Who can apply",
-      "geographicScope": "Coverage area",
-      "requirements": ["Requirement 1", "Requirement 2"],
-      "applicationProcess": "How to apply",
-      "deadline": "When to apply by",
-      "websiteLink": "Program URL",
-      "contactInfo": "Contact information",
-      "processingTime": "Processing time"
+      "eligibleRecipients": "string",
+      "geographicScope": "string",
+      "requirements": ["string"],
+      "applicationProcess": "Specific steps to apply",
+      "deadline": "string",
+      "websiteLink": "string",
+      "contactInfo": "string",
+      "processingTime": "Typical processing timeframe"
     }
   ]
 }`;
 
-    const userPrompt = `Extract ALL home improvement and energy efficiency rebate programs from these search results. Include any program that might help with home improvements, even if details are incomplete. Return the response in JSON format:
+    const userPrompt = `Extract detailed home improvement and energy efficiency rebate programs from these results. Be specific about program names, types, amounts, and eligible projects. Each program must have a specific name and type. If a program has multiple project types or amounts, list them separately. Return ONLY the JSON object:
 
-${JSON.stringify(results, null, 2)}`;
+${JSON.stringify(processedResults, null, 2)}`;
 
     const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY,
-        timeout: 60000
+        timeout: 25000
     });
 
     let completion;
     try {
         console.log('🤖 OPENAI REQUEST:', {
             category: category,
-            model: "gpt-4-1106-preview",
             timestamp: new Date().toISOString()
         });
 
         completion = await openai.chat.completions.create({
-            model: "gpt-4-1106-preview",
+            model: "gpt-3.5-turbo-1106",
             messages: [
-                {
-                    role: "system",
-                    content: systemInstruction
-                },
-                {
-                    role: "user",
-                    content: userPrompt
-                }
+                { role: "system", content: systemInstruction },
+                { role: "user", content: userPrompt }
             ],
             temperature: 0.7,
             max_tokens: 2000,

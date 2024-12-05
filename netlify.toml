@@ -6,6 +6,9 @@
   node_bundler = "esbuild"
   external_node_modules = ["googleapis"]
 
+[functions.analyze]
+  timeout = 30
+
 [dev]
   framework = "#static"
   targetPort = 3000
