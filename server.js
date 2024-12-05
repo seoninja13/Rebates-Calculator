@@ -144,43 +144,44 @@ async function analyzeWithOpenAI(results, category) {
         2. State programs must be California-specific
         3. County programs must include specific utility and local government rebates
         
-        COUNTY PROGRAMS EXACT AMOUNTS:
+        MANDATORY RULES FOR ALL PROGRAMS:
+        1. collapsedSummary field is REQUIRED and MUST NEVER be empty or missing:
+           - MUST include at least 2-3 specific dollar amounts
+           - FORBIDDEN: "varies", "free", "contact for details", empty, or missing values
+           - REQUIRED format: "$X,XXX for [project], $X,XXX for [project], plus more"
+           - If exact amounts unknown, use this data:
+             * HVAC: "$1,500-$3,000"
+             * Insulation: "$500-$1,500"
+             * Windows/Doors: "$1,000-$2,500"
+             * Solar: "$3,000-$6,000"
+             * Batteries: "$800-$1,600"
+             * Weatherization: "$500-$2,000"
+             * Water Heaters: "$500-$1,000"
+             * Lighting: "$200-$500"
 
-        1. Utility Rebate Programs:
-        collapsedSummary MUST be:
-        "$1,000 for HVAC, $500 for water heaters, up to $3,000 for home improvements"
-        amount MUST be:
-        "HVAC: $1,000, Water Heaters: $500, Insulation: $500-$1,000, Windows: $500-$1,500"
+        2. amount field is REQUIRED and MUST NEVER be vague:
+           - FORBIDDEN: "varies", "free", "contact for details"
+           - MUST list specific amounts for EVERY eligible project
+           - MUST use ranges if exact amount unknown
+           - MUST include any income-based variations
+           - Format: "[Project]: $X,XXX, [Project]: $X,XXX-$Y,YYY"
 
-        2. Local Energy Efficiency Programs:
-        collapsedSummary MUST be:
-        "$2,500-$5,000 for whole-home upgrades, plus utility rebates"
-        amount MUST be:
-        "Base: $2,500 for single measures, $5,000 for whole-home projects, Additional utility rebates available"
+        SPECIAL PROGRAM RULES:
+        1. For Utility Programs (e.g. PG&E):
+           ❌ WRONG: "Varies by program" or "Contact utility"
+           ✓ RIGHT: "$1,500 for HVAC tune-up, $500 for smart thermostat, plus more"
+           ✓ RIGHT: "HVAC: $1,500, Smart Thermostat: $500, LED Lighting: $200"
 
-        MANDATORY CONVERSION RULES FOR COUNTY PROGRAMS:
-        1. For Utility Rebates:
-           ❌ WRONG: "Contact utility for details" or "Varies by program"
-           ✓ RIGHT: List specific amounts for each improvement type
-           ✓ RIGHT: Show ranges when applicable
+        2. For Income-Based Programs:
+           ❌ WRONG: "Free improvements" or "No cost program"
+           ✓ RIGHT: "$2,500 for weatherization, $1,000 for insulation, plus more"
+           ✓ RIGHT: "Weatherization: $2,500, Insulation: $1,000, Windows: $1,500"
 
-        2. For Local Programs:
-           ❌ WRONG: "Amount varies" or "Multiple rebates available"
-           ✓ RIGHT: Show base amounts and additional incentives
-           ✓ RIGHT: List specific measure-by-measure breakdowns
+        3. For Multi-Measure Programs:
+           ❌ WRONG: "Up to $X,XXX in total savings"
+           ✓ RIGHT: "$2,000 for HVAC, $1,500 for insulation, plus more"
+           ✓ RIGHT: "HVAC: $2,000, Insulation: $1,500, Water Heater: $500"
 
-        3. For Combined Programs:
-           ❌ WRONG: "Multiple programs available"
-           ✓ RIGHT: "Base rebate $X,XXX plus utility incentives of $X,XXX"
-           ✓ RIGHT: Show total maximum combined benefits
-
-        Each program MUST include:
-        1. Specific dollar amounts for common improvements
-        2. Clear per-measure breakdowns
-        3. Income-based variations if applicable
-        4. Maximum benefit caps
-        5. Combined totals when programs can stack
-        
         Return the data in this JSON format:
         {
             "programs": [{

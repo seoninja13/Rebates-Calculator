@@ -109,10 +109,9 @@ function createProgramEntries(program) {
     if (projects.length === 0) {
         // If no specific projects, return single program
         return [{
-            title: program.programName,
+            title: program.programName || 'Not Available',
             type: type,
             summary: program.summary || 'No summary available',
-            collapsedSummary: `${program.amount || 'Not specified'} ${type.toLowerCase()} available`,
             amount: program.amount || 'Not specified',
             eligibleProjects: [],
             eligibleRecipients: program.eligibleRecipients || 'Not specified',
@@ -122,8 +121,7 @@ function createProgramEntries(program) {
             deadline: program.deadline || 'Not specified',
             websiteLink: program.websiteLink || '#',
             contactInfo: program.contactInfo || 'Not specified',
-            processingTime: program.processingTime || 'Not specified',
-            category: program.category
+            processingTime: program.processingTime || 'Not specified'
         }];
     }
     
@@ -133,10 +131,9 @@ function createProgramEntries(program) {
         const projectAmount = (typeof project === 'object' && project.amount) ? project.amount : program.amount;
         
         return {
-            title: program.programName,
+            title: program.programName || 'Not Available',
             type: type,
             summary: program.summary || 'No summary available',
-            collapsedSummary: `${projectAmount || 'Not specified'} ${type.toLowerCase()} for ${projectName}`,
             amount: projectAmount || 'Not specified',
             eligibleProjects: [projectName],
             eligibleRecipients: program.eligibleRecipients || 'Not specified',
@@ -146,14 +143,13 @@ function createProgramEntries(program) {
             deadline: program.deadline || 'Not specified',
             websiteLink: program.websiteLink || '#',
             contactInfo: program.contactInfo || 'Not specified',
-            processingTime: program.processingTime || 'Not specified',
-            category: program.category
+            processingTime: program.processingTime || 'Not specified'
         };
     });
 }
 
 // Helper function to analyze results with OpenAI
-async function netlifyAnalyzeResults(results, category) {
+async function netlifyAnalyzeResults(results, category, county) {
     if (!process.env.OPENAI_API_KEY) {
         throw new Error('OpenAI API key is missing');
     }
@@ -176,13 +172,14 @@ async function netlifyAnalyzeResults(results, category) {
   "programs": [
     {
       "programName": "Full official program name (e.g., 'Energy Upgrade California Home Upgrade Program')",
-      "programType": "Must be one of: Rebate, Grant, Tax Credit, or Low-Interest Loan",
+      "programType": "MUST be exactly one of these values (case-sensitive): 'Rebate', 'Grant', 'Tax Credit', 'Low-Interest Loan'",
       "summary": "240-520 char description",
+      "collapsedSummary": "MUST include specific estimated amounts for each project type (e.g., 'Up to $2,000 rebate for HVAC, Up to $1,500 for insulation, Up to $500 for lighting'). Even if exact amounts aren't available, provide typical/estimated ranges based on similar programs.",
       "amount": "Specific dollar amount or range. If varies, list example amounts",
       "eligibleProjects": [
         {
           "name": "Specific project type (e.g., HVAC, Windows, Solar)",
-          "amount": "Specific amount for this project"
+          "amount": "MUST provide specific amount or range (e.g., 'Up to $2,000', '$1,000-$3,000'). Do not use 'Varies'"
         }
       ],
       "eligibleRecipients": "string",
@@ -197,7 +194,7 @@ async function netlifyAnalyzeResults(results, category) {
   ]
 }`;
 
-    const userPrompt = `Extract detailed home improvement and energy efficiency rebate programs from these results. Be specific about program names, types, amounts, and eligible projects. Each program must have a specific name and type. If a program has multiple project types or amounts, list them separately. Return ONLY the JSON object:
+    const userPrompt = `Extract detailed home improvement and energy efficiency rebate programs from these results. Be specific about program names, types, amounts, and eligible projects. Each program MUST have a specific name and type must be exactly one of: 'Rebate', 'Grant', 'Tax Credit', or 'Low-Interest Loan'. If a program has multiple project types or amounts, list them separately. Return ONLY the JSON object:
 
 ${JSON.stringify(processedResults, null, 2)}`;
 
@@ -269,14 +266,29 @@ ${JSON.stringify(processedResults, null, 2)}`;
                 return [];
             }
             
-            return createProgramEntries({
+            console.log('Program before transformation:', {
+                name: program.programName,
+                type: program.programType,
+                rawProgram: program
+            });
+            
+            const entries = createProgramEntries({
                 ...program,
                 category: category.toLowerCase()
             });
+
+            console.log('Program after transformation:', {
+                entries: entries.map(e => ({
+                    title: e.title,
+                    type: e.type
+                }))
+            });
+            
+            return entries;
         });
 
         console.log('✅ ANALYSIS COMPLETE:', {
-            category: category,
+            category,
             programsFound: transformedPrograms.length,
             programs: transformedPrograms.map(p => ({
                 title: p.title,
@@ -286,10 +298,78 @@ ${JSON.stringify(processedResults, null, 2)}`;
             timestamp: new Date().toISOString()
         });
 
+        // Cache the results
+        try {
+            const cache = new GoogleSheetsCache();
+            await cache.initialize();
+            
+            // Generate cache key using same format as check-cache
+            const cacheKey = `${category}:${county}`;
+            
+            await cache.appendRow({
+                query: cacheKey,
+                category: category,
+                googleResults: JSON.stringify(results),
+                openaiAnalysis: JSON.stringify(parsedResponse),
+                timestamp: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
+                hash: cache.netlifyGenerateHash(cacheKey, category),
+                googleSearchCache: 'Search',
+                openaiSearchCache: 'Search'
+            });
+            
+            console.log('📝 NETLIFY: Results cached successfully:', {
+                category,
+                county,
+                programsCount: transformedPrograms.length,
+                timestamp: new Date().toISOString()
+            });
+        } catch (error) {
+            console.error('❌ NETLIFY: Failed to cache results:', {
+                error: error.message,
+                stack: error.stack,
+                category,
+                county,
+                timestamp: new Date().toISOString()
+            });
+            // Don't throw - we still want to return results even if caching fails
+        }
+
+        // Add prominent program type logging with color
+        let color;
+        switch (category.toLowerCase()) {
+            case 'federal':
+                color = '\x1b[36m'; // Cyan
+                break;
+            case 'state':
+                color = '\x1b[32m'; // Green
+                break;
+            case 'county':
+                color = '\x1b[35m'; // Magenta
+                break;
+            default:
+                color = '\x1b[37m'; // White
+        }
+        const resetColor = '\x1b[0m';
+
+        console.log(`${color}
+╔═══════════════════════════════════════════════════╗
+║             DISPLAYING ${category.toUpperCase()} PROGRAMS             ║
+║   Total Programs Found: ${transformedPrograms.length.toString().padEnd(10)}              ║
+╚═══════════════════════════════════════════════════╝${resetColor}`);
+
         return {
-            category: category,
-            programs: transformedPrograms,
-            timestamp: new Date().toISOString()
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                programs: transformedPrograms,
+                source: {
+                    googleSearch: 'Search',
+                    openaiAnalysis: 'Search'
+                }
+            })
         };
 
     } catch (error) {
@@ -400,7 +480,7 @@ export const handler = async (event, context) => {
         }
 
         // Analyze results
-        const analysis = await netlifyAnalyzeResults(allResults, category);
+        const analysis = await netlifyAnalyzeResults(allResults, category, county);
 
         return {
             statusCode: 200,

@@ -1,5 +1,96 @@
 import { GoogleSheetsCache } from './services/sheets-cache.mjs';
 
+// Helper function to normalize program type
+function normalizeRebateType(type) {
+    if (!type) return 'Not Available';
+    
+    // Standardize the type to match UI expectations
+    const typeMap = {
+        'rebate': 'Rebate',
+        'grant': 'Grant',
+        'tax credit': 'Tax Credit',
+        'tax-credit': 'Tax Credit',
+        'low-interest loan': 'Low-Interest Loan',
+        'loan': 'Low-Interest Loan'
+    };
+
+    // Convert to lowercase for consistent matching
+    const normalizedType = typeMap[type.toLowerCase()] || type;
+    return normalizedType;
+}
+
+// Helper function to create program entries for each eligible project
+function createProgramEntries(program) {
+    if (!program) return [];
+    
+    const type = normalizeRebateType(program.programType);
+    const projects = Array.isArray(program.eligibleProjects) ? program.eligibleProjects : [];
+    
+    if (projects.length === 0) {
+        // If no specific projects, return single program
+        return [{
+            title: program.programName || 'Not Available',
+            type: type,
+            summary: program.summary || 'No summary available',
+            amount: program.amount || 'Not specified',
+            eligibleProjects: [],
+            eligibleRecipients: program.eligibleRecipients || 'Not specified',
+            geographicScope: program.geographicScope || 'Not specified',
+            requirements: Array.isArray(program.requirements) ? program.requirements : [],
+            applicationProcess: program.applicationProcess || 'Not specified',
+            deadline: program.deadline || 'Not specified',
+            websiteLink: program.websiteLink || '#',
+            contactInfo: program.contactInfo || 'Not specified',
+            processingTime: program.processingTime || 'Not specified'
+        }];
+    }
+    
+    // Create separate entry for each project
+    return projects.map(project => {
+        const projectName = typeof project === 'object' ? project.name : project;
+        const projectAmount = (typeof project === 'object' && project.amount) ? project.amount : program.amount;
+        
+        return {
+            title: program.programName || 'Not Available',
+            type: type,
+            summary: program.summary || 'No summary available',
+            amount: projectAmount || 'Not specified',
+            eligibleProjects: [projectName],
+            eligibleRecipients: program.eligibleRecipients || 'Not specified',
+            geographicScope: program.geographicScope || 'Not specified',
+            requirements: Array.isArray(program.requirements) ? program.requirements : [],
+            applicationProcess: program.applicationProcess || 'Not specified',
+            deadline: program.deadline || 'Not specified',
+            websiteLink: program.websiteLink || '#',
+            contactInfo: program.contactInfo || 'Not specified',
+            processingTime: program.processingTime || 'Not specified'
+        };
+    });
+}
+
+// Helper function to create collapsed summary
+function createCollapsedSummary(program) {
+    if (!program) return 'No program details available';
+    
+    const type = program.programType || 'Not Available';
+    const projects = Array.isArray(program.eligibleProjects) ? program.eligibleProjects : [];
+    
+    // Build summary with each project having its own amount
+    if (projects.length > 0) {
+        return projects.map(project => {
+            let projectAmount = program.amount || 'Not specified';
+            if (typeof project === 'object' && project.amount) {
+                projectAmount = project.amount;
+            }
+            const projectName = typeof project === 'object' ? project.name : project;
+            return `${projectAmount} ${type.toLowerCase()} for ${projectName}`;
+        }).join(', ');
+    }
+    
+    // Fallback if no specific projects
+    return `${program.amount || 'Not specified'} ${type.toLowerCase()} available`;
+}
+
 export const handler = async (event) => {
     const requestId = Math.random().toString(36).substring(7);
     console.log(`[${requestId}] 🔍 NETLIFY: Cache check request received`);
@@ -92,25 +183,30 @@ export const handler = async (event) => {
         const cachedResult = await cache.netlifyGetCache(cacheKey, category);
         
         if (cachedResult) {
-            // Big visual indicator for cache hit - Google Results
-            console.log(`
-%c
-╔════════════════════════════════════════╗
-║   NETLIFY: USING CACHED GOOGLE DATA    ║
-║   Category: ${category.padEnd(20)}    ║
-║   County: ${(county || 'N/A').padEnd(22)}    ║
-╚════════════════════════════════════════╝
-`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+            // Transform the cached programs using simple direct mapping
+            const cachedPrograms = JSON.parse(cachedResult.openaiAnalysis).programs;
+            console.log('Raw cached programs:', cachedPrograms);
 
-            // Big visual indicator for cache hit - OpenAI Results
-            console.log(`
-%c
-╔════════════════════════════════════════╗
-║   NETLIFY: USING CACHED OPENAI DATA    ║
-║   Category: ${category.padEnd(20)}    ║
-║   Programs: ${(JSON.parse(cachedResult.openaiAnalysis).programs?.length || 0).toString().padEnd(20)}    ║
-╚════════════════════════════════════════╝
-`, 'color: #4CAF50; font-weight: bold; font-size: 14px;');
+            const transformedPrograms = cachedPrograms.map(program => ({
+                title: program.programName,
+                type: program.programType,
+                summary: program.summary,
+                collapsedSummary: program.collapsedSummary,
+                amount: program.amount,
+                eligibleProjects: program.eligibleProjects.map(project => 
+                    typeof project === 'object' ? project.name : project
+                ),
+                eligibleRecipients: program.eligibleRecipients,
+                geographicScope: program.geographicScope,
+                requirements: program.requirements,
+                applicationProcess: program.applicationProcess,
+                deadline: program.deadline,
+                websiteLink: program.websiteLink,
+                contactInfo: program.contactInfo,
+                processingTime: program.processingTime
+            }));
+
+            console.log('Transformed programs:', transformedPrograms);
 
             // Log the cache hit
             try {
@@ -120,13 +216,13 @@ export const handler = async (event) => {
                     googleResults: cachedResult.googleResults,
                     openaiAnalysis: cachedResult.openaiAnalysis,
                     timestamp: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
-                    hash: cache.netlifyGenerateHash(cacheKey),
+                    hash: cache.netlifyGenerateHash(cacheKey, category),
                     googleSearchCache: 'Cache',
                     openaiSearchCache: 'Cache'
                 });
-                console.log(`[${requestId}] 📝 NETLIFY: Cache hit logged`);
+                console.log('📝 NETLIFY: Cache hit logged successfully');
             } catch (error) {
-                console.error(`[${requestId}] ❌ NETLIFY: Failed to log cache hit:`, error);
+                console.error('❌ NETLIFY: Failed to log cache hit:', error);
             }
 
             return {
@@ -137,7 +233,7 @@ export const handler = async (event) => {
                 },
                 body: JSON.stringify({
                     found: true,
-                    programs: JSON.parse(cachedResult.openaiAnalysis).programs,
+                    programs: transformedPrograms,
                     source: {
                         googleSearch: 'Cache',
                         openaiAnalysis: 'Cache'
@@ -161,7 +257,7 @@ export const handler = async (event) => {
 
         console.log(`[${requestId}] ❌ NETLIFY: Cache missing`);
         console.log(`
-╔════════════════════════════════════════╗
+╔═══════════════════════════════════════╗
 ║         NETLIFY: CACHE MISSING         ║
 ║         Performing fresh search        ║
 ╚════════════════════════════════════════╝`);
