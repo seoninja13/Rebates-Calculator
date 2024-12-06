@@ -1,0 +1,13 @@
+[build]
+  publish = "dist/rebates-calculator-ui/browser"
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+  
+[build.environment]
+  NODE_VERSION = "18"
+
+[dev]
+  framework = "angular"
+  targetPort = 4200

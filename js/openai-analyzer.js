@@ -2,7 +2,7 @@ export default class RebatePrograms {
     constructor() {
         // Use environment-specific API URL
         const isNetlify = window.location.port === '8888';
-        this.baseUrl = isNetlify ? '' : 'http://localhost:3000';
+        this.baseUrl = isNetlify ? '/.netlify/functions' : 'http://localhost:3000/api';
         this.cache = new Map();
         this.results = {};
         this.setupLogging();
@@ -14,7 +14,9 @@ export default class RebatePrograms {
     }
 
     setupLogging() {
-        const eventSource = new EventSource('/api/logs');
+        const isNetlify = window.location.port === '8888';
+        const logsUrl = isNetlify ? '/.netlify/functions/logs' : '/api/logs';
+        const eventSource = new EventSource(logsUrl);
         eventSource.onmessage = (event) => {
             const { message, details } = JSON.parse(event.data);
             if (details) {
@@ -115,7 +117,7 @@ export default class RebatePrograms {
         });
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/analyze`, {
+            const response = await fetch(`${this.baseUrl}/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -211,7 +213,7 @@ export default class RebatePrograms {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/api/analyze-search-results`, {
+            const response = await fetch(`${this.baseUrl}/analyze-search-results`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

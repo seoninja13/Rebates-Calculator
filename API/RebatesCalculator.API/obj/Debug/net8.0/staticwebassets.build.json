@@ -1,0 +1,12 @@
+{
+  "Version": 1,
+  "Hash": "gfYNm5jU92ZxD2BqS1y0kx+HYU703Kbk4vpqqoGQWrI=",
+  "Source": "RebatesCalculator.API",
+  "BasePath": "_content/RebatesCalculator.API",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": [],
+  "Endpoints": []
+}

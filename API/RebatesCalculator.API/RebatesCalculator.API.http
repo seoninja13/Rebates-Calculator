@@ -1,0 +1,6 @@
+@RebatesCalculator.API_HostAddress = http://localhost:5173
+
+GET {{RebatesCalculator.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
