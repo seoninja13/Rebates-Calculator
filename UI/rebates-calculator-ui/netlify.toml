@@ -1,13 +1,29 @@
 [build]
+<<<<<<< HEAD:UI/rebates-calculator-ui/netlify.toml
   publish = "dist/rebates-calculator-ui/browser"
   functions = "netlify/functions"
+=======
+  publish = "."
+>>>>>>> bfd4a62f4e14d5404e4ff7126fd8bb32809c1ffa:netlify.toml
 
 [functions]
+  directory = "netlify/functions"
   node_bundler = "esbuild"
-  
+  external_node_modules = ["googleapis"]
+
+[dev]
+  framework = "#static"
+  targetPort = 3000
+  port = 8888
+  publish = "."
+
 [build.environment]
+<<<<<<< HEAD:UI/rebates-calculator-ui/netlify.toml
   NODE_VERSION = "18"
 
 [dev]
   framework = "angular"
   targetPort = 4200
+=======
+  NODE_VERSION = "18.18.0"
+>>>>>>> bfd4a62f4e14d5404e4ff7126fd8bb32809c1ffa:netlify.toml
