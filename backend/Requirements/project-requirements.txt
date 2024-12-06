@@ -1,273 +1,29 @@
-wINDSURF OR CURSER ASSISTANT:DO NOT MAKE ANY CHANGES TO THIS FILE!!!
+# Property Naming Requirements
 
-Instructions for Google Search:
-Step 1: Define Search Queries
-To ensure comprehensive coverage of state, federal, and county-level programs, we will use specific keywords for each category.
+1. Raw Data Format:
+- Use unprefixed names (programName, programType, etc.)
+- Must include all required fields
+- Follow camelCase naming convention
 
-1. State-Level Keywords
-state energy rebate programs
-California energy incentives
-California solar rebates
-California energy efficiency programs
-California home improvement incentives
-California renewable energy rebates
-state-level energy incentives
-2. Federal-Level Keywords
-federal energy rebate programs
-US government energy incentives
-federal renewable energy tax credits
-federal solar panel grants
-federal home improvement grants
-federal energy efficiency incentives
-3. County/Municipality-Level Keywords
-Use a dynamic query format where the selected county is combined with relevant keywords. Examples for "Alameda County" are shown below:
+2. Transformed Data Format:
+- ALL properties must use trans_ prefix
+- Example: programName becomes trans_title
+- Maintain consistent naming across all transformations
 
-Alameda County local energy rebate programs
-Alameda County energy efficiency incentives
-Alameda County solar rebates
-Alameda County renewable energy incentives
-Alameda County home improvement programs
-This logic can dynamically adapt to any selected county.
-
-Now when you search:
-
-For Federal:
-Frontend sends: "Federal"
-Backend constructs: "Federal energy rebate programs california" and other variations
-Google Sheet stores: "Federal energy rebate programs california"
-For State:
-Frontend sends: "California State"
-Backend constructs: "California State energy rebate programs" and other variations
-Google Sheet stores: "California State energy rebate programs"
-For County:
-Frontend sends: "Los Angeles"
-Backend constructs: "Los Angeles County local energy rebate programs" and other variations
-Google Sheet stores: "Los Angeles County local energy rebate programs"
-
-Now when you search, we whould implement the following: see detailed logs in the Chrome Console for each program category showing:
-
-Number of Google search results received
-Number of programs analyzed by OpenAI
-Source of the data (cache or fresh search)
-List of program titles found
-This will help us understand if the issue is with:
-
-Not getting enough results from Google, or
-OpenAI not extracting enough programs from the results
-
-For Google saetch limit search results:
-1. Add "num" parameter to the search query to limit the number of results to 10. We feed them into openAI.
-2. OpenAI will analyze the results. For example, if for s State category we got 2 X 10 results, OpenAI will analyze top 20 results and send them back to the API, which will send the final analysis back to the UI.
-
-
-Instructions for OpenAI/ChatGPT:
-Colapsed view summary: Short description of the Rebate type/Eligible projcts and amount. For example ($8000 rebate for Windows and Doors; $10000 rebate for HVAC; 3,000 - $5,000 rebate for Home Improvement,etc).
-
-1. Extract the following information from the search results: (they show up when expanded the "Colapsed view summary").
-
-Title: [Program Name]. Exlude Rebates which are not Home Improvements(e.g exclude Electric vehicles).
-
-Expanded Summary: Brief description focusing on key benefits and eligibility (min 240 max 520 characters)
-
-Program Type: [Rebate/Grant/Tax Credit/Low-Interest Loan]
-
-Amount: [Exact amount or range, with $ and commas]
-
-Eligible Projects:
-- Solar panels
-- HVAC systems
-- Heat Pumps
-- Insulation
-- Energy-efficient appliances
-- Home improvements
-- New Construction
-- Home Remodeling
-- Roofing
-- Windows & Doors
-- Other possible rebate types
-
-Eligible Recipients:
-- Homeowners
-- Businesses
-- Municipalities
-- Income requirements
-- Other qualifying criteria
-
-Geographic Scope:
-- Nationwide
-- State-specific
-- County/city-specific
-- Utility service area
-
-Requirements:
-- Application forms
-- Proof of purchase/installation
-- Contractor requirements
-- Energy audits
-- Income verification
-- Property documentation
-
-Application Process: [1-2 line description of how to apply]
-
-Deadline: [Specific date or "Ongoing"]
-
-Website Link: [Official program URL]
-
-Contact Information:
-- Phone numbers
-- Email addresses
-- Office locations
-
-Processing Time: [e.g., "6-8 weeks" or "30 days after approval"]
-
-
-2. Federal programs must be available to all California residents.
-3. County programs must be available to residents within the county.
-4. State programs must be available to all California residents.
-5. All results should be unique, meaning, No overlap betwenn Federal, County and State programs.
-6. It is possible that a single Program might offer more than one Eligible Projects.
-For example a program might offer Windows and Doors and also Roofing rebates. Eligibe project should have a short summary of rebate. For example ($8000 rebate for Windows and Doors).
-Our goal is to create a list of eligible projects. When clicked on the type Eligible project ( e.g Windows and Doors), a dropdown will open which will display all the detailed information of the program. 
-
-What detailed infomation from openAI to display in the UI, and the order top down?
-1. Program Name
-2. Summary
-4. Amount
-5. Eligible Projects
-6. Eligible Recipients
-7. Geographic Scope
-8. Requirements
-9. Application Process
-10. Deadline
-11. Website Link
-12. Contact Information
-13. Processing Time
-
-When ever you make any changes to styling, do not chage the backend code.
-
-When you make any UI styling changes, make sure not to change any other code. 
-
-We have 2 environments:1. Local/staging 2. Netlify/production
-Local/staging already has .env file with enviromnet varbales.
-
-
-For Netlify functions, environment variables are configured in the Netlify dashboard. For  local/staging environment use the .env file.
-
-For Netlify/production environment, the Environment variables:
-
-GOOGLE_API_KEY
-GOOGLE_SEARCH_ENGINE_ID
-OPENAI_API_KEY
-GOOGLE_SHEETS_API_KEY
-CACHE_SPREADSHEET_ID
-
-are setup in Netlify dashboard configuration.
-
-Logging all requests and responses.
-Log all requests and responses comprehensively.
-Store every search query in the Google Sheets "Cache" sheet.
-Store every response (both from Google Search and OpenAI API) in the "Cache" sheet.
-Ensure we can retrieve the cached data effectively
-
-
-===> Caching logic:
-1. If the search query is the same as the previous one, return the cached results.
-2. If the search query is different from the previous one, perform a fresh search and cache the results.
-3. We are caching both the search results and the analysis results from openAI in Google Sheets.
-
-Here's a summary of our caching system:
-
-Storage Location:
-Using Google Sheets document with ID: "1lzUS63kvhh_ICyeZhdDs46fk7l72r0ulZ5tLSKNjcJc"
-All data is stored in a sheet named "Cache"
-Cache Structure (Columns):
--Query: The search query
--Category: Federal/State/County
--Results: The actual data (JSON stringified)
--Timestamp (PST): Converted to Pacific Standard Time
--Hash: Unique identifier for the query+category
--Google Search-Cache: Cache OR Search results. Display Cache OR Search.
--OpenAI Search-Cache: Cache OR search results. Display Cache OR Search.
-
-
-
-Caching Process:
-First checks if results exist in cache for a given query+category
-If not found, makes the API call (Google or OpenAI)
-Stores new results with appropriate source marked
-does not remove old entries for the same query+category.
-We are adding a new row for every search.
-Two Types of Cached Data:
-Google Search Results: Raw search results from Google API
-OpenAI Analysis: Processed and analyzed program information from OpenAI
-
-For EVERY search (whether cached or not), we add 6 rows (2 per program):
-
-Each row will have:
-Timestamp: Current time
-Two key columns: "Google Search-Cache" and "OpenAI Search-Cache"
-When using cached data:
-"Google Search-Cache" = "Cache"
-"OpenAI Search-Cache" = "Cache"
-Using existing data from cache (no API calls)
-When using fresh data (no cache/expired):
-"Google Search-Cache" = "Search"
-"OpenAI Search-Cache" = "Search"
-Making new API calls to get fresh data
-
-
-For EVERY search (whether cached or not), we add 6 rows (2 per program):
-1.	Each row will have:
-•	Timestamp: Current time
-•	Two key columns: "Google Search-Cache" and "OpenAI Search-Cache"
-2.	When using cached data:
-•	"Google Search-Cache" = "Cache"
-•	"OpenAI Search-Cache" = "Cache"
-•	Using existing data from cache (no API calls)
-3.	When using fresh data (no cache/expired):
-•	"Google Search-Cache" = "Search"
-•	"OpenAI Search-Cache" = "Search"
-•	Making new API calls to get fresh data
-So we're ALWAYS logging 6 rows per complete search, and the "Search-Cache" columns tell us whether we used cached data or had to make fresh API calls. This gives us a complete audit trail of all searches and when/how the data was retrieved.
-
-
-
-===> Making changes to the UI:
-1. If you make any changes to the UI, do not change the backend code.
-
-Making changes to the backend:
-1. If you make any changes to the backend, do not change the UI code, or just make changes to the backend code diretly related to the task, do not get off track.
-
-OpenAI instructions:
-1. If you make any changes to the OpenAI instructions, do not change the UI code, or just make changes to the OpenAI instructions diretly related to the task, do not get off track.
-
-Requirements for OpenAI API Response:
-
-1. Use version 4 of the OpenAI API for all requests.
-
-
-Make sure we use the same UI configuration in both local and production/Netlify. In both environments  what is being displayed in the screen should be identical. Make sure we use the same ChatGPT 40 model.
-
-The caching flow now works like this:
-
-When a query comes in, it first checks if we have both Google search and OpenAI analysis results cached
-If we have complete cached results, return them immediately.
-If we only have Google search results cached, use those and just perform OpenAI analysis
-If we have nothing cached:
-Perform Google search and cache the results.
-Perform OpenAI analysis.
-Cache the complete results with both Google search ( in column "Google Results") and OpenAI analysis (in column "OpenAI Analysis") Note: We are storing both Google results and OpenAI analysis, each in a separate column.
-You can now test the caching by:
-
-Making a search query - this will cache both Google search and OpenAI analysis results
-Making the same query again - you should see it retrieve the complete results from cache
-Wait 14 days - the cache will expire and a fresh search will be performed.
-
-===> Logging:
-1. We are logging all requests and responses comprehensively.
-2. We are storing every search query in the "Cache" sheet.
-3. We are storing every response (both from Google Search and OpenAI API) in the "Cache" sheet.
-4. Ensure we can retrieve the cached data effectively.
-
-For detailed loggin flow, reffer to the docs/logging-flow.md.
+3. Required Property Mappings:
+programName -> trans_title
+programType -> trans_type
+summary -> trans_summary
+collapsedSummary -> trans_collapsedSummary
+amount -> trans_amount
+eligibleProjects -> trans_eligibleProjects
+eligibleRecipients -> trans_eligibleRecipients
+geographicScope -> trans_geographicScope
+requirements -> trans_requirements
+applicationProcess -> trans_applicationProcess
+deadline -> trans_deadline
+websiteLink -> trans_websiteLink
+contactInfo -> trans_contactInfo
+processingTime -> trans_processingTime
+category -> trans_category
 

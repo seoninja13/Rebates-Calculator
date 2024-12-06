@@ -613,114 +613,77 @@
     const rebatePrograms = new RebatePrograms();
 
     // Helper function to create a program card
-    function createProgramCard(program, source = { googleSearch: false, openaiAnalysis: false }) {
-      console.log('Creating card for program:', program);
-      console.log('Program properties:', {
-        programName: program.programName,
-        programType: program.programType,
-        trans_title: program.trans_title,
-        trans_type: program.trans_type,
-        amount: program.amount,
-        eligibleProjects: program.eligibleProjects
-      });
-      
-      const card = document.createElement('div');
-      card.className = 'program-card';
-
-      // Create the summary section (always visible)
-      const summary = document.createElement('div');
-      summary.className = 'program-summary';
-      
-      // Create the toggle button
-      const toggleBtn = document.createElement('button');
-      toggleBtn.className = 'toggle-details';
-      toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-      
-      // Create the summary content with just the rebate type display
-      const summaryContent = document.createElement('div');
-      summaryContent.className = 'summary-content';
-      summaryContent.innerHTML = `
-          <h3 class="rebate-summary">${program.trans_collapsedSummary || 'Rebate Type Not Available'}</h3>
-      `;
-
-      summary.appendChild(summaryContent);
-      summary.appendChild(toggleBtn);
-
-      // Create the details section (hidden by default)
-      const details = document.createElement('div');
-      details.className = 'program-details';
-      details.style.display = 'none';
-      details.innerHTML = `
-          <div class="details-grid">
-              <div class="detail-item">
-                  <h4>Program Name</h4>
-                  <p>${program.trans_title || 'Not Available'}</p>
+    function createProgramCard(program) {
+      return `
+          <div class="program-card">
+              <div class="program-summary">
+                  <div class="summary-content">
+                      <h3>${program.trans_title || 'Not Available'}</h3>
+                      <p class="rebate-type">${program.trans_type || 'Not Available'}</p>
+                      <p class="rebate-summary">${program.trans_collapsedSummary || 'Not Available'}</p>
+                  </div>
+                  <button class="toggle-details">
+                      <i class="fas fa-chevron-down"></i>
+                  </button>
               </div>
-              <div class="detail-item">
-                  <h4>Program Type</h4>
-                  <p>${program.trans_type || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Amount</h4>
-                  <p>${program.trans_amount || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Eligible Projects</h4>
-                  <p>${Array.isArray(program.trans_eligibleProjects) ? program.trans_eligibleProjects.join(', ') : (program.trans_eligibleProjects || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Eligible Recipients</h4>
-                  <p>${Array.isArray(program.trans_eligibleRecipients) ? program.trans_eligibleRecipients.join(', ') : (program.trans_eligibleRecipients || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Geographic Scope</h4>
-                  <p>${program.trans_geographicScope || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Requirements</h4>
-                  <p>${Array.isArray(program.trans_requirements) ? program.trans_requirements.join(', ') : (program.trans_requirements || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Application Process</h4>
-                  <p>${program.trans_applicationProcess || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Deadline</h4>
-                  <p>${program.trans_deadline || 'Not Available'}</p>
-              </div>
-              ${program.trans_websiteLink ? `
-              <div class="detail-item">
-                  <h4>Website</h4>
-                  <p><a href="${program.trans_websiteLink}" target="_blank">${program.trans_websiteLink}</a></p>
-              </div>
-              ` : ''}
-              <div class="detail-item">
-                  <h4>Contact Information</h4>
-                  <p>${program.trans_contactInfo || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Processing Time</h4>
-                  <p>${program.trans_processingTime || 'Not Available'}</p>
+              <div class="program-details">
+                  <div class="details-grid">
+                      <div class="detail-item">
+                          <h4>Amount</h4>
+                          <p>${program.trans_amount || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Eligible Projects</h4>
+                          <p>${Array.isArray(program.trans_eligibleProjects) ? program.trans_eligibleProjects.join(', ') : 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Eligible Recipients</h4>
+                          <p>${program.trans_eligibleRecipients || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Geographic Scope</h4>
+                          <p>${program.trans_geographicScope || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Requirements</h4>
+                          <p>${Array.isArray(program.trans_requirements) ? program.trans_requirements.join(', ') : 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Application Process</h4>
+                          <p>${program.trans_applicationProcess || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Deadline</h4>
+                          <p>${program.trans_deadline || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Contact Information</h4>
+                          <p>${program.trans_contactInfo || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Processing Time</h4>
+                          <p>${program.trans_processingTime || 'Not Available'}</p>
+                      </div>
+                      <div class="detail-item">
+                          <h4>Website</h4>
+                          <p>
+                              ${program.trans_websiteLink ? 
+                                  `<a href="${program.trans_websiteLink}" target="_blank" rel="noopener noreferrer">Visit Website</a>` 
+                                  : 'Not Available'
+                              }
+                          </p>
+                      </div>
+                  </div>
               </div>
           </div>
       `;
-
-      // Add click handler for toggle
-      toggleBtn.addEventListener('click', () => {
-          const isExpanded = details.style.display !== 'none';
-          details.style.display = isExpanded ? 'none' : 'block';
-          toggleBtn.querySelector('i').className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
-      });
-
-      card.appendChild(summary);
-      card.appendChild(details);
-      return card;
     }
 
     // Helper function to display programs
     function displayPrograms(programs, category, source) {
       const sectionId = `${category.toLowerCase()}Results`; 
       const programsContainer = document.getElementById(sectionId);
+      
       if (!programsContainer) {
         console.error(`Container not found for category: ${category}`);
         return;
@@ -746,10 +709,10 @@
 
       // Create and append program cards
       programs.forEach(program => {
-        // Set the category on the program object
-        program.category = category;
-        const card = createProgramCard(program, source);
-        programsContainer.appendChild(card);
+        // Create DOM element instead of string
+        const cardDiv = document.createElement('div');
+        cardDiv.innerHTML = createProgramCard(program, source);
+        programsContainer.appendChild(cardDiv.firstChild);
       });
     }
 
