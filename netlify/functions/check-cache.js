@@ -203,7 +203,8 @@ export const handler = async (event) => {
                 deadline: program.deadline,
                 websiteLink: program.websiteLink,
                 contactInfo: program.contactInfo,
-                processingTime: program.processingTime
+                processingTime: program.processingTime,
+                category: category.toLowerCase()
             }));
 
             console.log('Transformed programs:', transformedPrograms);

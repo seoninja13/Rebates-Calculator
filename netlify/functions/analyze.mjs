@@ -109,19 +109,21 @@ function createProgramEntries(program) {
     if (projects.length === 0) {
         // If no specific projects, return single program
         return [{
-            title: program.programName || 'Not Available',
-            type: type,
-            summary: program.summary || 'No summary available',
-            amount: program.amount || 'Not specified',
-            eligibleProjects: [],
-            eligibleRecipients: program.eligibleRecipients || 'Not specified',
-            geographicScope: program.geographicScope || 'Not specified',
-            requirements: Array.isArray(program.requirements) ? program.requirements : [],
-            applicationProcess: program.applicationProcess || 'Not specified',
-            deadline: program.deadline || 'Not specified',
-            websiteLink: program.websiteLink || '#',
-            contactInfo: program.contactInfo || 'Not specified',
-            processingTime: program.processingTime || 'Not specified'
+            trans_title: program.programName || 'Not Available',
+            trans_type: type,
+            trans_summary: program.summary || 'No summary available',
+            trans_collapsedSummary: program.collapsedSummary || 'No collapsed summary available',
+            trans_amount: program.amount || 'Not specified',
+            trans_eligibleProjects: [],
+            trans_eligibleRecipients: program.eligibleRecipients || 'Not specified',
+            trans_geographicScope: program.geographicScope || 'Not specified',
+            trans_requirements: Array.isArray(program.requirements) ? program.requirements : [],
+            trans_applicationProcess: program.applicationProcess || 'Not specified',
+            trans_deadline: program.deadline || 'Not specified',
+            trans_websiteLink: program.websiteLink || '#',
+            trans_contactInfo: program.contactInfo || 'Not specified',
+            trans_processingTime: program.processingTime || 'Not specified',
+            category: program.category
         }];
     }
     
@@ -131,19 +133,21 @@ function createProgramEntries(program) {
         const projectAmount = (typeof project === 'object' && project.amount) ? project.amount : program.amount;
         
         return {
-            title: program.programName || 'Not Available',
-            type: type,
-            summary: program.summary || 'No summary available',
-            amount: projectAmount || 'Not specified',
-            eligibleProjects: [projectName],
-            eligibleRecipients: program.eligibleRecipients || 'Not specified',
-            geographicScope: program.geographicScope || 'Not specified',
-            requirements: Array.isArray(program.requirements) ? program.requirements : [],
-            applicationProcess: program.applicationProcess || 'Not specified',
-            deadline: program.deadline || 'Not specified',
-            websiteLink: program.websiteLink || '#',
-            contactInfo: program.contactInfo || 'Not specified',
-            processingTime: program.processingTime || 'Not specified'
+            trans_title: program.programName || 'Not Available',
+            trans_type: type,
+            trans_summary: program.summary || 'No summary available',
+            trans_collapsedSummary: program.collapsedSummary || 'No collapsed summary available',
+            trans_amount: projectAmount || 'Not specified',
+            trans_eligibleProjects: [projectName],
+            trans_eligibleRecipients: program.eligibleRecipients || 'Not specified',
+            trans_geographicScope: program.geographicScope || 'Not specified',
+            trans_requirements: Array.isArray(program.requirements) ? program.requirements : [],
+            trans_applicationProcess: program.applicationProcess || 'Not specified',
+            trans_deadline: program.deadline || 'Not specified',
+            trans_websiteLink: program.websiteLink || '#',
+            trans_contactInfo: program.contactInfo || 'Not specified',
+            trans_processingTime: program.processingTime || 'Not specified',
+            category: program.category
         };
     });
 }
@@ -258,14 +262,6 @@ ${JSON.stringify(processedResults, null, 2)}`;
 
         // Transform programs
         const transformedPrograms = parsedResponse.programs.flatMap(program => {
-            if (!program || typeof program !== 'object') {
-                console.warn('⚠️ INVALID PROGRAM:', {
-                    program: program,
-                    timestamp: new Date().toISOString()
-                });
-                return [];
-            }
-            
             console.log('Program before transformation:', {
                 name: program.programName,
                 type: program.programType,
@@ -279,21 +275,37 @@ ${JSON.stringify(processedResults, null, 2)}`;
 
             console.log('Program after transformation:', {
                 entries: entries.map(e => ({
-                    title: e.title,
-                    type: e.type
+                    trans_title: e.trans_title,
+                    trans_type: e.trans_type
                 }))
             });
             
-            return entries;
+            return entries.map(entry => ({
+                trans_title: entry.trans_title,
+                trans_type: entry.trans_type,
+                trans_summary: entry.trans_summary,
+                trans_collapsedSummary: entry.trans_collapsedSummary,
+                trans_amount: entry.trans_amount,
+                trans_eligibleProjects: entry.trans_eligibleProjects,
+                trans_eligibleRecipients: entry.trans_eligibleRecipients,
+                trans_geographicScope: entry.trans_geographicScope,
+                trans_requirements: entry.trans_requirements,
+                trans_applicationProcess: entry.trans_applicationProcess,
+                trans_deadline: entry.trans_deadline,
+                trans_websiteLink: entry.trans_websiteLink,
+                trans_contactInfo: entry.trans_contactInfo,
+                trans_processingTime: entry.trans_processingTime,
+                category: entry.category
+            }));
         });
 
         console.log('✅ ANALYSIS COMPLETE:', {
             category,
             programsFound: transformedPrograms.length,
             programs: transformedPrograms.map(p => ({
-                title: p.title,
-                type: p.type,
-                amount: p.amount
+                trans_title: p.trans_title,
+                trans_type: p.trans_type,
+                trans_amount: p.trans_amount
             })),
             timestamp: new Date().toISOString()
         });
@@ -352,10 +364,10 @@ ${JSON.stringify(processedResults, null, 2)}`;
         const resetColor = '\x1b[0m';
 
         console.log(`${color}
-╔═══════════════════════════════════════════════════╗
+╔══════════════════════════════════════════════════════╗
 ║             DISPLAYING ${category.toUpperCase()} PROGRAMS             ║
 ║   Total Programs Found: ${transformedPrograms.length.toString().padEnd(10)}              ║
-╚═══════════════════════════════════════════════════╝${resetColor}`);
+╚══════════════════════════════════════════════════════╝${resetColor}`);
 
         return {
             statusCode: 200,

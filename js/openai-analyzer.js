@@ -164,6 +164,14 @@ export default class RebatePrograms {
                 ? await this.processNetlifyRequest(category, fullQuery, query)
                 : await this.processLocalRequest(category, fullQuery);
 
+            // Ensure category is set on all programs
+            if (data.analysis?.programs) {
+                data.analysis.programs = data.analysis.programs.map(program => ({
+                    ...program,
+                    category: category.toLowerCase()
+                }));
+            }
+
             // Update UI if needed
             if (updateUI) {
                 this.updateUIWithResults(category, data);
@@ -365,7 +373,14 @@ export default class RebatePrograms {
         if (resultsContainer) {
             resultsContainer.innerHTML = '';
             const programs = data.analysis?.programs || [];
+            console.log(`\n===> UPDATING UI FOR ${category.toUpperCase()}:`, {
+                programCount: programs.length,
+                firstProgram: programs[0],
+                category: category
+            });
             programs.forEach((program) => {
+                // Ensure category is set on the program
+                program.category = category.toLowerCase();
                 const card = this.createProgramCard(program);
                 resultsContainer.appendChild(card);
             });
@@ -412,94 +427,108 @@ export default class RebatePrograms {
         const card = document.createElement('div');
         card.className = 'program-card';
         
+        // Set the data-category attribute for styling
+        const category = (program.category || '').toLowerCase();
+        card.setAttribute('data-category', category);
+        
         // Create the summary section (always visible)
         const summary = document.createElement('div');
         summary.className = 'program-summary';
-
-        // Create the toggle button
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'toggle-details';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
 
         // Create the summary content
         const summaryContent = document.createElement('div');
         summaryContent.className = 'summary-content';
 
-        summaryContent.innerHTML = `
-            <div class="program-header">
-                <h3>${program.programName || 'Program Name Not Available'}</h3>
-                <span class="program-type">${program.type || 'Rebate'}</span>
-            </div>
-            <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
-        `;
+        // Create the header with icon
+        const header = document.createElement('div');
+        header.className = 'program-header';
+
+        // Add program type icon based on category
+        const icon = document.createElement('i');
+        if (category === 'federal') {
+            icon.className = 'fas fa-landmark';
+            icon.style.color = '#1a73e8';
+        } else if (category === 'state') {
+            icon.className = 'fas fa-building-columns';
+            icon.style.color = '#34a853';
+        } else if (category === 'county') {
+            icon.className = 'fas fa-city';
+            icon.style.color = '#ea4335';
+        }
+        icon.style.marginRight = '8px';
+
+        // Create the rebate summary
+        const rebateSummary = document.createElement('h3');
+        rebateSummary.className = 'rebate-summary';
+        rebateSummary.appendChild(icon);
+        rebateSummary.appendChild(document.createTextNode(program.collapsedSummary || program.summary || 'Rebate Type Not Available'));
+
+        summaryContent.appendChild(rebateSummary);
+
+        // Create the toggle button
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'toggle-details';
+        const toggleIcon = document.createElement('i');
+        toggleIcon.className = 'fas fa-chevron-down';
+        toggleBtn.appendChild(toggleIcon);
 
         summary.appendChild(summaryContent);
         summary.appendChild(toggleBtn);
 
         // Create the details section
         const details = document.createElement('div');
-        details.className = 'program-details hidden';
+        details.className = 'program-details';
+        details.style.display = 'none';
         
         details.innerHTML = `
-            <div class="details-content">
-                ${program.collapsedSummary ? `<p class="expanded-summary">${program.collapsedSummary}</p>` : ''}
-
-                <div class="program-section">
+            <div class="details-grid">
+                <div class="detail-item">
                     <h4>Program Name</h4>
-                    <p>${program.programName || 'Not Available'}</p>
+                    <p>${program.title || program.programName || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Program Type</h4>
-                    <p>${program.type || 'Not Available'}</p>
+                    <p>${program.type || category || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Amount</h4>
                     <p>${program.amount || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Eligible Projects</h4>
-                    <p>${program.eligibleProjects ? program.eligibleProjects.join(', ') : 'Not Available'}</p>
+                    <p>${program.eligibleProjects ? (Array.isArray(program.eligibleProjects) ? program.eligibleProjects.join(', ') : program.eligibleProjects) : 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Eligible Recipients</h4>
-                    <p>${program.eligibility?.recipients ? program.eligibility.recipients.join(', ') : 'Not Available'}</p>
+                    <p>${program.eligibleRecipients ? (Array.isArray(program.eligibleRecipients) ? program.eligibleRecipients.join(', ') : program.eligibleRecipients) : 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Geographic Scope</h4>
                     <p>${program.geographicScope || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Requirements</h4>
-                    <p>${program.requirements ? program.requirements.join(', ') : 'Not Available'}</p>
+                    <p>${program.requirements ? (Array.isArray(program.requirements) ? program.requirements.join(', ') : program.requirements) : 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Application Process</h4>
                     <p>${program.applicationProcess || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Deadline</h4>
                     <p>${program.deadline || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                ${program.websiteLink ? `
+                <div class="detail-item">
                     <h4>Website</h4>
-                    <p>${program.websiteLink || 'Not Available'}</p>
+                    <p><a href="${program.websiteLink}" target="_blank">${program.websiteLink}</a></p>
                 </div>
-
-                <div class="program-section">
+                ` : ''}
+                <div class="detail-item">
                     <h4>Contact Information</h4>
                     <p>${program.contactInfo || 'Not Available'}</p>
                 </div>
-
-                <div class="program-section">
+                <div class="detail-item">
                     <h4>Processing Time</h4>
                     <p>${program.processingTime || 'Not Available'}</p>
                 </div>
@@ -508,9 +537,9 @@ export default class RebatePrograms {
 
         // Add click handler for toggle button
         toggleBtn.addEventListener('click', () => {
-            details.classList.toggle('hidden');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-up');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-down');
+            const isExpanded = details.style.display !== 'none';
+            details.style.display = isExpanded ? 'none' : 'block';
+            toggleIcon.className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
         });
 
         card.appendChild(summary);

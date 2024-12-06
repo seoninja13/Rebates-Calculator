@@ -1,0 +1,89 @@
+Local development with Netlify CLI
+The Netlify CLI brings the functionality of your Netlify production environment directly to your local machine through the dev command. This CLI functionality is also referred to as Netlify Dev.
+
+When you use Netlify Dev, the CLI provides a proxy server that includes edge logic for custom headers and redirects, environment variables, and Netlify Functions. It automatically detects tools and frameworks like Gatsby, Hugo, Eleventy, Next.js, and more to configure a local development server that mimics the Netlify production environment.
+
+The sections below describe how to get started with Netlify Dev, how to start and share a live development server, how project detection and ports work, and how to customize the configuration.
+
+You can also access the command reference for dev for more information.
+
+#Get started with Netlify Dev
+Before you begin, make sure you complete the following if you haven’t already:
+
+Install the Netlify CLI.
+Authenticate with an access token.
+Link your local project to a Netlify siteID. To do this, set up continuous deployment with netlify init or link an existing Netlify site with netlify link.
+To start a local development server for the build tool you’re using, run the following command from the root of your linked repository:
+
+netlify dev
+
+By default, Netlify Dev runs your project using the configuration and environment variables set for local development with the Netlify CLI. For environment variables, that means those with values set for dev or all deploy contexts. You can use the --context flag to run your project with a different deploy context’s settings and variables.
+
+netlify dev --context production
+
+Note that environment variables apply to all scopes when running netlify dev.
+
+To run a shell command within the Netlify Dev environment, use exec:
+
+netlify dev:exec YOUR_SHELL_COMMAND
+
+#Share a live development server
+You can run the following command to share your live development server over HTTPS. This creates a tunnel from your local development server over the internet and allows you to share the resulting URL with anyone anywhere in the world.
+
+netlify dev --live
+
+Anyone can access the resulting URL as long as the session is open.
+
+#Project detection
+Netlify Dev attempts to detect the site generator or build command that your project uses and run these on your behalf, while adding other development utilities. If you have a JavaScript project, it uses simple heuristics to search for the best package.json script to run for you, so you can use the full flexibility of npm scripts.
+
+You also have the option to override framework detection, if needed.
+
+Override framework detection
+#Project ports
+When you use Netlify Dev, you may encounter a few different ports — especially if your project uses a static site generator that has its own dev server, like Gatsby. Keep the following in mind when working with Netlify Dev:
+
+If your project uses a framework that we can detect, Netlify Dev will use the framework’s conventional ports, so you don’t have to supply them yourself. If multiple detectors match your project, we’ll ask you to choose.
+If your site generator runs on a specific port, such as port 8000, you need to specify the port when you run netlify dev. Netlify Dev will connect to that port and route requests successfully to the site generator along with the rest of the local Netlify environment.
+If you use an unrecognized site generator or framework, or have a server you want Netlify Dev to connect to, you need to specify the port when you run netlify dev.
+To confirm which port to use for local development with Netlify Dev, search for this box in your console output:
+
+   ┌──────────────────────────────────────────────────────────────┐
+   │                                                              │
+   │   [Netlify Dev] Server now ready on http://localhost:8888    │
+   │                                                              │
+   └──────────────────────────────────────────────────────────────┘
+
+#Configuration
+Netlify Dev works without configuration for the majority of users, but you can customize Netlify Dev settings in the [dev] section of the Netlify configuration file. The following sections outline some common configuration options.
+
+For a full list of the available properties, refer to the Netlify Dev section of our file-based configuration doc.
+
+#Run an https server for local development
+By default, netlify dev starts an HTTP server. If you require HTTPS, you can configure a certificate and key file for use by netlify dev in your netlify.toml:
+
+[dev]
+  [dev.https]
+    certFile = "cert.pem"
+    keyFile = "key.pem"
+
+Self-signed certificates require extra configuration
+
+If you’re using a self-signed certificate, you might need to configure your browser to accept it when running on localhost. To enable this setting for Chrome, visit chrome://flags/#allow-insecure-localhost in your browser.
+
+#Specify custom ports for Netlify Dev
+Netlify Dev allows you to specify custom ports using the following parameters as flags or in a Netlify configuration file (netlify.toml):
+
+targetPort: the port for your application server, framework, or site generator
+port: the port for the Netlify Dev server that you will open in the browser
+Netlify Dev tries to acquire these ports but if they are already in use by another application, it will throw an error and let you know.
+
+[dev]
+  targetPort = 3000
+  port = 8888
+
+#More Netlify Dev resources
+Command reference for dev
+Configuration properties for Netlify Dev in netlify.toml
+Use Netlify CLI with monorepos
+Manage Functions with Netlify CLI
