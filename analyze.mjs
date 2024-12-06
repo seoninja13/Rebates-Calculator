@@ -1,7 +1,7 @@
 function transformProgram(program) {
     return {
-        trans_title: program.programName,
-        trans_type: program.programType,
+        trans_title: program.programName || program.title,
+        trans_type: program.programType || program.type,
         trans_summary: program.summary,
         trans_collapsedSummary: program.collapsedSummary,
         trans_amount: program.amount,

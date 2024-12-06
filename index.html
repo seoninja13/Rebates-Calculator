@@ -615,12 +615,12 @@
     // Helper function to create a program card
     function createProgramCard(program) {
       return `
-          <div class="program-card">
+          <div class="program-card" data-category="${program.trans_category || 'unknown'}">
               <div class="program-summary">
                   <div class="summary-content">
                       <h3>${program.trans_title || 'Not Available'}</h3>
                       <p class="rebate-type">${program.trans_type || 'Not Available'}</p>
-                      <p class="rebate-summary">${program.trans_collapsedSummary || 'Not Available'}</p>
+                      <p class="rebate-summary">${program.trans_collapsedSummary || program.trans_summary || 'Not Available'}</p>
                   </div>
                   <button class="toggle-details">
                       <i class="fas fa-chevron-down"></i>
@@ -680,40 +680,25 @@
     }
 
     // Helper function to display programs
-    function displayPrograms(programs, category, source) {
-      const sectionId = `${category.toLowerCase()}Results`; 
-      const programsContainer = document.getElementById(sectionId);
-      
-      if (!programsContainer) {
-        console.error(`Container not found for category: ${category}`);
-        return;
-      }
-      
-      programsContainer.innerHTML = '';
-
-      // Check if we have valid programs array
-      if (!programs || programs.length === 0) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'program-card';
-        messageDiv.style.textAlign = 'center';
-        messageDiv.style.padding = '2rem';
-        messageDiv.innerHTML = `
-          <div class="program-header">
-            <h3 style="color: #666;">No Programs Found</h3>
-            <p>No ${category} rebate programs found that match the search criteria.</p>
-          </div>
-        `;
-        programsContainer.appendChild(messageDiv);
-        return;
-      }
-
-      // Create and append program cards
-      programs.forEach(program => {
-        // Create DOM element instead of string
-        const cardDiv = document.createElement('div');
-        cardDiv.innerHTML = createProgramCard(program, source);
-        programsContainer.appendChild(cardDiv.firstChild);
-      });
+    function displayPrograms(programs, category) {
+        const container = document.getElementById(`${category.toLowerCase()}Results`);
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (!programs?.length) {
+            container.innerHTML = `
+                <div class="program-card">
+                    <div class="program-header">
+                        <h3 style="color: #666;">No Programs Found</h3>
+                        <p>No ${category} rebate programs found.</p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = programs.map(program => createProgramCard(program)).join('');
     }
 
     // Handle form submission
@@ -757,7 +742,7 @@
         // Display results for each category
         Object.entries(results).forEach(([category, categoryData]) => {
           console.log(`Displaying ${category} programs:`, categoryData);
-          displayPrograms(categoryData, category, results.source);
+          displayPrograms(categoryData, category);
         });
       } catch (error) {
         console.error('Error:', error);
