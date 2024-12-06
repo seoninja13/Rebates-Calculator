@@ -1,19 +1,39 @@
 export default class RebatePrograms {
     constructor() {
-        this.isNetlify = window.location.port === '8888';
+        // Environment detection
+        const isNetlifyProd = window.location.hostname.includes('netlify.app');
+        const isNetlifyDev = window.location.port === '8888';
+        this.isNetlify = isNetlifyProd || isNetlifyDev;
         this.baseUrl = this.isNetlify ? '/.netlify/functions' : 'http://localhost:3000/api';
         this.results = {};
         this.searchHistory = new Map();
-        this.setupLogging();
-        console.log('\n===> INITIALIZED:', {
+        
+        // Log environment details
+        console.log('\n===> ENVIRONMENT DETECTION:', {
+            hostname: window.location.hostname,
+            port: window.location.port,
+            isNetlifyProd,
+            isNetlifyDev,
             isNetlify: this.isNetlify,
-            baseUrl: this.baseUrl,
-            timestamp: new Date().toISOString()
+            baseUrl: this.baseUrl
         });
+
+        this.setupLogging();
     }
 
     setupLogging() {
-        const isNetlify = window.location.port === '8888';
+        // Environment detection for logging
+        const isNetlifyProd = window.location.hostname.includes('netlify.app');
+        const isNetlifyDev = window.location.port === '8888';
+        const isNetlify = isNetlifyProd || isNetlifyDev;
+        
+        console.log('\n===> LOGGING SETUP:', {
+            environment: isNetlifyProd ? 'Netlify Production' : 
+                        isNetlifyDev ? 'Netlify Development' : 
+                        'Local Development',
+            logsEndpoint: isNetlify ? '/.netlify/functions/logs' : '/api/logs'
+        });
+
         const logsUrl = isNetlify ? '/.netlify/functions/logs' : '/api/logs';
         const eventSource = new EventSource(logsUrl);
         eventSource.onmessage = (event) => {
