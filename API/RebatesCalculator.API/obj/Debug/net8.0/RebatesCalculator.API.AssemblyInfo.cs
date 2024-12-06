@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RebatesCalculator.API")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+911595c928701d8f9d1f2d50e942f5213b06ce36")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2bfe56681b8b1843f3143339733708878adda01a")]
 [assembly: System.Reflection.AssemblyProductAttribute("RebatesCalculator.API")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RebatesCalculator.API")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
