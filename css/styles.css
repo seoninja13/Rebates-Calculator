@@ -433,6 +433,39 @@ strong {
     color: var(--gray-300);
 }
 
+/* Amount Display Styles */
+.amount-exact {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.amount-estimate {
+    color: #6366f1;  /* indigo color for estimates */
+    font-weight: 500;
+    font-style: italic;
+}
+
+.amount-estimate::before {
+    content: "Est. ";
+    font-size: 0.9em;
+    opacity: 0.9;
+}
+
+.rebate-summary {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+.rebate-summary .amount-exact {
+    color: #2563eb;
+}
+
+.rebate-summary .amount-estimate {
+    color: #4f46e5;
+}
+
 /* Results Container */
 #resultsContainer {
     display: none;

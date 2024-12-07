@@ -74,17 +74,22 @@ Program Type: [Rebate/Grant/Tax Credit/Low-Interest Loan]
 Amount: [Exact amount or range, with $ and commas]
 
 Eligible Projects:
-- Solar panels
-- HVAC systems
-- Heat Pumps
-- Insulation
-- Energy-efficient appliances
-- Home improvements
-- New Construction
-- Home Remodeling
-- Roofing
-- Windows & Doors
-- Other possible rebate types
+- Project Categories. Also included fallback price range to use if openAI analyzed and returned collapsedSummary property is missing, or not accurate, or incomplete:
+    Heat Pumps ($3,000-$6,500)
+    HVAC ($1,000-$5,000)
+    Solar ($3,000-$6,000)
+    Insulation ($500-$2,000)
+    Windows ($200-$1,500 per window)
+    Water Heaters ($1,000-$3,500)
+    Appliances ($300-$1,200)
+    Lighting ($50-$500)
+    Energy Audits ($200-$600)
+    Smart Thermostats ($100-$300)
+    Energy Storage ($2,000-$5,000)
+    Generators ($200-$600)
+    General Energy Efficiency ($500-$8,000)
+    Roofing ($2000-$6000)
+    Other Home Improvements ($1,000-$5,000)
 
 Eligible Recipients:
 - Homeowners

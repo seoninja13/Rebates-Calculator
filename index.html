@@ -470,6 +470,15 @@
         font-size: 12px;
         color: #666;
     }
+
+    /* Estimated Amount Styles */
+    .amount-estimate {
+      font-style: italic;
+      color: #666;
+    }
+    .amount-estimate::before {
+      content: 'Est. ';
+    }
   </style>
 </head>
 <body>
@@ -601,6 +610,16 @@
     const rebatePrograms = new RebatePrograms();
 
     // Helper function to create a program card
+    function formatAmount(amountStr) {
+      if (!amountStr) return '';
+      // Check if it's an estimated amount
+      const isEstimate = amountStr.toLowerCase().includes('est.') || amountStr.toLowerCase().includes('estimated');
+      const amountClass = isEstimate ? 'amount-estimate' : 'amount-exact';
+      // Remove 'Est.' prefix if present as it will be added by CSS
+      const cleanAmount = isEstimate ? amountStr.replace(/^est\.\s*/i, '') : amountStr;
+      return `<span class="${amountClass}">${cleanAmount}</span>`;
+    }
+
     function createProgramCard(program, source = { googleSearch: false, openaiAnalysis: false }) {
       console.log('Creating card for program:', program);
       
@@ -616,13 +635,25 @@
       toggleBtn.className = 'toggle-details';
       toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
       
-      // Create the summary content with just the rebate type display
+      // Create the summary content with formatted amount
       const summaryContent = document.createElement('div');
       summaryContent.className = 'summary-content';
-      summaryContent.innerHTML = `
-          <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
-      `;
+      
+      // Format the collapsed summary to handle estimated amounts
+      const formattedSummary = program.collapsedSummary
+        .split(/,\s*/)
+        .map(part => {
+          const [amount, ...rest] = part.split(/(?=\s+(?:rebate|grant|tax credit|loan)\s+for\s+)/i);
+          return amount && rest.length > 0 
+            ? formatAmount(amount) + rest.join('')
+            : part;
+        })
+        .join(', ');
 
+      summaryContent.innerHTML = `
+          <h3 class="rebate-summary">${formattedSummary || 'Rebate Type Not Available'}</h3>
+      `;
+      
       summary.appendChild(summaryContent);
       summary.appendChild(toggleBtn);
 
@@ -642,7 +673,7 @@
               </div>
               <div class="detail-item">
                   <h4>Amount</h4>
-                  <p>${program.amount || 'Not Available'}</p>
+                  <p>${formatAmount(program.amount) || 'Not Available'}</p>
               </div>
               <div class="detail-item">
                   <h4>Eligible Projects</h4>

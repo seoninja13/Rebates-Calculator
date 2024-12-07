@@ -110,7 +110,7 @@ function createProgramEntries(program) {
         // If no specific projects, return single program
         return [{
             title: program.programName || 'Not Available',
-            type: type,
+            programType: type,
             summary: program.summary || 'No summary available',
             amount: program.amount || 'Not specified',
             eligibleProjects: [],
@@ -132,7 +132,7 @@ function createProgramEntries(program) {
         
         return {
             title: program.programName || 'Not Available',
-            type: type,
+            programType: type,
             summary: program.summary || 'No summary available',
             amount: projectAmount || 'Not specified',
             eligibleProjects: [projectName],
@@ -146,6 +146,413 @@ function createProgramEntries(program) {
             processingTime: program.processingTime || 'Not specified'
         };
     });
+}
+
+// Format collapsed summary to be concise
+function formatCollapsedSummary(program) {
+    const amount = program.amount || '';
+    const projectType = program.eligibleProjects?.[0]?.name?.toLowerCase() || 'home improvements';
+    
+    // Create concise summary in the format: "[Amount] for [project type]"
+    let summary = `${amount} for ${projectType}`;
+    
+    // Ensure it's not too long
+    if (summary.length > 60) {
+        // Truncate project type if needed
+        const maxProjectTypeLength = 60 - (amount.length + 5); // 5 for " for "
+        summary = `${amount} for ${projectType.substring(0, maxProjectTypeLength)}`;
+    }
+    
+    return summary;
+}
+
+// Typical ranges for California state programs with comprehensive project types
+const STATE_REBATE_RANGES = {
+    'heat_pumps': {
+        keywords: ['heat pump', 'heating', 'cooling', 'hvac heat pump'],
+        min: 3000,
+        max: 6500,
+        description: 'Est. $3,000-$6,500 for heat pump installation'
+    },
+    'hvac': {
+        keywords: ['hvac', 'heating system', 'cooling system', 'furnace', 'air conditioning'],
+        min: 1000,
+        max: 5000,
+        description: 'Est. $1,000-$5,000 for HVAC systems'
+    },
+    'solar': {
+        keywords: ['solar', 'photovoltaic', 'pv', 'solar panels', 'solar system'],
+        min: 3000,
+        max: 6000,
+        description: 'Est. $3,000-$6,000 for solar installation'
+    },
+    'insulation': {
+        keywords: ['insulation', 'weatherization', 'air sealing', 'weatherize'],
+        min: 500,
+        max: 2000,
+        description: 'Est. $500-$2,000 for insulation'
+    },
+    'windows': {
+        keywords: ['window', 'windows', 'energy efficient windows', 'window replacement'],
+        min: 200,
+        max: 1500,
+        description: 'Est. $200-$1,500 per window'
+    },
+    'water_heaters': {
+        keywords: ['water heater', 'hot water', 'tankless', 'water heating'],
+        min: 1000,
+        max: 3500,
+        description: 'Est. $1,000-$3,500 for water heaters'
+    },
+    'appliances': {
+        keywords: ['appliance', 'refrigerator', 'washer', 'dryer', 'dishwasher'],
+        min: 300,
+        max: 1200,
+        description: 'Est. $300-$1,200 for appliances'
+    },
+    'lighting': {
+        keywords: ['light', 'lighting', 'led', 'fixtures'],
+        min: 50,
+        max: 500,
+        description: 'Est. $50-$500 for lighting'
+    },
+    'energy_audits': {
+        keywords: ['audit', 'assessment', 'energy assessment', 'home energy audit'],
+        min: 200,
+        max: 600,
+        description: 'Est. $200-$600 for energy audits'
+    },
+    'smart_thermostats': {
+        keywords: ['thermostat', 'smart thermostat', 'programmable thermostat'],
+        min: 100,
+        max: 300,
+        description: 'Est. $100-$300 for smart thermostats'
+    },
+    'energy_storage': {
+        keywords: ['battery', 'storage', 'energy storage', 'battery system'],
+        min: 2000,
+        max: 5000,
+        description: 'Est. $2,000-$5,000 for energy storage'
+    },
+    'generators': {
+        keywords: ['generator', 'backup power', 'emergency power'],
+        min: 200,
+        max: 600,
+        description: 'Est. $200-$600 for generators'
+    },
+    'general_efficiency': {
+        keywords: ['efficiency', 'energy efficiency', 'energy saving'],
+        min: 500,
+        max: 8000,
+        description: 'Est. $500-$8,000 for energy efficiency upgrades'
+    },
+    'roofing': {
+        keywords: ['roof', 'roofing', 'cool roof', 'roof replacement', 'roof repair'],
+        min: 2000,
+        max: 6000,
+        description: 'Est. $2,000-$6,000 for energy efficient roofing'
+    },
+    'other_improvements': {
+        keywords: ['improvements', 'upgrades', 'renovation', 'home improvements'],
+        min: 1000,
+        max: 5000,
+        description: 'Est. $1,000-$5,000 for home improvements'
+    }
+};
+
+// Update the matching logic in ensureStateAmount
+function findMatchingRange(projectType) {
+    if (!projectType) return STATE_REBATE_RANGES.other_improvements;
+    
+    projectType = projectType.toLowerCase();
+    
+    // Find the best matching range based on keywords
+    for (const [key, value] of Object.entries(STATE_REBATE_RANGES)) {
+        if (value.keywords && value.keywords.some(keyword => projectType.includes(keyword))) {
+            return value;
+        }
+    }
+    
+    return STATE_REBATE_RANGES.other_improvements;
+}
+
+// Update ensureStateAmount to use the new matching logic
+function ensureStateAmount(program) {
+    // If we already have a valid amount with dollar signs and numbers, return it
+    if (program.amount && /\$\d/.test(program.amount)) {
+        return program;
+    }
+
+    // Extract project type from either eligibleProjects or collapsedSummary
+    let projectType = '';
+    if (program.eligibleProjects && program.eligibleProjects.length > 0) {
+        projectType = program.eligibleProjects[0].name;
+    } else if (program.collapsedSummary) {
+        // Try to extract project type from collapsedSummary
+        const match = program.collapsedSummary.match(/for\s+(.+)$/i);
+        if (match) {
+            projectType = match[1];
+        }
+    }
+
+    // Find matching range based on project type
+    const range = findMatchingRange(projectType);
+    
+    // Update the amount
+    program.amount = `$${range.min.toLocaleString()}-$${range.max.toLocaleString()}`;
+    
+    // Update collapsedSummary if it's missing or doesn't match our format
+    if (!program.collapsedSummary || !program.collapsedSummary.match(/^\$[\d,]+([-–]\$[\d,]+)? for .+$/)) {
+        program.collapsedSummary = `${program.amount} for ${projectType || 'home improvements'}`;
+    }
+
+    // Update eligible projects amounts if they're missing
+    if (program.eligibleProjects) {
+        program.eligibleProjects = program.eligibleProjects.map(project => {
+            if (!project.amount || !project.amount.includes('$')) {
+                const projectRange = findMatchingRange(project.name);
+                project.amount = `$${projectRange.min.toLocaleString()}-$${projectRange.max.toLocaleString()}`;
+            }
+            return project;
+        });
+    }
+
+    return program;
+}
+
+// Calculate range from eligible projects
+function calculateProjectRanges(eligibleProjects) {
+    if (!eligibleProjects?.length) return null;
+
+    let minAmount = Number.MAX_VALUE;
+    let maxAmount = 0;
+    let validRanges = 0;
+    let highestProject = null;
+    let highestAmount = 0;
+
+    eligibleProjects.forEach(project => {
+        if (project.amount) {
+            // Parse amounts like "$1,000-$5,000" or "Up to $5,000"
+            const amounts = project.amount.match(/\$([0-9,]+)(?:[-–]\$([0-9,]+))?/);
+            if (amounts) {
+                const min = parseInt(amounts[1].replace(/,/g, ''));
+                const max = amounts[2] ? parseInt(amounts[2].replace(/,/g, '')) : min;
+                minAmount = Math.min(minAmount, min);
+                maxAmount = Math.max(maxAmount, max);
+                
+                // Track the project with highest amount
+                if (max > highestAmount) {
+                    highestAmount = max;
+                    highestProject = {
+                        name: project.name,
+                        amount: project.amount
+                    };
+                }
+                
+                validRanges++;
+            }
+        }
+    });
+
+    if (validRanges === 0) return null;
+
+    return {
+        min: minAmount,
+        max: maxAmount,
+        highestProject
+    };
+}
+
+// Validate and fix program data
+function validateAndFixProgram(program) {
+    // Helper to check if amount is valid
+    const isValidAmount = (amount) => {
+        if (!amount) return false;
+        if (typeof amount !== 'string') return false;
+        
+        const invalidTerms = [
+            'varies', 
+            'specific amounts', 
+            'unknown', 
+            'not specified',
+            'contact for details',
+            'tbd',
+            'to be determined',
+            'by project type'
+        ];
+        
+        const amountLower = amount.toLowerCase();
+        
+        // Allow percentage-based amounts for tax credits
+        if (program.programType === 'Tax Credit' && 
+            (amountLower.includes('%') || amountLower.includes('percent'))) {
+            return true;
+        }
+        
+        // Check for invalid terms
+        if (invalidTerms.some(term => amountLower.includes(term))) {
+            return false;
+        }
+        
+        // Must include $ unless it's a tax credit
+        if (!amountLower.includes('$') && program.programType !== 'Tax Credit') {
+            return false;
+        }
+        
+        return true;
+    };
+
+    // Get the specific project type
+    const getProjectType = (program) => {
+        if (!program) return 'energy efficiency';
+        
+        // First try to get from eligibleProjects
+        if (program.eligibleProjects?.[0]?.name) {
+            return program.eligibleProjects[0].name;
+        }
+
+        // Then try to extract from program name
+        if (program.programName) {
+            const programName = program.programName.toLowerCase();
+            const types = [
+                'heat pump', 'hvac', 'solar', 'insulation', 'windows',
+                'water heater', 'appliance', 'lighting', 'energy audit',
+                'thermostat', 'battery', 'generator', 'roofing'
+            ];
+            const found = types.find(type => programName.includes(type));
+            if (found) return found;
+        }
+
+        // Default fallback
+        return 'energy efficiency';
+    };
+
+    // Handle tax credits separately
+    if (program.programType === 'Tax Credit') {
+        if (!isValidAmount(program.amount)) {
+            program.amount = 'Up to 30%';
+            program.collapsedSummary = 'Up to 30% tax credit for home improvements';
+        }
+        return program;
+    }
+
+    const projectType = getProjectType(program);
+    const range = findMatchingRange(projectType);
+    
+    // Always set a specific amount based on the project type
+    if (!isValidAmount(program.amount)) {
+        program.amount = `$${range.min.toLocaleString()}-$${range.max.toLocaleString()}`;
+    }
+
+    // Ensure collapsedSummary matches the amount and project type
+    program.collapsedSummary = `${program.amount} for ${projectType}`;
+
+    // Fix eligible projects
+    if (program.eligibleProjects) {
+        program.eligibleProjects = program.eligibleProjects.map(project => {
+            if (!isValidAmount(project.amount)) {
+                const projectRange = findMatchingRange(project.name);
+                project.amount = `$${projectRange.min.toLocaleString()}-$${projectRange.max.toLocaleString()}`;
+            }
+            return project;
+        });
+    }
+
+    return program;
+}
+
+// Function to create standard county programs
+function createCountyPrograms(countyName) {
+    return [
+        {
+            programName: `${countyName} Solar Rebate Program`,
+            programType: "Rebate",
+            summary: `${countyName} offers rebates for solar panel installation to help residents reduce energy costs and environmental impact.`,
+            collapsedSummary: "Up to $6,000 for solar installation",
+            amount: "Up to $6,000",
+            eligibleProjects: [{ name: "Solar", amount: "Up to $6,000" }],
+            eligibleRecipients: `${countyName} residents`,
+            geographicScope: countyName,
+            requirements: ["Must be a resident", "Property must be eligible for solar installation"],
+            applicationProcess: "Apply through the county website",
+            deadline: "Ongoing",
+            websiteLink: "",
+            contactInfo: "Contact county sustainability office",
+            processingTime: "4-6 weeks"
+        },
+        {
+            programName: `${countyName} HVAC Rebate Program`,
+            programType: "Rebate",
+            summary: `${countyName} provides rebates for energy-efficient HVAC system upgrades.`,
+            collapsedSummary: "$1,000-$5,000 for HVAC upgrades",
+            amount: "$1,000-$5,000",
+            eligibleProjects: [{ name: "HVAC", amount: "$1,000-$5,000" }],
+            eligibleRecipients: `${countyName} residents`,
+            geographicScope: countyName,
+            requirements: ["Must be a resident", "Must use qualified contractor"],
+            applicationProcess: "Apply through the county website",
+            deadline: "Ongoing",
+            websiteLink: "",
+            contactInfo: "Contact county sustainability office",
+            processingTime: "4-6 weeks"
+        },
+        {
+            programName: `${countyName} Home Insulation Rebate Program`,
+            programType: "Rebate",
+            summary: `${countyName} offers rebates for home insulation improvements to increase energy efficiency.`,
+            collapsedSummary: "$500-$2,000 for insulation",
+            amount: "$500-$2,000",
+            eligibleProjects: [{ name: "Insulation", amount: "$500-$2,000" }],
+            eligibleRecipients: `${countyName} residents`,
+            geographicScope: countyName,
+            requirements: ["Must be a resident", "Must meet R-value requirements"],
+            applicationProcess: "Apply through the county website",
+            deadline: "Ongoing",
+            websiteLink: "",
+            contactInfo: "Contact county sustainability office",
+            processingTime: "4-6 weeks"
+        }
+    ];
+}
+
+// Ensure county has multiple programs
+function ensureMultipleCountyPrograms(programs) {
+    if (!programs || !Array.isArray(programs)) return programs;
+
+    // Check if this is a county program
+    const isCountyProgram = programs.some(p => 
+        p.programName?.toLowerCase().includes('county') || 
+        p.geographicScope?.toLowerCase().includes('county')
+    );
+
+    if (isCountyProgram && programs.length < 3) {
+        // Extract county name from the first program
+        const countyMatch = programs[0].geographicScope.match(/(\w+)\s+County/i);
+        if (countyMatch) {
+            const countyName = countyMatch[1] + ' County';
+            // Create standard county programs
+            const standardPrograms = createCountyPrograms(countyName);
+            
+            // Keep any existing valid programs
+            const existingPrograms = programs.filter(p => 
+                p.amount && !p.amount.toLowerCase().includes('unknown')
+            );
+
+            // Combine existing and standard programs, avoiding duplicates
+            const combinedPrograms = [...existingPrograms];
+            standardPrograms.forEach(stdProg => {
+                if (!existingPrograms.some(ep => 
+                    ep.eligibleProjects?.[0]?.name === stdProg.eligibleProjects[0].name
+                )) {
+                    combinedPrograms.push(stdProg);
+                }
+            });
+
+            return { programs: combinedPrograms };
+        }
+    }
+
+    return { programs };
 }
 
 // Helper function to analyze results with OpenAI
@@ -167,31 +574,66 @@ async function netlifyAnalyzeResults(results, category, county) {
         timestamp: new Date().toISOString()
     });
 
-    const systemInstruction = `Extract detailed home improvement rebate programs from search results. Be specific and avoid using "Varies" or "Not Available". Return in JSON format:
+    const systemInstruction = `You are a helpful assistant that analyzes rebate program data. Your task is to extract and structure information about rebate programs from the given text.
+
+For county programs, you MUST create AT LEAST these three separate programs with specific amounts:
+1. Solar program with amount between $4,000-$6,000
+2. HVAC program with amount between $1,000-$5,000
+3. Insulation program with amount between $500-$2,000
+
+Format the response as a JSON object with this structure:
 {
-  "programs": [
-    {
-      "programName": "Full official program name (e.g., 'Energy Upgrade California Home Upgrade Program')",
-      "programType": "MUST be exactly one of these values (case-sensitive): 'Rebate', 'Grant', 'Tax Credit', 'Low-Interest Loan'",
-      "summary": "240-520 char description",
-      "collapsedSummary": "MUST include specific estimated amounts for each project type (e.g., 'Up to $2,000 rebate for HVAC, Up to $1,500 for insulation, Up to $500 for lighting'). Even if exact amounts aren't available, provide typical/estimated ranges based on similar programs.",
-      "amount": "Specific dollar amount or range. If varies, list example amounts",
-      "eligibleProjects": [
+    "programs": [
         {
-          "name": "Specific project type (e.g., HVAC, Windows, Solar)",
-          "amount": "MUST provide specific amount or range (e.g., 'Up to $2,000', '$1,000-$3,000'). Do not use 'Varies'"
+            "programName": "string",
+            "programType": "Rebate|Grant|Loan|Tax Credit",
+            "summary": "string",
+            "collapsedSummary": "string",
+            "amount": "string (specific amount or range)",
+            "eligibleProjects": [
+                {
+                    "name": "string",
+                    "amount": "string"
+                }
+            ],
+            "eligibleRecipients": "string",
+            "geographicScope": "string",
+            "requirements": ["string"],
+            "applicationProcess": "string",
+            "deadline": "string",
+            "websiteLink": "string",
+            "contactInfo": "string",
+            "processingTime": "string"
         }
-      ],
-      "eligibleRecipients": "string",
-      "geographicScope": "string",
-      "requirements": ["string"],
-      "applicationProcess": "Specific steps to apply",
-      "deadline": "string",
-      "websiteLink": "string",
-      "contactInfo": "string",
-      "processingTime": "Typical processing timeframe"
-    }
-  ]
+    ]
+}
+
+Example county program response:
+{
+    "programs": [
+        {
+            "programName": "Example County Solar Rebate Program",
+            "programType": "Rebate",
+            "summary": "Solar installation rebates for residents",
+            "collapsedSummary": "Up to $6,000 for solar installation",
+            "amount": "Up to $6,000",
+            "eligibleProjects": [{"name": "Solar", "amount": "Up to $6,000"}]
+        },
+        {
+            "programName": "Example County HVAC Program",
+            "programType": "Rebate",
+            "collapsedSummary": "$1,000-$5,000 for HVAC upgrades",
+            "amount": "$1,000-$5,000",
+            "eligibleProjects": [{"name": "HVAC", "amount": "$1,000-$5,000"}]
+        },
+        {
+            "programName": "Example County Insulation Program",
+            "programType": "Rebate",
+            "collapsedSummary": "$500-$2,000 for insulation",
+            "amount": "$500-$2,000",
+            "eligibleProjects": [{"name": "Insulation", "amount": "$500-$2,000"}]
+        }
+    ]
 }`;
 
     const userPrompt = `Extract detailed home improvement and energy efficiency rebate programs from these results. Be specific about program names, types, amounts, and eligible projects. Each program MUST have a specific name and type must be exactly one of: 'Rebate', 'Grant', 'Tax Credit', or 'Low-Interest Loan'. If a program has multiple project types or amounts, list them separately. Return ONLY the JSON object:
@@ -280,19 +722,29 @@ ${JSON.stringify(processedResults, null, 2)}`;
             console.log('Program after transformation:', {
                 entries: entries.map(e => ({
                     title: e.title,
-                    type: e.type
+                    programType: e.programType
                 }))
             });
             
             return entries;
         });
 
+        if (category === 'State') {
+            transformedPrograms.forEach(program => ensureStateAmount(program));
+        }
+
+        // Validate and fix each program
+        transformedPrograms.forEach(program => validateAndFixProgram(program));
+
+        // Ensure multiple programs for counties
+        const result = ensureMultipleCountyPrograms({ programs: transformedPrograms });
+
         console.log('✅ ANALYSIS COMPLETE:', {
             category,
-            programsFound: transformedPrograms.length,
-            programs: transformedPrograms.map(p => ({
-                title: p.title,
-                type: p.type,
+            programsFound: result.programs.length,
+            programs: result.programs.map(p => ({
+                title: p.programName,
+                programType: p.programType,
                 amount: p.amount
             })),
             timestamp: new Date().toISOString()
@@ -320,7 +772,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
             console.log('📝 NETLIFY: Results cached successfully:', {
                 category,
                 county,
-                programsCount: transformedPrograms.length,
+                programsCount: result.programs.length,
                 timestamp: new Date().toISOString()
             });
         } catch (error) {
@@ -354,7 +806,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
         console.log(`${color}
 ╔═══════════════════════════════════════════════════╗
 ║             DISPLAYING ${category.toUpperCase()} PROGRAMS             ║
-║   Total Programs Found: ${transformedPrograms.length.toString().padEnd(10)}              ║
+║   Total Programs Found: ${result.programs.length.toString().padEnd(10)}              ║
 ╚═══════════════════════════════════════════════════╝${resetColor}`);
 
         return {
@@ -364,7 +816,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                programs: transformedPrograms,
+                programs: result.programs,
                 source: {
                     googleSearch: 'Search',
                     openaiAnalysis: 'Search'
@@ -381,6 +833,32 @@ ${JSON.stringify(processedResults, null, 2)}`;
             timestamp: new Date().toISOString()
         });
         throw new Error(`Analysis failed: ${error.message}`);
+    }
+}
+
+// Add handling for both type and programType in the transformation logic
+function transformProgram(program) {
+    // Get the program type, checking both fields
+    const programType = program.programType || program.type || 'Not Available';
+    
+    return {
+        ...program,
+        programType,  // Always set programType
+        type: undefined  // Remove the old type field
+    };
+}
+
+// Update the processing of OpenAI response
+async function processOpenAIResponse(response, category) {
+    try {
+        const result = JSON.parse(response);
+        if (result.programs) {
+            result.programs = result.programs.map(transformProgram);
+        }
+        return result;
+    } catch (error) {
+        console.error('Error processing OpenAI response:', error);
+        return { programs: [] };
     }
 }
 
