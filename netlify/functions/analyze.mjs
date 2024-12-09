@@ -576,10 +576,19 @@ async function netlifyAnalyzeResults(results, category, county) {
 
     const systemInstruction = `You are a helpful assistant that analyzes rebate program data. Your task is to extract and structure information about rebate programs from the given text.
 
-For county programs, you MUST create AT LEAST these three separate programs with specific amounts:
+IMPORTANT: NEVER use "Varies" or vague terms for amounts. Always use these specific dollar ranges:
+- Solar: $4,000-$6,000
+- HVAC: $1,000-$5,000
+- Insulation: $500-$2,000
+- Appliances: $300-$1,200
+- Battery/Storage: $2,000-$5,000
+
+For county programs, you MUST create AT LEAST these three separate programs with exact amounts:
 1. Solar program with amount between $4,000-$6,000
 2. HVAC program with amount between $1,000-$5,000
 3. Insulation program with amount between $500-$2,000
+
+IMPORTANT: If no specific county programs are found in the search results, create default programs using the county name and the amounts specified above.
 
 Format the response as a JSON object with this structure:
 {
@@ -658,7 +667,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
                 { role: "system", content: systemInstruction },
                 { role: "user", content: userPrompt }
             ],
-            temperature: 0.7,
+            temperature: 0.5,
             max_tokens: 2000,
             response_format: { type: "json_object" }
         });
