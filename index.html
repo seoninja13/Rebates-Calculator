@@ -215,7 +215,7 @@
 
     .info-item {
       padding: 8px;
-      color: #4b5563;
+      color: #4b6368;
     }
 
     .info-item div {
@@ -640,18 +640,20 @@
       summaryContent.className = 'summary-content';
       
       // Format the collapsed summary to handle estimated amounts
-      const formattedSummary = program.collapsedSummary
-        .split(/,\s*/)
-        .map(part => {
-          const [amount, ...rest] = part.split(/(?=\s+(?:rebate|grant|tax credit|loan)\s+for\s+)/i);
-          return amount && rest.length > 0 
-            ? formatAmount(amount) + rest.join('')
-            : part;
-        })
-        .join(', ');
-
+      const formattedSummary = program.collapsedSummary 
+        ? program.collapsedSummary
+            .split(/,\s*/)
+            .map(part => {
+              const [amount, ...rest] = part.split(/(?=\s+(?:rebate|grant|tax credit|loan)\s+for\s+)/i);
+              return amount && rest.length > 0 
+                ? formatAmount(amount) + rest.join('')
+                : part;
+            })
+            .join(', ')
+        : program.summary || 'Program details not available';
+      
       summaryContent.innerHTML = `
-          <h3 class="rebate-summary">${formattedSummary || 'Rebate Type Not Available'}</h3>
+          <h3 class="rebate-summary">${formattedSummary}</h3>
       `;
       
       summary.appendChild(summaryContent);
