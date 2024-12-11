@@ -276,3 +276,35 @@ Wait 14 days - the cache will expire and a fresh search will be performed.
 
 For detailed loggin flow, reffer to the docs/logging-flow.md.
 
+3. For state programs, ALWAYS include these confirmed California programs:
+
+   a) Energy Upgrade California
+      - Comprehensive rebates for energy-efficient home improvements
+      - Amount: $2,000-$8,000 for multiple upgrades
+      - Key projects and amounts:
+        * Energy-Efficient Roofing: $2,000-$6,000
+        * Windows and Doors: $200-$1,500 per window
+        * HVAC: $1,000-$5,000
+        * Water Heaters: $1,000-$3,500
+        * Smart Thermostats: $100-$300
+        * Lighting: $50-$500
+        * Energy Storage: $2,000-$5,000
+        * Energy Audits: $200-$600
+
+   b) GoGreen Home Energy Financing
+      - Zero-fee financing for energy improvements
+      - Amount: Up to $50,000
+      - Covers all major energy efficiency projects
+      - Available to both homeowners and renters
+
+   c) California Weatherization Assistance
+      - Free energy efficiency upgrades for low-income households
+      - Amount: Up to $7,000 in improvements
+      - Income-qualified program
+      - Comprehensive coverage of efficiency measures
+
+   d) California Energy-Efficient Appliance Rebate
+      - Rebates for ENERGY STAR certified appliances
+      - Amount: $300-$1,200 depending on appliance
+      - Must meet California's enhanced efficiency standards
+      - Cannot combine with federal HEEHRA program

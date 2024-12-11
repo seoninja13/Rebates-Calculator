@@ -588,9 +588,31 @@ function normalizeProgram(program) {
 
 // Function to merge similar programs
 function mergeSimilarPrograms(programs) {
+    // Ensure programs is an array
+    if (!Array.isArray(programs)) {
+        if (programs && Array.isArray(programs.programs)) {
+            programs = programs.programs;
+        } else {
+            console.warn('⚠️ Programs is not an array:', {
+                type: typeof programs,
+                value: programs,
+                timestamp: new Date().toISOString()
+            });
+            return [];
+        }
+    }
+
     const mergedPrograms = new Map();
 
     programs.forEach(program => {
+        if (!program || typeof program !== 'object') {
+            console.warn('⚠️ Invalid program object:', {
+                program,
+                timestamp: new Date().toISOString()
+            });
+            return;
+        }
+
         const normalizedProgram = normalizeProgram(program);
         
         // Create key for similar program detection
@@ -677,6 +699,124 @@ function ensureFederalPrograms(programs) {
     return { programs: validatedPrograms };
 }
 
+// Function to validate and ensure required state programs
+function ensureStatePrograms(programs) {
+    if (!programs || !Array.isArray(programs)) {
+        programs = [];
+    }
+
+    // First, normalize and merge similar programs
+    const normalizedPrograms = mergeSimilarPrograms(programs);
+    
+    const validatedPrograms = [...normalizedPrograms];
+    const seenPrograms = new Map(
+        normalizedPrograms.map(p => [p.programName.toLowerCase(), p])
+    );
+
+    // Process each required state program
+    Object.values(STATE_PROGRAM_TEMPLATES).forEach(template => {
+        const templateKey = template.programName.toLowerCase();
+        
+        if (seenPrograms.has(templateKey)) {
+            // Program exists - validate and update critical fields
+            const existingProgram = seenPrograms.get(templateKey);
+            
+            // Update critical fields
+            existingProgram.programType = template.programType;
+            existingProgram.collapsedSummary = template.collapsedSummary;
+            existingProgram.geographicScope = 'State';
+            
+            // Merge eligibleProjects from template
+            const existingProjects = new Map(
+                existingProgram.eligibleProjects.map(p => [p.name.toLowerCase(), p])
+            );
+            
+            template.eligibleProjects.forEach(project => {
+                const projectKey = project.name.toLowerCase();
+                if (!existingProjects.has(projectKey)) {
+                    existingProgram.eligibleProjects.push(project);
+                }
+            });
+            
+            // Fill in missing fields from template
+            Object.keys(template).forEach(field => {
+                if (!existingProgram[field]) {
+                    existingProgram[field] = template[field];
+                }
+            });
+        } else {
+            // Program missing - add template version
+            validatedPrograms.push({...template});
+        }
+    });
+
+    // Sort programs by name for consistency
+    validatedPrograms.sort((a, b) => a.programName.localeCompare(b.programName));
+
+    return { programs: validatedPrograms };
+}
+
+// Function to validate and enhance program data
+function validateAndEnhanceProgram(program, templates) {
+    // Find matching template
+    const templateKey = Object.keys(templates).find(key => 
+        templates[key].programName.toLowerCase() === program.programName?.toLowerCase()
+    );
+    
+    if (templateKey) {
+        const template = templates[templateKey];
+        
+        // Ensure all required fields are present with template defaults
+        program.summary = program.summary?.length >= 240 ? program.summary : template.summary;
+        program.collapsedSummary = program.collapsedSummary || template.collapsedSummary;
+        program.amount = program.amount || template.amount;
+        
+        // Ensure eligible projects match template
+        if (template.eligibleProjects) {
+            const existingProjects = new Map(
+                program.eligibleProjects?.map(p => [p.name.toLowerCase(), p]) || []
+            );
+            
+            program.eligibleProjects = template.eligibleProjects.map(templateProject => {
+                const existing = existingProjects.get(templateProject.name.toLowerCase());
+                return existing || templateProject;
+            });
+        }
+        
+        // Ensure requirements are complete
+        if (template.requirements) {
+            const existingReqs = new Set(program.requirements?.map(r => r.toLowerCase()) || []);
+            program.requirements = [
+                ...(program.requirements || []),
+                ...template.requirements.filter(r => 
+                    !existingReqs.has(r.toLowerCase())
+                )
+            ];
+        }
+        
+        // Never allow "Varies" or generic values
+        program.deadline = program.deadline === "Varies" ? template.deadline : program.deadline;
+        program.processingTime = program.processingTime === "Varies" ? template.processingTime : program.processingTime;
+        program.contactInfo = program.contactInfo.includes("through the official website") ? 
+            template.contactInfo : program.contactInfo;
+    }
+
+    // Validate geographic scope
+    if (program.programName?.toLowerCase().includes("california")) {
+        program.geographicScope = "State";
+    } else if (program.programName?.toLowerCase().includes("federal")) {
+        program.geographicScope = "Federal";
+    }
+
+    // Ensure specific amounts for federal tax credits
+    if (program.programType === "Tax Credit" && program.programName?.includes("ITC")) {
+        program.amount = "Up to 30% of total system cost";
+        program.collapsedSummary = "Up to 30% of solar installation cost";
+    }
+
+    return program;
+}
+
 // Federal program templates - our source of truth
 const FEDERAL_PROGRAM_TEMPLATES = {
     "Federal Solar Tax Credit (ITC)": {
@@ -756,10 +896,252 @@ const FEDERAL_PROGRAM_TEMPLATES = {
     }
 };
 
+// State program templates - our source of truth
+const STATE_PROGRAM_TEMPLATES = {
+    "Energy Upgrade California": {
+        programName: "Energy Upgrade California",
+        programType: "Rebate",
+        summary: "Energy Upgrade California promotes a whole-house performance approach, offering larger rebates when combining multiple energy-efficient upgrades. The program covers comprehensive improvements including roofing, windows, doors, HVAC, and more, with maximum benefits for homeowners who implement multiple efficiency measures.",
+        collapsedSummary: "$2,000-$8,000 for multiple upgrades",
+        amount: "$2,000-$8,000 (higher amounts for multiple upgrades)",
+        eligibleProjects: [
+            { 
+                name: "Energy-Efficient Roofing", 
+                amount: "$2,000-$6,000" 
+            },
+            {
+                name: "Windows and Doors",
+                amount: "$200-$1,500 per window"
+            },
+            {
+                name: "HVAC",
+                amount: "$1,000-$5,000"
+            },
+            {
+                name: "Water Heaters",
+                amount: "$1,000-$3,500"
+            },
+            {
+                name: "Smart Thermostats",
+                amount: "$100-$300"
+            },
+            {
+                name: "Lighting",
+                amount: "$50-$500"
+            },
+            {
+                name: "Energy Storage",
+                amount: "$2,000-$5,000"
+            },
+            {
+                name: "Energy Audits",
+                amount: "$200-$600"
+            }
+        ],
+        eligibleRecipients: "All California residents",
+        geographicScope: "State",
+        requirements: [
+            "Must be a California resident",
+            "Must use certified contractors",
+            "Materials must be Energy Star certified",
+            "Higher rebates available when combining multiple energy efficiency upgrades",
+            "Pre and post installation verification required",
+            "Whole-house energy assessment recommended for maximum benefits"
+        ],
+        applicationProcess: "Apply through program website or participating contractor. Additional incentives available when bundling multiple improvements.",
+        deadline: "Ongoing until funds depleted",
+        websiteLink: "https://www.energyupgradeca.org",
+        contactInfo: "Contact Energy Upgrade California support\nPhone: (800) XXX-XXXX\nEmail: support@energyupgradeca.org",
+        processingTime: "4-8 weeks"
+    },
+    "GoGreen Home Energy Financing": {
+        programName: "GoGreen Home Energy Financing",
+        programType: "Low-Interest Loan",
+        summary: "GoGreen Home offers zero-fee loans for energy-efficient home improvements to both homeowners and renters in California. Covers comprehensive home improvements including HVAC, insulation, windows, and energy storage.",
+        collapsedSummary: "Zero-fee financing up to $50,000",
+        amount: "Up to $50,000",
+        eligibleProjects: [
+            {
+                name: "Windows and Doors",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "HVAC",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Insulation",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Water Heaters",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Lighting",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Energy Storage",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Smart Thermostats",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Energy Audits",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "Generators",
+                amount: "Up to $50,000"
+            },
+            {
+                name: "General Energy Efficiency",
+                amount: "Up to $50,000"
+            }
+        ],
+        eligibleRecipients: "California homeowners and renters",
+        geographicScope: "State",
+        requirements: [
+            "Must be a California resident",
+            "Property must be in California",
+            "Credit approval required",
+            "Must use participating contractors",
+            "Improvements must meet program efficiency standards"
+        ],
+        applicationProcess: "Apply online through GoGreen website or participating lender",
+        deadline: "Ongoing program",
+        websiteLink: "https://gogreenfinancing.com/residential",
+        contactInfo: "Contact GoGreen program support",
+        processingTime: "2-3 weeks"
+    },
+    "California Weatherization Assistance": {
+        programName: "California Weatherization Assistance",
+        programType: "Grant",
+        summary: "The Weatherization Assistance Program helps low-income households improve their home's energy efficiency through free installation of energy-saving measures, including windows, doors, insulation, HVAC, and lighting.",
+        collapsedSummary: "Free energy efficiency upgrades up to $7,000",
+        amount: "Up to $7,000",
+        eligibleProjects: [
+            {
+                name: "Windows and Doors",
+                amount: "Up to $7,000"
+            },
+            {
+                name: "Insulation",
+                amount: "Up to $7,000"
+            },
+            {
+                name: "HVAC",
+                amount: "Up to $7,000"
+            },
+            {
+                name: "Water Heaters",
+                amount: "Up to $7,000"
+            },
+            {
+                name: "Lighting",
+                amount: "Up to $7,000"
+            },
+            {
+                name: "Smart Thermostats",
+                amount: "Up to $300"
+            },
+            {
+                name: "Energy Audits",
+                amount: "Up to $600"
+            },
+            {
+                name: "Generators",
+                amount: "Up to $600"
+            }
+        ],
+        eligibleRecipients: "Low-income California residents",
+        geographicScope: "State",
+        requirements: [
+            "Must meet income eligibility requirements",
+            "Must be a California resident",
+            "Property must be eligible for improvements",
+            "Must complete energy assessment"
+        ],
+        applicationProcess: "Apply through local service provider",
+        deadline: "Ongoing program",
+        websiteLink: "https://www.csd.ca.gov/weatherization",
+        contactInfo: "Contact local service provider or CSD",
+        processingTime: "4-12 weeks"
+    },
+    "California Energy-Efficient Appliance Rebate": {
+        programName: "California Energy-Efficient Appliance Rebate",
+        programType: "Rebate",
+        summary: "California-specific rebate program for ENERGY STAR certified appliances, focusing on high-efficiency models that exceed federal standards. Eligible appliances include washers, dryers, refrigerators, and dishwashers that meet California's enhanced energy efficiency requirements.",
+        collapsedSummary: "$300-$1,200 for high-efficiency appliances",
+        amount: "$300-$1,200 depending on appliance type and efficiency rating",
+        eligibleProjects: [
+            {
+                name: "Appliances",
+                amount: "$300-$1,200"
+            }
+        ],
+        eligibleRecipients: [
+            "California residents",
+            "Single-family homes",
+            "Multi-family homes",
+            "Property owners",
+            "Renters with owner approval"
+        ],
+        geographicScope: "State",
+        requirements: [
+            "Must be a California resident",
+            "Appliance must meet or exceed California Energy Commission efficiency standards",
+            "Must be installed at a California residence",
+            "Must be a qualifying ENERGY STAR certified model",
+            "Must be purchased from a California retailer",
+            "Must replace an existing less efficient appliance",
+            "Professional installation required for certain appliances",
+            "Cannot be combined with federal HEEHRA program for same appliance"
+        ],
+        applicationProcess: "Submit online application with proof of purchase, installation verification, and disposal receipt for old appliance",
+        deadline: "Ongoing until funds depleted",
+        websiteLink: "https://www.energyupgradeca.org/appliances",
+        contactInfo: "California Energy Commission Rebates Division\nPhone: (800) XXX-XXXX\nEmail: appliances@energy.ca.gov",
+        processingTime: "4-6 weeks after complete application submission"
+    }
+};
+
 // Helper function to analyze results with OpenAI
 async function netlifyAnalyzeResults(results, category, county) {
     if (!process.env.OPENAI_API_KEY) {
         throw new Error('OpenAI API key is missing');
+    }
+
+    // Check cache first
+    try {
+        const cache = new GoogleSheetsCache();
+        await cache.initialize();
+        const cachedData = await cache.netlifyGetCache(category, county);
+        
+        if (cachedData && cachedData.found) {
+            console.log('📦 USING CACHED DATA:', {
+                category: category,
+                county: county,
+                timestamp: new Date().toISOString()
+            });
+            
+            const parsedData = JSON.parse(cachedData.openaiAnalysis);
+            return {
+                programs: parsedData.programs,
+                source: {
+                    googleSearch: cachedData.googleSearchCache,
+                    openaiAnalysis: cachedData.openaiSearchCache
+                }
+            };
+        }
+    } catch (error) {
+        console.error('❌ CACHE ERROR:', {
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
     }
 
     // Prepare a more concise version of results
@@ -788,18 +1170,26 @@ IMPORTANT RULES:
    - High-Efficiency Electric Home Rebate (HEEHRA): $1,000-$5,000 for HVAC
    - Home Energy Rebate Program: $500-$2,000 for insulation
 
-3. For all other programs, use these specific ranges when available:
+3. For state programs, ALWAYS include these confirmed programs if the category is 'State':
+   - Energy Upgrade California: $2,000-$5,000 for energy-efficient roofing
+   Must include details:
+   - Available to all California residents
+   - Combines with other energy efficiency upgrades
+   - Requires certified contractors
+   - Energy Star certified materials required
+
+4. For all other programs, use these specific ranges when available:
    - HVAC: $1,000-$5,000
    - Insulation: $500-$2,000
    - Appliances: $300-$1,200
    - Battery/Storage: $2,000-$5,000
 
-4. Amount formatting MUST be:
+5. Amount formatting MUST be:
    - For ranges: "$X-$Y" (e.g., "$300-$1,200")
    - For tax credits: "Up to X%" (e.g., "Up to 30%")
    - NEVER use "Varies" or vague terms
 
-5. For non-solar programs, only include those explicitly mentioned in the search results or source data.
+6. For non-solar programs, only include those explicitly mentioned in the search results or source data.
 
 Format the response as a JSON object with this structure:
 {
@@ -931,79 +1321,57 @@ ${JSON.stringify(processedResults, null, 2)}`;
         // Add required programs based on category
         if (category === 'Federal') {
             parsedResponse = ensureFederalPrograms(transformedPrograms);
+        } else if (category === 'State') {
+            parsedResponse = ensureStatePrograms(transformedPrograms);
+            // Ensure at least one solar program for state
+            if (!parsedResponse.programs.some(p => p.eligibleProjects.some(ep => ep.name.toLowerCase().includes('solar')))) {
+                parsedResponse.programs.push({
+                    programName: "California Solar Initiative",
+                    programType: "Rebate",
+                    summary: "The California Solar Initiative (CSI) provides rebates for solar panel installations to help residents reduce energy costs and environmental impact.",
+                    collapsedSummary: "$4,000-$6,000 for solar installation",
+                    amount: "$4,000-$6,000",
+                    eligibleProjects: [{ name: "Solar Installation", amount: "$4,000-$6,000" }],
+                    eligibleRecipients: "California residents",
+                    geographicScope: "State",
+                    requirements: ["Must be a California resident", "Property must be eligible for solar installation"],
+                    applicationProcess: "Apply through program website",
+                    deadline: "Ongoing",
+                    websiteLink: "https://www.cpuc.ca.gov/csi",
+                    contactInfo: "Contact CSI program administrator",
+                    processingTime: "4-6 weeks"
+                });
+            }
         } else if (category === 'County') {
             parsedResponse = ensureMultipleCountyPrograms({ programs: transformedPrograms });
         }
-
-        console.log('✅ ANALYSIS COMPLETE:', {
-            category,
-            programsFound: parsedResponse.programs.length,
-            programs: parsedResponse.programs.map(p => ({
-                title: p.programName,
-                programType: p.programType,
-                amount: p.amount
-            })),
-            timestamp: new Date().toISOString()
-        });
 
         // Cache the results
         try {
             const cache = new GoogleSheetsCache();
             await cache.initialize();
             
-            // Generate cache key using same format as check-cache
-            const cacheKey = `${category}:${county}`;
-            
             await cache.appendRow({
-                query: cacheKey,
+                query: county ? `${category}:${county}` : category,
                 category: category,
                 googleResults: JSON.stringify(results),
                 openaiAnalysis: JSON.stringify(parsedResponse),
-                timestamp: new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
-                hash: cache.netlifyGenerateHash(cacheKey, category),
+                timestamp: cache.netlifyGetPSTTimestamp(),
                 googleSearchCache: 'Search',
                 openaiSearchCache: 'Search'
             });
             
-            console.log('📝 NETLIFY: Results cached successfully:', {
-                category,
-                county,
-                programsCount: parsedResponse.programs.length,
+            console.log('📦 CACHED RESULTS:', {
+                category: category,
+                county: county,
                 timestamp: new Date().toISOString()
             });
         } catch (error) {
-            console.error('❌ NETLIFY: Failed to cache results:', {
+            console.error('❌ CACHE ERROR:', {
                 error: error.message,
-                stack: error.stack,
-                category,
-                county,
                 timestamp: new Date().toISOString()
             });
-            // Don't throw - we still want to return results even if caching fails
         }
-
-        // Add prominent program type logging with color
-        let color;
-        switch (category.toLowerCase()) {
-            case 'federal':
-                color = '\x1b[36m'; // Cyan
-                break;
-            case 'state':
-                color = '\x1b[32m'; // Green
-                break;
-            case 'county':
-                color = '\x1b[35m'; // Magenta
-                break;
-            default:
-                color = '\x1b[37m'; // White
-        }
-        const resetColor = '\x1b[0m';
-
-        console.log(`${color}
-╔═══════════════════════════════════════════════════╗
-║             DISPLAYING ${category.toUpperCase()} PROGRAMS             ║
-║   Total Programs Found: ${parsedResponse.programs.length.toString().padEnd(10)}              ║
-╚═══════════════════════════════════════════════════╝${resetColor}`);
 
         return {
             statusCode: 200,
@@ -1028,6 +1396,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
             openaiResponse: completion?.choices?.[0]?.message?.content,
             timestamp: new Date().toISOString()
         });
+
         throw new Error(`Analysis failed: ${error.message}`);
     }
 }

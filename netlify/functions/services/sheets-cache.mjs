@@ -275,4 +275,29 @@ export class GoogleSheetsCache {
             throw error;
         }
     }
-} 
+
+    // Set cache entry
+    async netlifySetCache(category, county, data) {
+        if (!this.enabled) {
+            console.log('Cache → Set | Cache disabled');
+            return;
+        }
+
+        try {
+            return await this.appendRow({
+                query: county ? `${category}:${county}` : category,
+                category: category,
+                ...data
+            });
+        } catch (error) {
+            console.error('Cache → Set | Failed:', {
+                error: error.message,
+                stack: error.stack,
+                category,
+                county,
+                timestamp: new Date().toISOString()
+            });
+            throw error;
+        }
+    }
+}
