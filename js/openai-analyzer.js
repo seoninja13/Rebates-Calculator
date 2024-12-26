@@ -7,6 +7,7 @@ export default class RebatePrograms {
         this.baseUrl = this.isNetlify ? '/.netlify/functions' : 'http://localhost:3000/api';
         this.results = {};
         this.searchHistory = new Map();
+        this.activeFilters = new Set(['heat-pumps', 'solar', 'ev-charger', 'hvac']);
         
         // Log environment details
         console.log('\n===> ENVIRONMENT DETECTION:', {
@@ -18,7 +19,47 @@ export default class RebatePrograms {
             baseUrl: this.baseUrl
         });
 
+        this.setupEventListeners();
         this.setupLogging();
+    }
+
+    setupEventListeners() {
+        // Setup category filter listeners
+        document.querySelectorAll('.filter-item').forEach(filter => {
+            filter.addEventListener('click', () => {
+                filter.classList.toggle('active');
+                this.filterPrograms();
+            });
+        });
+
+        // Event listener for search button
+        document.getElementById('searchButton').addEventListener('click', async (event) => {
+            event.preventDefault();
+            console.log('Button clicked');
+            
+            const county = document.getElementById('countySelect').value;
+            if (!county) {
+                alert('Please select a county');
+                return;
+            }
+            console.log('Selected county:', county);
+            
+            const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
+            if (loadingSpinner) {
+                loadingSpinner.style.display = 'block';
+            }
+
+            try {
+                await this.searchRebates(county);
+            } catch (error) {
+                console.error('Error:', error);
+                this.displayError(error.message);
+            } finally {
+                if (loadingSpinner) {
+                    loadingSpinner.style.display = 'none';
+                }
+            }
+        });
     }
 
     setupLogging() {
@@ -46,94 +87,149 @@ export default class RebatePrograms {
         };
     }
 
-    updateIcons(category, isSearching, isCached) {
-        const sectionId = `${category.toLowerCase()}Section`;
-        const section = document.getElementById(sectionId);
-        if (!section) return;
+    getCategoryFromProgram(program) {
+        const title = program.title.toLowerCase();
+        const summary = program.summary.toLowerCase();
+        const projects = program.eligibleProjects.map(p => p.toLowerCase());
 
-        const searchIcon = section.querySelector('.fa-search');
-        const cacheIcon = section.querySelector('.fa-database');
-
-        if (searchIcon) {
-            searchIcon.style.display = isSearching ? 'inline-block' : 'none';
+        if (projects.some(p => p.includes('heat pump')) || title.includes('heat pump') || summary.includes('heat pump')) {
+            return 'heat-pumps';
         }
-        if (cacheIcon) {
-            cacheIcon.style.display = isCached ? 'inline-block' : 'none';
+        if (projects.some(p => p.includes('solar')) || title.includes('solar') || summary.includes('solar')) {
+            return 'solar';
         }
+        if (projects.some(p => p.includes('ev') || p.includes('electric vehicle')) || 
+            title.includes('ev charger') || summary.includes('ev charger')) {
+            return 'ev-charger';
+        }
+        if (projects.some(p => p.includes('hvac')) || title.includes('hvac') || summary.includes('hvac')) {
+            return 'hvac';
+        }
+        return 'other';
     }
 
-    getCacheKey(category, query) {
-        // Normalize the text by removing all whitespace and converting to lowercase
-        const normalizedText = `${category}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
-        return normalizedText;
-    }
-
-    async analyze(county) {
-        console.log('Starting analyze for county:', county, {
-            timestamp: new Date().toISOString(),
-            county,
-            categories: ['Federal', 'State', 'County'],
-            note: 'Processing Federal, State, and County categories'
-        });
-
-        this.results = {}; // Reset results at start of analyze
+    createProgramCard(program) {
+        const template = document.getElementById('programCardTemplate');
+        const card = template.content.cloneNode(true);
         
+        // Get the category for this program
+        const category = this.getCategoryFromProgram(program);
+        card.querySelector('.program-card').dataset.category = category;
+
+        // Fill in the card details
+        card.querySelector('.program-title').textContent = program.title;
+        card.querySelector('.program-category').textContent = this.formatCategory(category);
+        card.querySelector('.program-amount').textContent = this.formatAmount(program.amount);
+        card.querySelector('.program-description').textContent = program.summary;
+        
+        if (program.eligibleProjects && program.eligibleProjects.length > 0) {
+            const projectsList = document.createElement('ul');
+            program.eligibleProjects.forEach(project => {
+                const li = document.createElement('li');
+                li.textContent = project;
+                projectsList.appendChild(li);
+            });
+            card.querySelector('.eligible-projects').appendChild(projectsList);
+        }
+
+        card.querySelector('.geographic-scope').textContent = program.geographicScope;
+        
+        return card;
+    }
+
+    formatCategory(category) {
+        const categoryMap = {
+            'heat-pumps': 'Heat Pumps',
+            'solar': 'Solar',
+            'ev-charger': 'EV Charger',
+            'hvac': 'HVAC',
+            'other': 'Other'
+        };
+        return categoryMap[category] || category;
+    }
+
+    formatAmount(amount) {
+        if (!amount) return 'Amount not specified';
+        if (typeof amount === 'string') {
+            // If amount is already formatted, return as is
+            if (amount.includes('$')) return amount;
+            // Try to extract numbers and format
+            const numbers = amount.match(/\d+/g);
+            if (numbers) {
+                return `$${numbers.join(',')}`; 
+            }
+        }
+        return `$${amount}`;
+    }
+
+    filterPrograms() {
+        const selectedFilterTypes = this.getSelectedFilterTypes();
+        const programCards = document.querySelectorAll('.program-card');
+
+        programCards.forEach(card => {
+            const category = card.querySelector('.program-category').textContent.toLowerCase();
+            const shouldShow = selectedFilterTypes.some(cat => category.includes(cat));
+            card.style.display = shouldShow ? 'block' : 'none';
+        });
+    }
+
+    getSelectedFilterTypes() {
+        return Array.from(document.querySelectorAll('.filter-item.active'))
+            .map(item => item.dataset.category);
+    }
+
+    updateDisplayedPrograms() {
+        const programGrid = document.getElementById('programGrid');
+        const cards = programGrid.querySelectorAll('.program-card');
+        
+        cards.forEach(card => {
+            const category = card.dataset.category;
+            if (this.activeFilters.has(category)) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
+    async analyze(location) {
         try {
-            // Process all categories but don't update UI yet
-            console.log('\n===> PROCESSING FEDERAL CATEGORY');
-            const federalResults = await this.processCategory('Federal', county, false);
-            this.results.federal = federalResults.analysis;
-
-            console.log('\n===> PROCESSING STATE CATEGORY');
-            const stateResults = await this.processCategory('State', county, false);
-            this.results.state = stateResults.analysis;
-
-            console.log('\n===> PROCESSING COUNTY CATEGORY');
-            const countyResults = await this.processCategory('County', county, false);
-            this.results.county = countyResults.analysis;
-            
-            console.log('\n===> FINAL RESULTS:', {
-                federal: {
-                    programCount: this.results.federal?.programs?.length || 0,
-                    source: federalResults.source
+            const response = await fetch(`${this.baseUrl}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
                 },
-                state: {
-                    programCount: this.results.state?.programs?.length || 0,
-                    source: stateResults.source
-                },
-                county: {
-                    programCount: this.results.county?.programs?.length || 0,
-                    source: countyResults.source
-                }
+                body: JSON.stringify({ location })
             });
-            
-            // Now update UI for all categories at once
-            ['federal', 'state', 'county'].forEach(category => {
-                const resultsContainer = document.getElementById(`${category}Results`);
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = '';
-                    const programs = this.results[category]?.programs || [];
-                    console.log(`\n===> UPDATING UI FOR ${category.toUpperCase()}:`, {
-                        programCount: programs.length
-                    });
-                    programs.forEach((program) => {
-                        const card = this.createProgramCard(program);
-                        resultsContainer.appendChild(card);
-                    });
-                }
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            this.results = data;
+
+            // Clear existing programs
+            const programGrid = document.getElementById('programGrid');
+            programGrid.innerHTML = '';
+
+            // Create and append program cards
+            const allPrograms = [
+                ...(data.federal?.programs || []),
+                ...(data.state?.programs || []),
+                ...(data.county?.programs || [])
+            ];
+
+            allPrograms.forEach(program => {
+                const card = this.createProgramCard(program);
+                programGrid.appendChild(card);
             });
-            
-            return {
-                federal: this.results.federal?.programs || [],
-                state: this.results.state?.programs || [],
-                county: this.results.county?.programs || []
-            };
+
+            this.updateDisplayedPrograms();
+            return data;
+
         } catch (error) {
-            console.error('\n===> ERROR IN ANALYZE:', {
-                error: error.message,
-                county,
-                stack: error.stack
-            });
+            console.error('Error analyzing rebates:', error);
             throw error;
         }
     }
@@ -157,8 +253,6 @@ export default class RebatePrograms {
         });
 
         try {
-            this.updateIcons(category, true, false);
-            
             // Use different logic based on environment
             const data = this.isNetlify 
                 ? await this.processNetlifyRequest(category, fullQuery, query)
@@ -180,7 +274,6 @@ export default class RebatePrograms {
         }
     }
 
-    // Preserve original local environment logic exactly
     async processLocalRequest(category, query) {
         console.log('\n===> LOCAL REQUEST:', { category, query });
         
@@ -246,7 +339,6 @@ export default class RebatePrograms {
         };
     }
 
-    // Netlify-specific logic
     async processNetlifyRequest(category, fullQuery, county) {
         console.log('\n===> NETLIFY REQUEST:', { 
             category, 
@@ -406,117 +498,119 @@ export default class RebatePrograms {
         }
     }
 
-    createProgramCard(program) {
-        console.log('\n%c=== Creating Program Card ===', 'color: #FF9800; font-size: 14px; font-weight: bold');
-        
-        const card = document.createElement('div');
-        card.className = 'program-card';
-        
-        // Create the summary section (always visible)
-        const summary = document.createElement('div');
-        summary.className = 'program-summary';
-
-        // Create the toggle button
-        const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'toggle-details';
-        toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-
-        // Create the summary content
-        const summaryContent = document.createElement('div');
-        summaryContent.className = 'summary-content';
-
-        summaryContent.innerHTML = `
-            <div class="program-header">
-                <h3>${program.programName || 'Program Name Not Available'}</h3>
-                <span class="program-type">${program.type || 'Rebate'}</span>
-            </div>
-            <h3 class="rebate-summary">${program.collapsedSummary || 'Rebate Type Not Available'}</h3>
-        `;
-
-        summary.appendChild(summaryContent);
-        summary.appendChild(toggleBtn);
-
-        // Create the details section
-        const details = document.createElement('div');
-        details.className = 'program-details hidden';
-        
-        details.innerHTML = `
-            <div class="details-content">
-                ${program.collapsedSummary ? `<p class="expanded-summary">${program.collapsedSummary}</p>` : ''}
-
-                <div class="program-section">
-                    <h4>Program Name</h4>
-                    <p>${program.programName || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Program Type</h4>
-                    <p>${program.type || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Amount</h4>
-                    <p>${program.amount || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Eligible Projects</h4>
-                    <p>${program.eligibleProjects ? program.eligibleProjects.join(', ') : 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Eligible Recipients</h4>
-                    <p>${program.eligibility?.recipients ? program.eligibility.recipients.join(', ') : 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Geographic Scope</h4>
-                    <p>${program.geographicScope || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Requirements</h4>
-                    <p>${program.requirements ? program.requirements.join(', ') : 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Application Process</h4>
-                    <p>${program.applicationProcess || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Deadline</h4>
-                    <p>${program.deadline || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Website</h4>
-                    <p>${program.websiteLink || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Contact Information</h4>
-                    <p>${program.contactInfo || 'Not Available'}</p>
-                </div>
-
-                <div class="program-section">
-                    <h4>Processing Time</h4>
-                    <p>${program.processingTime || 'Not Available'}</p>
-                </div>
-            </div>
-        `;
-
-        // Add click handler for toggle button
-        toggleBtn.addEventListener('click', () => {
-            details.classList.toggle('hidden');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-up');
-            toggleBtn.querySelector('i').classList.toggle('fa-chevron-down');
+    async analyze(county) {
+        console.log('Starting analyze for county:', county, {
+            timestamp: new Date().toISOString(),
+            county,
+            categories: ['Federal', 'State', 'County'],
+            note: 'Processing Federal, State, and County categories'
         });
 
-        card.appendChild(summary);
-        card.appendChild(details);
+        this.results = {}; // Reset results at start of analyze
+        
+        try {
+            // Process all categories but don't update UI yet
+            console.log('\n===> PROCESSING FEDERAL CATEGORY');
+            const federalResults = await this.processCategory('Federal', county, false);
+            this.results.federal = federalResults.analysis;
 
-        return card;
+            console.log('\n===> PROCESSING STATE CATEGORY');
+            const stateResults = await this.processCategory('State', county, false);
+            this.results.state = stateResults.analysis;
+
+            console.log('\n===> PROCESSING COUNTY CATEGORY');
+            const countyResults = await this.processCategory('County', county, false);
+            this.results.county = countyResults.analysis;
+            
+            console.log('\n===> FINAL RESULTS:', {
+                federal: {
+                    programCount: this.results.federal?.programs?.length || 0,
+                    source: federalResults.source
+                },
+                state: {
+                    programCount: this.results.state?.programs?.length || 0,
+                    source: stateResults.source
+                },
+                county: {
+                    programCount: this.results.county?.programs?.length || 0,
+                    source: countyResults.source
+                }
+            });
+            
+            // Now update UI for all categories at once
+            ['federal', 'state', 'county'].forEach(category => {
+                const resultsContainer = document.getElementById(`${category}Results`);
+                if (resultsContainer) {
+                    resultsContainer.innerHTML = '';
+                    const programs = this.results[category]?.programs || [];
+                    console.log(`\n===> UPDATING UI FOR ${category.toUpperCase()}:`, {
+                        programCount: programs.length
+                    });
+                    programs.forEach((program) => {
+                        const card = this.createProgramCard(program);
+                        resultsContainer.appendChild(card);
+                    });
+                }
+            });
+            
+            return {
+                federal: this.results.federal?.programs || [],
+                state: this.results.state?.programs || [],
+                county: this.results.county?.programs || []
+            };
+        } catch (error) {
+            console.error('\n===> ERROR IN ANALYZE:', {
+                error: error.message,
+                county,
+                stack: error.stack
+            });
+            throw error;
+        }
+    }
+
+    updateIcons(category, isSearching, isCached) {
+        const sectionId = `${category.toLowerCase()}Section`;
+        const section = document.getElementById(sectionId);
+        if (!section) return;
+
+        const searchIcon = section.querySelector('.fa-search');
+        const cacheIcon = section.querySelector('.fa-database');
+
+        if (searchIcon) {
+            searchIcon.style.display = isSearching ? 'inline-block' : 'none';
+        }
+        if (cacheIcon) {
+            cacheIcon.style.display = isCached ? 'inline-block' : 'none';
+        }
+    }
+
+    getCacheKey(category, query) {
+        // Normalize the text by removing all whitespace and converting to lowercase
+        const normalizedText = `${category}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
+        return normalizedText;
+    }
+
+    isRepeatSearch(category, county) {
+        const searchKey = `${category}:${county || 'ALL'}`;
+        const lastSearch = this.searchHistory.get(searchKey);
+        
+        if (lastSearch) {
+            console.log('\n===> REPEAT SEARCH DETECTED:', {
+                category,
+                county,
+                lastSearchTime: lastSearch.timestamp
+            });
+            return true;
+        }
+        
+        // Track this search
+        this.searchHistory.set(searchKey, {
+            timestamp: new Date().toISOString(),
+            category,
+            county
+        });
+        
+        return false;
     }
 
     // Helper method to get the final results
@@ -553,26 +647,52 @@ export default class RebatePrograms {
         }
     }
 
-    isRepeatSearch(category, county) {
-        const searchKey = `${category}:${county || 'ALL'}`;
-        const lastSearch = this.searchHistory.get(searchKey);
-        
-        if (lastSearch) {
-            console.log('\n===> REPEAT SEARCH DETECTED:', {
-                category,
-                county,
-                lastSearchTime: lastSearch.timestamp
+    displayResults(data) {
+        const resultsContainer = document.getElementById('resultsContainer');
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '';
+            const programs = data.programs || [];
+            programs.forEach((program) => {
+                const card = this.createProgramCard(program);
+                resultsContainer.appendChild(card);
             });
-            return true;
+        }
+    }
+
+    displayError(message) {
+        const errorContainer = document.getElementById('errorContainer');
+        if (errorContainer) {
+            errorContainer.textContent = message;
+        }
+    }
+
+    async searchRebates(county) {
+        // Get the first selected filter type as our project type
+        const selectedFilters = this.getSelectedFilterTypes();
+        if (selectedFilters.length === 0) {
+            throw new Error('Please select at least one category (Solar, HVAC, etc.)');
         }
         
-        // Track this search
-        this.searchHistory.set(searchKey, {
-            timestamp: new Date().toISOString(),
-            category,
-            county
-        });
+        // Use the first selected filter as our project type
+        const projectType = selectedFilters[0];  // e.g. 'solar', 'hvac', etc.
         
-        return false;
+        const response = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                category: 'County',     // The level we're searching at (Federal/State/County)
+                county: county,         // The selected county name
+                projectType: projectType // The type of project (solar, hvac, etc.)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        this.displayResults(data);
     }
 }

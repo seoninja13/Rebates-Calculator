@@ -1,0 +1,26 @@
+import { GoogleSheetsCache } from './services/sheets-cache.mjs';
+import OpenAI from 'openai';
+import fetch from 'node-fetch';
+
+// Helper function to get search queries
+function netlifyGetSearchQueries(level, county) {
+    switch (level) {
+        case 'Federal':
+            return [
+                'federal energy rebate programs california',
+                'US government energy incentives california'
+            ];
+        case 'State':
+            return [
+                'California state energy rebate programs',
+                'California energy incentives'
+            ];
+        case 'County':
+            return [
+                `${county} County local energy rebate programs`,
+                `${county} County energy efficiency incentives`
+            ];
+        default:
+            throw new Error(`Invalid level: ${level}`);
+    }
+}

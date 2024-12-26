@@ -479,6 +479,55 @@
     .amount-estimate::before {
       content: 'Est. ';
     }
+
+    /* New Styles for Category Filters */
+    .category-filters {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .filter-item {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .filter-item.active {
+      background-color: #f0f7ff;
+      border-color: #1a73e8;
+    }
+
+    .filter-item i {
+      margin-right: 5px;
+    }
+
+    /* New Styles for Location Selector */
+    .location-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    #locationInput {
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      width: 300px;
+    }
+
+    .search-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .search-button:hover {
+      background-color: #2E7D32;
+    }
   </style>
 </head>
 <body>
@@ -486,13 +535,64 @@
     <div class="container">
       <!-- Hero Section -->
       <div class="hero">
-        <h1>California Green Rebates Calculator</h1>
-        <p>Find energy efficiency rebates and incentives available in your county</p>
+        <h1>Federal, State & Local Homeowner Green Rebates</h1>
       </div>
 
-      <!-- Search Form -->
-      <form id="rebatesSearchForm" class="search-form">
-        <div class="search-wrapper">
+      <!-- Category Filters -->
+      <div class="category-filters">
+        <div class="filter-item" data-category="solar">
+          <i class="fas fa-sun"></i>
+          Solar
+        </div>
+        <div class="filter-item" data-category="hvac">
+          <i class="fas fa-fan"></i>
+          HVAC
+        </div>
+        <div class="filter-item" data-category="heat-pumps">
+          <i class="fas fa-temperature-high"></i>
+          Heat Pumps
+        </div>
+        <div class="filter-item" data-category="insulation">
+          <i class="fas fa-home"></i>
+          Insulation
+        </div>
+        <div class="filter-item" data-category="windows">
+          <i class="fas fa-square"></i>
+          Windows
+        </div>
+        <div class="filter-item" data-category="appliances">
+          <i class="fas fa-washing-machine"></i>
+          Appliances
+        </div>
+        <div class="filter-item" data-category="ev-charger">
+          <i class="fas fa-charging-station"></i>
+          EV Charger
+        </div>
+        <div class="filter-item" data-category="water-heater">
+          <i class="fas fa-hot-tub"></i>
+          Water Heater
+        </div>
+        <div class="filter-item" data-category="lighting">
+          <i class="fas fa-lightbulb"></i>
+          Lighting
+        </div>
+        <div class="filter-item" data-category="weatherization">
+          <i class="fas fa-cloud-sun"></i>
+          Weatherization
+        </div>
+        <div class="filter-item" data-category="roofing">
+          <i class="fas fa-home"></i>
+          Roofing
+        </div>
+        <div class="filter-item" data-category="battery">
+          <i class="fas fa-battery-full"></i>
+          Battery Storage
+        </div>
+      </div>
+
+      <!-- Search Section -->
+      <div class="search-section">
+        <div class="location-selector">
           <select id="countySelect" required>
             <option value="">Select your county</option>
             <option value="Alameda">Alameda</option>
@@ -554,55 +654,35 @@
             <option value="Yolo">Yolo</option>
             <option value="Yuba">Yuba</option>
           </select>
-          <button type="submit">Search</button>
+          <button id="searchButton" class="search-button">
+            <span>Search Rebates</span>
+            <i class="fas fa-hard-hat" style="display: none;"></i>
+          </button>
         </div>
-        <!-- Loading Spinner -->
-        <div id="rebatesLoadingSpinner" class="construction-loader">
-          <div class="loading-circle"></div>
-          <div class="worker"></div>
-          <div class="loading-text">Building Your Rebate Report...</div>
-        </div>
-        <!-- Error Display -->
-        <div id="errorDisplay" class="error-message"></div>
-      </form>
+      </div>
 
       <!-- Results Container -->
       <div id="resultsContainer">
-        <div id="federalSection">
-          <div class="section-header">
-            <h2 class="section-title">Federal Programs</h2>
-            <div class="section-icons">
-              <i class="fas fa-search" style="display: none;"></i>
-              <i class="fas fa-database" style="display: none;"></i>
-            </div>
-          </div>
-          <div id="federalResults" class="program-grid"></div>
-        </div>
-
-        <div id="stateSection">
-          <div class="section-header">
-            <h2 class="section-title">State Programs</h2>
-            <div class="section-icons">
-              <i class="fas fa-search" style="display: none;"></i>
-              <i class="fas fa-database" style="display: none;"></i>
-            </div>
-          </div>
-          <div id="stateResults" class="program-grid"></div>
-        </div>
-
-        <div id="countySection">
-          <div class="section-header">
-            <h2 class="section-title">County Programs</h2>
-            <div class="section-icons">
-              <i class="fas fa-search" style="display: none;"></i>
-              <i class="fas fa-database" style="display: none;"></i>
-            </div>
-          </div>
-          <div id="countyResults" class="program-grid"></div>
+        <div class="program-grid" id="programGrid">
+          <!-- Program cards will be dynamically inserted here -->
         </div>
       </div>
     </div>
   </div>
+
+  <template id="programCardTemplate">
+    <div class="program-card">
+      <div class="program-title"></div>
+      <div class="program-category"></div>
+      <div class="program-amount"></div>
+      <div class="program-details">
+        <p class="program-description"></p>
+        <div class="eligible-projects"></div>
+        <div class="geographic-scope"></div>
+      </div>
+    </div>
+  </template>
+
   <script type="module">
     import RebatePrograms from './js/openai-analyzer.js';
     
@@ -731,91 +811,68 @@
     }
 
     // Helper function to display programs
-    function displayPrograms(programs, category, source) {
-      const sectionId = `${category.toLowerCase()}Results`; 
+    function displayPrograms(programs, level, source) {  
+      const sectionId = `${level.toLowerCase()}Results`; 
       const programsContainer = document.getElementById(sectionId);
       if (!programsContainer) {
-        console.error(`Container not found for category: ${category}`);
+        console.error(`Container not found for level: ${level}`);
         return;
       }
       
       programsContainer.innerHTML = '';
 
-      // Check if we have valid programs array
       if (!programs || programs.length === 0) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'program-card';
-        messageDiv.style.textAlign = 'center';
-        messageDiv.style.padding = '2rem';
+        messageDiv.className = 'no-results';
         messageDiv.innerHTML = `
           <div class="program-header">
             <h3 style="color: #666;">No Programs Found</h3>
-            <p>No ${category} rebate programs found that match the search criteria.</p>
+            <p>No ${level} rebate programs found for these categories.</p>
           </div>
         `;
         programsContainer.appendChild(messageDiv);
         return;
       }
 
-      // Create and append program cards
       programs.forEach(program => {
-        // Set the category on the program object
-        program.category = category;
+        program.level = level;  
         const card = createProgramCard(program, source);
         programsContainer.appendChild(card);
       });
     }
 
     // Handle form submission
-    document.getElementById('rebatesSearchForm').addEventListener('submit', async function(event) {
+    document.getElementById('searchButton').addEventListener('click', async function(event) {
       event.preventDefault();
-      console.log('Form submitted');
+      console.log('Button clicked');
       
       const county = document.getElementById('countySelect').value;
+      if (!county) {
+        alert('Please select a county');
+        return;
+      }
       console.log('Selected county:', county);
       
-      const loadingSpinner = document.getElementById('rebatesLoadingSpinner');
-      const errorDisplay = document.getElementById('errorDisplay');
-      const resultsContainer = document.getElementById('resultsContainer');
-      
-      try {
-        console.log('Starting search...');
-        // Show loading spinner and hide results
-        loadingSpinner.style.display = 'block';
-        errorDisplay.style.display = 'none';
-        resultsContainer.style.display = 'none';
-        
-        // Clear existing results
-        ['federal', 'state', 'county'].forEach(category => {
-          const section = document.getElementById(`${category}Section`);
-          if (section) {
-            const resultsDiv = section.querySelector('.program-grid');
-            if (resultsDiv) {
-              resultsDiv.innerHTML = '';
-            }
-          }
-        });
+      // Show loading icon
+      const loadingIcon = this.querySelector('.fa-hard-hat');
+      if (loadingIcon) {
+        loadingIcon.style.display = 'inline-block';
+      }
 
-        console.log('Calling analyze with county:', county);
-        const results = await rebatePrograms.analyze(county);
-        console.log('Got results:', results);
-        
-        // Show results container and hide loading spinner
-        resultsContainer.style.display = 'block';
-        loadingSpinner.style.display = 'none';
-        
-        // Display results for each category
-        Object.entries(results).forEach(([category, categoryData]) => {
-          console.log(`Displaying ${category} programs:`, categoryData);
-          displayPrograms(categoryData, category, results.source);
-        });
+      try {
+        await rebatePrograms.searchRebates(county);
       } catch (error) {
         console.error('Error:', error);
-        errorDisplay.textContent = error.message || 'An error occurred while fetching programs';
-        errorDisplay.style.display = 'block';
-        resultsContainer.style.display = 'none';
+        const errorDisplay = document.getElementById('errorDisplay');
+        if (errorDisplay) {
+          errorDisplay.textContent = error.message;
+          errorDisplay.style.display = 'block';
+        }
       } finally {
-        loadingSpinner.style.display = 'none';
+        // Hide loading icon
+        if (loadingIcon) {
+          loadingIcon.style.display = 'none';
+        }
       }
     });
   </script>
