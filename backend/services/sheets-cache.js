@@ -17,7 +17,7 @@ export class GoogleSheetsCache {
     async initialize() {
         if (!this.enabled) {
             console.log('Cache → Initialize | Cache disabled');
-            return;
+            return false;
         }
 
         try {
@@ -42,12 +42,14 @@ export class GoogleSheetsCache {
             console.log('Cache → Initialize | Connection successful:', {
                 spreadsheetTitle: test.data.properties.title
             });
+            
+            return true;
         } catch (error) {
             console.error('Cache → Initialize | Error:', {
                 message: error.message,
                 stack: error.stack
             });
-            throw error;
+            return false;
         }
     }
 
@@ -70,29 +72,84 @@ export class GoogleSheetsCache {
     async localLogSearch(data) {
         if (!this.enabled) return;
 
-        const hash = this.localGenerateHash(data.query, data.category);
+        // Format query to match expected pattern: "[scope] energy rebate programs [location], [scope] government energy incentives [location]"
+        const queryParts = data.query.toLowerCase().split(',').map(part => part.trim());
+        const formattedQuery = queryParts.length === 2 ? 
+            `${queryParts[0]}, ${queryParts[1]}` : 
+            data.query;
+
+        const hash = this.localGenerateHash(formattedQuery, data.category);
         const timestamp = this.localGetPSTTimestamp();
 
         try {
-            await this.appendRow({
-                query: data.query,
-                category: data.category,
-                googleResults: JSON.stringify(data.googleResults),
-                openaiAnalysis: JSON.stringify(data.openaiAnalysis),
-                timestamp: timestamp,
-                hash: hash,
-                googleSearchCache: data.isGoogleCached ? 'Cache' : 'Search',
-                openaiSearchCache: data.isOpenAICached ? 'Cache' : 'Search'
+            // Check if this exact search already exists
+            const response = await this.sheets.spreadsheets.values.get({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Cache!A:H'
             });
 
-            console.log('Cache → Sheets | Search logged:', {
-                query: data.query,
-                category: data.category,
-                timestamp: timestamp,
-                googleCache: data.isGoogleCached ? 'Cache' : 'Search',
-                openaiCache: data.isOpenAICached ? 'Cache' : 'Search'
-            });
+            const rows = response.data.values || [];
+            const existingRowIndex = rows.findIndex(row => 
+                row[0]?.toLowerCase() === formattedQuery.toLowerCase() && 
+                row[1] === data.category
+            );
 
+            if (existingRowIndex > 0) { // Skip header row
+                // Update existing row
+                await this.sheets.spreadsheets.values.update({
+                    spreadsheetId: this.spreadsheetId,
+                    range: `Cache!A${existingRowIndex + 1}:H${existingRowIndex + 1}`,
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [[
+                            formattedQuery,
+                            data.category,
+                            JSON.stringify(data.googleResults),
+                            JSON.stringify(data.openaiAnalysis),
+                            timestamp,
+                            hash,
+                            data.isGoogleCached ? 'Cache' : 'Search',
+                            data.isOpenAICached ? 'Cache' : 'Search'
+                        ]]
+                    }
+                });
+
+                console.log('Cache → Sheets | Search updated:', {
+                    query: formattedQuery,
+                    category: data.category,
+                    timestamp: timestamp,
+                    googleCache: data.isGoogleCached ? 'Cache' : 'Search',
+                    openaiCache: data.isOpenAICached ? 'Cache' : 'Search'
+                });
+            } else {
+                // Append new row
+                await this.sheets.spreadsheets.values.append({
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Cache!A:H',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: {
+                        values: [[
+                            formattedQuery,
+                            data.category,
+                            JSON.stringify(data.googleResults),
+                            JSON.stringify(data.openaiAnalysis),
+                            timestamp,
+                            hash,
+                            data.isGoogleCached ? 'Cache' : 'Search',
+                            data.isOpenAICached ? 'Cache' : 'Search'
+                        ]]
+                    }
+                });
+
+                console.log('Cache → Sheets | Search logged:', {
+                    query: formattedQuery,
+                    category: data.category,
+                    timestamp: timestamp,
+                    googleCache: data.isGoogleCached ? 'Cache' : 'Search',
+                    openaiCache: data.isOpenAICached ? 'Cache' : 'Search'
+                });
+            }
         } catch (error) {
             console.error('Cache → Sheets | Log failed:', error);
             throw error;
@@ -102,28 +159,66 @@ export class GoogleSheetsCache {
     // Append a row to the cache sheet
     async appendRow(data) {
         try {
-            const response = await this.sheets.spreadsheets.values.append({
+            // Normalize the query
+            const normalizedQuery = data.query.toLowerCase().trim();
+            
+            // Check if an entry with this query and category already exists
+            const response = await this.sheets.spreadsheets.values.get({
                 spreadsheetId: this.spreadsheetId,
-                range: 'Cache!A:H',
-                valueInputOption: 'RAW',
-                insertDataOption: 'INSERT_ROWS',
-                resource: {
-                    values: [[
-                        data.query || '',
-                        data.category || '',
-                        data.googleResults || '',
-                        data.openaiAnalysis || '',
-                        data.timestamp || '',
-                        data.hash || '',
-                        data.googleSearchCache || 'Search',
-                        data.openaiSearchCache || 'Search'
-                    ]]
-                }
+                range: 'Cache!A:H'
             });
 
-            return response;
+            const rows = response.data.values || [];
+            const existingRow = rows.slice(1).find(row => 
+                row[0].toLowerCase().trim() === normalizedQuery &&
+                row[1] === data.category
+            );
+
+            if (existingRow) {
+                // Update existing row instead of appending
+                const rowIndex = rows.indexOf(existingRow);
+                await this.sheets.spreadsheets.values.update({
+                    spreadsheetId: this.spreadsheetId,
+                    range: `Cache!A${rowIndex + 1}:H${rowIndex + 1}`,
+                    valueInputOption: 'RAW',
+                    resource: {
+                        values: [[
+                            data.query || '',
+                            data.category || '',
+                            data.googleResults || '',
+                            data.openaiAnalysis || '',
+                            data.timestamp || '',
+                            data.hash || '',
+                            data.googleSearchCache || 'Search',
+                            data.openaiSearchCache || 'Search'
+                        ]]
+                    }
+                });
+            } else {
+                // Append new row
+                await this.sheets.spreadsheets.values.append({
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Cache!A:H',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: {
+                        values: [[
+                            data.query || '',
+                            data.category || '',
+                            data.googleResults || '',
+                            data.openaiAnalysis || '',
+                            data.timestamp || '',
+                            data.hash || '',
+                            data.googleSearchCache || 'Search',
+                            data.openaiSearchCache || 'Search'
+                        ]]
+                    }
+                });
+            }
+
+            return true;
         } catch (error) {
-            console.error('Cache → Sheets | Row append failed:', error);
+            console.error('Cache → Sheets | Row append/update failed:', error);
             throw error;
         }
     }
@@ -132,7 +227,9 @@ export class GoogleSheetsCache {
     async checkCache(query, category) {
         if (!this.enabled) return null;
 
-        const hash = this.localGenerateHash(query, category);
+        // Normalize the query to handle state-level searches consistently
+        const normalizedQuery = query.toLowerCase().trim();
+        const hash = this.localGenerateHash(normalizedQuery, category);
 
         try {
             const response = await this.sheets.spreadsheets.values.get({
@@ -141,17 +238,28 @@ export class GoogleSheetsCache {
             });
 
             const rows = response.data.values || [];
+            
             // Skip header row and find matching hash
-            const match = rows.slice(1).find(row => row[5] === hash);
+            // Also check if the query and category match to avoid hash collisions
+            const match = rows.slice(1).find(row => 
+                row[5] === hash && 
+                row[0].toLowerCase().trim() === normalizedQuery &&
+                row[1] === category
+            );
 
             if (match) {
-                return {
-                    found: true,
-                    googleResults: JSON.parse(match[2] || 'null'),
-                    openaiAnalysis: JSON.parse(match[3] || 'null'),
-                    timestamp: match[4],
-                    hash: match[5]
-                };
+                try {
+                    return {
+                        found: true,
+                        googleResults: JSON.parse(match[2] || 'null'),
+                        openaiAnalysis: JSON.parse(match[3] || 'null'),
+                        timestamp: match[4],
+                        hash: match[5]
+                    };
+                } catch (parseError) {
+                    console.error('Cache → Sheets | Parse error:', parseError);
+                    return { found: false };
+                }
             }
 
             return { found: false };

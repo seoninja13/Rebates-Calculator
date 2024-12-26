@@ -394,13 +394,13 @@ app.post('/api/analyze', async (req, res) => {
         if (cacheInitialized) {
             try {
                 const cacheKey = `${category}:${county}`;
-                const cachedResults = await cache.localGetCache(cacheKey, category);
+                const cachedResults = await cache.checkCache(cacheKey, category);
                 
-                if (cachedResults) {
+                if (cachedResults && cachedResults.found) {
                     sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
                         category,
                         county,
-                        timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+                        timestamp: cachedResults.timestamp
                     });
 
                     // Log the cache hit
@@ -408,16 +408,17 @@ app.post('/api/analyze', async (req, res) => {
                         await cache.appendRow({
                             query: cacheKey,
                             category: category,
-                            googleResults: JSON.stringify(cachedResults.results || []),
-                            openaiAnalysis: JSON.stringify(cachedResults.analysis || {}),
+                            googleResults: JSON.stringify(cachedResults.googleResults || []),
+                            openaiAnalysis: JSON.stringify(cachedResults.openaiAnalysis || {}),
                             timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                            hash: cache.localGenerateHash(cacheKey),
+                            hash: cachedResults.hash,
                             googleSearchCache: 'Cache',
                             openaiSearchCache: 'Cache'
                         });
 
+                        const analysis = JSON.parse(cachedResults.openaiAnalysis);
                         return res.json({
-                            programs: cachedResults.analysis.programs || [],
+                            programs: analysis.programs || [],
                             source: {
                                 googleSearch: 'Cache',
                                 openaiAnalysis: 'Cache'
@@ -451,7 +452,7 @@ app.post('/api/analyze', async (req, res) => {
             queries: localGetSearchQueries(category, county)
         });
 
-        const searchResults = await localPerformGoogleSearch(query);
+        const searchResults = await performMultipleSearches(category, county);
         
         if (!searchResults || searchResults.length === 0) {
             sendLogToClient('Google → API', 'search_error', 'No search results found', { category, county });
@@ -459,10 +460,10 @@ app.post('/api/analyze', async (req, res) => {
         }
 
         // Format ALL results for OpenAI analysis
-        const formattedResults = searchResults.map(item => ({
-            title: item.title,
-            link: item.link,
-            snippet: item.snippet
+        const formattedResults = searchResults.map(result => ({
+            title: result.title,
+            link: result.link,
+            snippet: result.snippet
         }));
 
         // Send ALL results to OpenAI for analysis
@@ -585,13 +586,13 @@ app.post('/api/check-cache', async (req, res) => {
                 queries
             });
 
-            const cachedResults = await cache.localGetCache(combinedCacheKey, category);
+            const cachedResults = await cache.checkCache(combinedCacheKey, category);
             
-            if (cachedResults && cachedResults.results && cachedResults.analysis) {
+            if (cachedResults && cachedResults.found) {
                 sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
                     category,
                     county,
-                    timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+                    timestamp: cachedResults.timestamp
                 });
 
                 // Log the cache hit
@@ -599,10 +600,10 @@ app.post('/api/check-cache', async (req, res) => {
                     await cache.appendRow({
                         query: combinedCacheKey,
                         category: category,
-                        googleResults: JSON.stringify(cachedResults.results || []),
-                        openaiAnalysis: JSON.stringify(cachedResults.analysis || {}),
+                        googleResults: JSON.stringify(cachedResults.googleResults || []),
+                        openaiAnalysis: JSON.stringify(cachedResults.openaiAnalysis || {}),
                         timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                        hash: cache.localGenerateHash(`${category}:${county}`),
+                        hash: cachedResults.hash,
                         googleSearchCache: 'Cache',
                         openaiSearchCache: 'Cache'
                     });
@@ -610,7 +611,7 @@ app.post('/api/check-cache', async (req, res) => {
                     sendLogToClient('Cache → API', 'cache_log', 'Logged cache hit', {
                         category,
                         county,
-                        timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+                        timestamp: cachedResults.timestamp
                     });
                 } catch (logError) {
                     sendLogToClient('Cache → API', 'cache_log_error', 'Failed to log cache hit', {
@@ -620,9 +621,10 @@ app.post('/api/check-cache', async (req, res) => {
                     });
                 }
 
+                const analysis = JSON.parse(cachedResults.openaiAnalysis);
                 return res.json({
                     found: true,
-                    programs: cachedResults.analysis.programs || [],
+                    programs: analysis.programs || [],
                     source: {
                         googleSearch: 'Cache',
                         openaiAnalysis: 'Cache'
