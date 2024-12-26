@@ -682,8 +682,8 @@ export default class RebatePrograms {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                category: 'County',     // The level we're searching at (Federal/State/County)
-                county: county,         // The selected county name
+                level: 'County',       // The level we're searching at (Federal/State/County)
+                county: county,        // The selected county name
                 projectType: projectType // The type of project (solar, hvac, etc.)
             })
         });

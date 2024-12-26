@@ -3,8 +3,8 @@ import OpenAI from 'openai';
 import fetch from 'node-fetch';
 
 // Helper function to get search queries
-function netlifyGetSearchQueries(category, county) {
-    switch (category) {
+function netlifyGetSearchQueries(level, county) {
+    switch (level) {
         case 'Federal':
             return [
                 'federal energy rebate programs california',
@@ -21,7 +21,7 @@ function netlifyGetSearchQueries(category, county) {
                 `${county} County energy efficiency incentives`
             ];
         default:
-            throw new Error(`Invalid category: ${category}`);
+            throw new Error(`Invalid level: ${level}`);
     }
 }
 
@@ -1110,7 +1110,7 @@ const STATE_PROGRAM_TEMPLATES = {
 };
 
 // Helper function to analyze results with OpenAI
-async function netlifyAnalyzeResults(results, category, county) {
+async function netlifyAnalyzeResults(results, level, county) {
     if (!process.env.OPENAI_API_KEY) {
         throw new Error('OpenAI API key is missing');
     }
@@ -1119,11 +1119,11 @@ async function netlifyAnalyzeResults(results, category, county) {
     try {
         const cache = new GoogleSheetsCache();
         await cache.initialize();
-        const cachedData = await cache.netlifyGetCache(category, county);
+        const cachedData = await cache.netlifyGetCache(level, county);
         
         if (cachedData && cachedData.found) {
             console.log('📦 USING CACHED DATA:', {
-                category: category,
+                level: level,
                 county: county,
                 timestamp: new Date().toISOString()
             });
@@ -1152,7 +1152,7 @@ async function netlifyAnalyzeResults(results, category, county) {
     }));
 
     console.log('📊 ANALYSIS INPUT:', {
-        category: category,
+        level: level,
         resultsCount: processedResults.length,
         timestamp: new Date().toISOString()
     });
@@ -1162,15 +1162,15 @@ async function netlifyAnalyzeResults(results, category, county) {
 IMPORTANT RULES:
 1. Solar programs are REQUIRED. ALWAYS include at least one solar program with these specific ranges:
    - Solar Installation: $4,000-$6,000
-   - Federal Solar Tax Credit: Up to 30% (ALWAYS include for federal category)
+   - Federal Solar Tax Credit: Up to 30% (ALWAYS include for federal level)
    - Solar Battery Storage: $2,000-$5,000
 
-2. For federal programs, ALWAYS include these confirmed programs if the category is 'Federal':
+2. For federal programs, ALWAYS include these confirmed programs if the level is 'Federal':
    - Federal Solar Tax Credit (ITC): Up to 30% of total system cost
    - High-Efficiency Electric Home Rebate (HEEHRA): $1,000-$5,000 for HVAC
    - Home Energy Rebate Program: $500-$2,000 for insulation
 
-3. For state programs, ALWAYS include these confirmed programs if the category is 'State':
+3. For state programs, ALWAYS include these confirmed programs if the level is 'State':
    - Energy Upgrade California: $2,000-$5,000 for energy-efficient roofing
    Must include details:
    - Available to all California residents
@@ -1230,7 +1230,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
     let completion;
     try {
         console.log('🤖 OPENAI REQUEST:', {
-            category: category,
+            level: level,
             timestamp: new Date().toISOString()
         });
 
@@ -1270,7 +1270,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
 
         if (!parsedResponse.programs) {
             console.warn('⚠️ NO PROGRAMS FOUND:', {
-                category: category,
+                level: level,
                 response: parsedResponse,
                 timestamp: new Date().toISOString()
             });
@@ -1298,7 +1298,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
             
             const entries = createProgramEntries({
                 ...program,
-                category: category.toLowerCase()
+                level: level.toLowerCase()
             });
 
             console.log('Program after transformation:', {
@@ -1311,17 +1311,17 @@ ${JSON.stringify(processedResults, null, 2)}`;
             return entries;
         });
 
-        if (category === 'State') {
+        if (level === 'State') {
             transformedPrograms.forEach(program => ensureStateAmount(program));
         }
 
         // Validate and fix each program
         transformedPrograms.forEach(program => validateAndFixProgram(program));
 
-        // Add required programs based on category
-        if (category === 'Federal') {
+        // Add required programs based on level
+        if (level === 'Federal') {
             parsedResponse = ensureFederalPrograms(transformedPrograms);
-        } else if (category === 'State') {
+        } else if (level === 'State') {
             parsedResponse = ensureStatePrograms(transformedPrograms);
             // Ensure at least one solar program for state
             if (!parsedResponse.programs.some(p => p.eligibleProjects.some(ep => ep.name.toLowerCase().includes('solar')))) {
@@ -1342,7 +1342,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
                     processingTime: "4-6 weeks"
                 });
             }
-        } else if (category === 'County') {
+        } else if (level === 'County') {
             parsedResponse = ensureMultipleCountyPrograms({ programs: transformedPrograms });
         }
 
@@ -1352,8 +1352,8 @@ ${JSON.stringify(processedResults, null, 2)}`;
             await cache.initialize();
             
             await cache.appendRow({
-                query: county ? `${category}:${county}` : category,
-                category: category,
+                query: county ? `${level}:${county}` : level,
+                level: level,
                 googleResults: JSON.stringify(results),
                 openaiAnalysis: JSON.stringify(parsedResponse),
                 timestamp: cache.netlifyGetPSTTimestamp(),
@@ -1362,7 +1362,7 @@ ${JSON.stringify(processedResults, null, 2)}`;
             });
             
             console.log('📦 CACHED RESULTS:', {
-                category: category,
+                level: level,
                 county: county,
                 timestamp: new Date().toISOString()
             });
@@ -1442,9 +1442,9 @@ export const handler = async (event, context) => {
             };
         }
 
-        const { category, county } = body;
+        const { level, county } = body;
         
-        if (!category) {
+        if (!level) {
             return {
                 statusCode: 400,
                 headers: {
@@ -1454,7 +1454,7 @@ export const handler = async (event, context) => {
                 body: JSON.stringify({
                     status: 400,
                     error: 'Bad Request',
-                    message: 'Category is required'
+                    message: 'level is required'
                 })
             };
         }
@@ -1464,7 +1464,7 @@ export const handler = async (event, context) => {
         await cache.initialize();
 
         // Get search queries
-        const queries = netlifyGetSearchQueries(category, county);
+        const queries = netlifyGetSearchQueries(level, county);
         let allResults = [];
 
         // Perform searches
@@ -1489,7 +1489,7 @@ export const handler = async (event, context) => {
                 },
                 body: JSON.stringify({
                     status: 200,
-                    category: category,
+                    level: level,
                     programs: [],
                     message: 'No search results found'
                 })
@@ -1497,7 +1497,7 @@ export const handler = async (event, context) => {
         }
 
         // Analyze results
-        const analysis = await netlifyAnalyzeResults(allResults, category, county);
+        const analysis = await netlifyAnalyzeResults(allResults, level, county);
 
         return {
             statusCode: 200,
@@ -1528,7 +1528,7 @@ export const handler = async (event, context) => {
                 status: 500,
                 error: 'Internal Server Error',
                 message: error.message,
-                category: event.body ? JSON.parse(event.body).category : undefined,
+                level: event.body ? JSON.parse(event.body).level : undefined,
                 timestamp: new Date().toISOString()
             })
         };
