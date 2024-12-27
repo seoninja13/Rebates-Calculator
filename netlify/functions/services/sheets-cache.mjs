@@ -742,8 +742,8 @@ export class GoogleSheetsCache {
                 category, 
                 googleResultsCount: data?.googleResults?.length || 0,
                 openaiAnalysisCount: data?.openaiAnalysis?.length || 0,
-                googleResultsSample: this._truncateForLogging([data?.googleResults]),
-                openaiAnalysisSample: this._truncateForLogging([data?.openaiAnalysis])
+                googleResultsSample: this._truncateForLogging(data?.googleResults ? [data.googleResults] : []),
+                openaiAnalysisSample: this._truncateForLogging(data?.openaiAnalysis ? [data.openaiAnalysis] : [])
             });
 
             if (!this.initialized) await this.initialize();
@@ -774,13 +774,17 @@ export class GoogleSheetsCache {
                     throw new Error(`Invalid level: ${normalizedLevel}`);
             }
 
-            const googleResultsJson = typeof data.googleResults === 'string' 
-                ? data.googleResults 
-                : JSON.stringify(data.googleResults || []);
+            const googleResultsJson = data?.googleResults 
+                ? (typeof data.googleResults === 'string' 
+                    ? data.googleResults 
+                    : JSON.stringify(data.googleResults)) 
+                : '[]';
             
-            const openaiAnalysisJson = typeof data.openaiAnalysis === 'string'
-                ? data.openaiAnalysis
-                : JSON.stringify(data.openaiAnalysis || []);
+            const openaiAnalysisJson = data?.openaiAnalysis 
+                ? (typeof data.openaiAnalysis === 'string'
+                    ? data.openaiAnalysis
+                    : JSON.stringify(data.openaiAnalysis))
+                : '[]';
 
             const rowData = [
                 query,
