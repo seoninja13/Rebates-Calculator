@@ -4,14 +4,14 @@
  * IMPORTANT PATTERNS - DO NOT MODIFY WITHOUT CHECKING AGAINST THESE:
  * 
  * 1. Hash Generation Patterns:
- *    - Federal level: "Federal::all"
- *    - State level: "State::all"
- *    - County level: "County:${countyName}:all"
+ *    - Federal level: "FEDERAL::ALL"
+ *    - State level: "STATE::CALIFORNIA::ALL"
+ *    - County level: "COUNTY::${countyHash}::ALL"
  * 
  * 2. Query Format Patterns:
- *    - Federal: "Federal energy rebate programs california"
- *    - State: "California State energy rebate programs"
- *    - County: "${countyName} County local energy rebate programs"
+ *    - Federal: "federal energy rebate programs california, US government energy incentives california"
+ *    - State: "California state energy rebate programs, California state government energy incentives"
+ *    - County: "${countyName} County energy rebate programs california, ${countyName} County utility incentives california"
  * 
  * 3. Timestamp Format:
  *    - Format: "MM/DD/YYYY, HH:MM:SS AM/PM"
@@ -25,7 +25,7 @@
  *      level: "State",
  *      results: [...],  // Array of search results
  *      timestamp: "12/26/2024, 09:05:58 AM",
- *      hash: "md5_hash_of_State::all"
+ *      hash: "md5_hash_of_STATE::all"
  *    }
  */
 
@@ -51,42 +51,80 @@ export class GoogleSheetsCache {
     }
 
     async initialize() {
+        console.group('🔍 CACHE INITIALIZATION DIAGNOSTICS');
+        console.log('Initialization Start', {
+            timestamp: new Date().toISOString(),
+            nodeEnv: process.env.NODE_ENV,
+            platformInfo: {
+                arch: process.arch,
+                platform: process.platform
+            }
+        });
+
         if (!this.enabled) {
-            console.log('Cache → Initialize | Cache disabled');
+            console.error('❌ Cache Disabled: spreadsheetId is missing');
+            console.groupEnd();
             return false;
         }
 
         if (this.initialized) {
-            console.log('Cache → Initialize | Already initialized');
+            console.log('✅ Already Initialized');
+            console.groupEnd();
             return true;
         }
 
         try {
+            // Detailed credentials check
             if (!process.env.GOOGLE_SHEETS_CREDENTIALS) {
-                console.group('🚨 CACHE INITIALIZATION ERROR');
-                console.error('Missing Credentials:', {
-                    error: 'GOOGLE_SHEETS_CREDENTIALS is missing',
-                    timestamp: new Date().toISOString()
+                console.error('❌ CRITICAL: GOOGLE_SHEETS_CREDENTIALS is MISSING', {
+                    credentialsLength: process.env.GOOGLE_SHEETS_CREDENTIALS ? 
+                        process.env.GOOGLE_SHEETS_CREDENTIALS.length : 0,
+                    spreadsheetIdPresent: !!this.spreadsheetId
                 });
-                console.groupEnd();
                 throw new Error('GOOGLE_SHEETS_CREDENTIALS is missing');
             }
 
-            console.log('Cache → Initialize | Setting up Google auth');
+            console.log('🔐 Parsing Credentials', {
+                credentialsType: typeof process.env.GOOGLE_SHEETS_CREDENTIALS,
+                credentialsLength: process.env.GOOGLE_SHEETS_CREDENTIALS.length
+            });
+
+            let parsedCredentials;
+            try {
+                parsedCredentials = JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS);
+            } catch (parseError) {
+                console.error('❌ CREDENTIALS PARSE ERROR', {
+                    errorMessage: parseError.message,
+                    rawCredentials: process.env.GOOGLE_SHEETS_CREDENTIALS.substring(0, 50) + '...'
+                });
+                throw new Error('Failed to parse Google Sheets credentials');
+            }
+
+            console.log('🚀 Setting up Google Auth', {
+                scopesRequested: ['https://www.googleapis.com/auth/spreadsheets']
+            });
+
             const auth = new google.auth.GoogleAuth({
-                credentials: JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS),
+                credentials: parsedCredentials,
                 scopes: ['https://www.googleapis.com/auth/spreadsheets']
             });
 
-            console.log('Cache → Initialize | Getting auth client');
+            console.log('🔑 Getting Auth Client');
             const authClient = await auth.getClient();
             
-            console.log('Cache → Initialize | Creating sheets client');
+            console.log('📊 Creating Sheets Client');
             this.sheets = google.sheets({ version: 'v4', auth: authClient });
             
-            // Test the connection and ensure sheet structure
-            console.log('Cache → Initialize | Testing connection');
+            console.log('🕵️ Testing Spreadsheet Connection', {
+                spreadsheetId: this.spreadsheetId
+            });
+
             const test = await this.sheets.spreadsheets.get({
+                spreadsheetId: this.spreadsheetId
+            });
+
+            console.log('✅ Spreadsheet Connection Successful', {
+                spreadsheetTitle: test.data.properties.title,
                 spreadsheetId: this.spreadsheetId
             });
 
@@ -94,30 +132,41 @@ export class GoogleSheetsCache {
             await this.ensureSheetStructure();
             
             this.initialized = true;
-            console.log('Cache → Initialize | Connection successful:', {
-                spreadsheetTitle: test.data.properties.title,
-                spreadsheetId: this.spreadsheetId
-            });
+            console.log('🎉 Cache Initialization Complete');
+            console.groupEnd();
             return true;
         } catch (error) {
-            console.group('🚨 CACHE INITIALIZATION ERROR');
-            console.error('Failed to initialize cache:', {
-                error: error.message,
-                stack: error.stack,
-                credentials: process.env.GOOGLE_SHEETS_CREDENTIALS ? 'Present' : 'Missing',
-                spreadsheetId: this.spreadsheetId ? 'Present' : 'Missing',
-                timestamp: new Date().toISOString()
+            console.error('❌ CACHE INITIALIZATION FAILED', {
+                errorMessage: error.message,
+                errorStack: error.stack,
+                errorName: error.name,
+                credentialsPresent: !!process.env.GOOGLE_SHEETS_CREDENTIALS,
+                spreadsheetIdPresent: !!this.spreadsheetId
             });
             console.groupEnd();
-            throw new Error(`Cache initialization failed: ${error.message}`);
+            
+            // Rethrow to allow caller to handle
+            throw error;
         }
     }
 
     async ensureSheetStructure() {
+        console.group('🔍 SHEET STRUCTURE DIAGNOSTICS');
+        console.log('Ensuring Sheet Structure', {
+            spreadsheetId: this.spreadsheetId,
+            timestamp: new Date().toISOString()
+        });
+
         try {
             // Check if Cache sheet exists
+            console.log('🕵️ Retrieving Spreadsheet Details');
             const sheets = await this.sheets.spreadsheets.get({
                 spreadsheetId: this.spreadsheetId
+            });
+
+            console.log('📋 Existing Sheets', {
+                sheetCount: sheets.data.sheets.length,
+                sheetTitles: sheets.data.sheets.map(s => s.properties.title)
             });
 
             const cacheSheet = sheets.data.sheets.find(s => 
@@ -125,8 +174,8 @@ export class GoogleSheetsCache {
             );
 
             if (!cacheSheet) {
-                // Create Cache sheet if it doesn't exist
-                await this.sheets.spreadsheets.batchUpdate({
+                console.log('❌ Cache Sheet Not Found. Creating new sheet.');
+                const addSheetResponse = await this.sheets.spreadsheets.batchUpdate({
                     spreadsheetId: this.spreadsheetId,
                     resource: {
                         requests: [{
@@ -137,6 +186,10 @@ export class GoogleSheetsCache {
                             }
                         }]
                     }
+                });
+
+                console.log('✅ New Cache Sheet Created', {
+                    sheetId: addSheetResponse.data.replies[0].addSheet.properties.sheetId
                 });
             }
 
@@ -152,7 +205,8 @@ export class GoogleSheetsCache {
                 'OpenAI Search-Cache'
             ];
 
-            await this.sheets.spreadsheets.values.update({
+            console.log('📝 Setting Sheet Headers');
+            const updateResponse = await this.sheets.spreadsheets.values.update({
                 spreadsheetId: this.spreadsheetId,
                 range: 'Cache!A1:H1',
                 valueInputOption: 'RAW',
@@ -161,8 +215,20 @@ export class GoogleSheetsCache {
                 }
             });
 
+            console.log('✅ Headers Updated Successfully', {
+                updatedRange: updateResponse.data.updatedRange,
+                updatedCells: updateResponse.data.updatedCells
+            });
+
+            console.groupEnd();
         } catch (error) {
-            console.error('Failed to ensure sheet structure:', error);
+            console.error('❌ SHEET STRUCTURE ERROR', {
+                errorMessage: error.message,
+                errorName: error.name,
+                errorStack: error.stack,
+                spreadsheetId: this.spreadsheetId
+            });
+            console.groupEnd();
             throw error;
         }
     }
@@ -183,40 +249,274 @@ export class GoogleSheetsCache {
         }
     }
 
-    // Generate a unique hash for the query and category
-    netlifyGenerateHash(level, county, category) {
-        if (!level) return null;
+    // Normalize level with more robust handling
+    normalizeLevel(level) {
+        if (!level) return '';
+        const normalized = level.trim().toLowerCase();
+        const levelMap = {
+            'federal': 'Federal',
+            'state': 'State',
+            'county': 'County'
+        };
+        return levelMap[normalized] || normalized;
+    }
+
+    // Normalize county with improved consistency
+    normalizeCounty(county) {
+        if (!county) return '';
         
-        // Normalize inputs
-        level = level.trim();
-        if (county) {
-            county = county.replace(/^County:/, '').replace(/ County$/i, '').trim();
-        }
+        // Remove any 'County:' prefix, 'county' word, and trim
+        county = county.replace(/^County:\s*/i, '')
+                      .replace(/\s*county\s*/i, '')
+                      .trim();
         
-        // Generate cache key based on exact patterns
-        let cacheKey;
-        switch (level) {
-            case 'Federal':
-                cacheKey = 'Federal::all';
-                break;
-            case 'State':
-                cacheKey = 'State::all';
-                break;
-            case 'County':
-                if (!county) return null;
-                cacheKey = `County:${county}:all`;
-                break;
-            default:
-                return null;
+        // Capitalize first letter of each word
+        return county.split(/\s+/)
+            .map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+            )
+            .join(' ');
+    }
+
+    // Comprehensive error logging utility
+    _logError(context, error, additionalMetadata = {}) {
+        const errorLog = {
+            timestamp: new Date().toISOString(),
+            context,
+            errorMessage: error.message,
+            errorName: error.name,
+            errorStack: error.stack,
+            ...additionalMetadata
+        };
+
+        // Log to console with structured format
+        console.error(`❌ ERROR in ${context}:`, JSON.stringify(errorLog, null, 2));
+
+        // Optional: Add more advanced error tracking (e.g., external logging service)
+        // You could integrate with services like Sentry, LogRocket, etc.
+        try {
+            // Example of potential external error logging (commented out)
+            // if (this.errorTracker) {
+            //     this.errorTracker.captureException(error, errorLog);
+            // }
+        } catch (trackingError) {
+            console.error('Error logging failed:', trackingError);
         }
+
+        return errorLog;
+    }
+
+    // Generate a unique hash for the query and category with consistent mechanism
+    netlifyGenerateHash(level, county, category = 'all') {
+        try {
+            // Normalize inputs with clear, simple rules
+            const normalizedLevel = this.normalizeLevel(level || '');
+            const normalizedCounty = this.normalizeCounty(county || '');
+            const normalizedCategory = category.toUpperCase();
             
-        console.log('Cache → Hash | Generated:', {
-            level,
-            county,
-            cacheKey
-        });
-        
-        return crypto.createHash('md5').update(cacheKey).digest('hex');
+            if (!normalizedLevel) {
+                throw new Error('Invalid or empty level provided');
+            }
+
+            // Create hash input without unnecessary prefix
+            let hashInput = '';
+            
+            switch (normalizedLevel) {
+                case 'Federal':
+                    hashInput = 'FEDERAL::ALL';
+                    break;
+                case 'State':
+                    hashInput = 'STATE::CALIFORNIA::ALL';
+                    break;
+                case 'County':
+                    if (!normalizedCounty) {
+                        throw new Error('County level requires a valid county name');
+                    }
+                    hashInput = `COUNTY::${normalizedCounty.toUpperCase()}::ALL`;
+                    break;
+                default:
+                    throw new Error(`Unsupported level: ${normalizedLevel}`);
+            }
+
+            // Consistent hash generation
+            const hash = crypto.createHash('md5')
+                .update(hashInput)
+                .digest('hex');
+
+            // Detailed logging with safeguards
+            console.log('🔐 Hash Generation Details:', {
+                inputLevel: level,
+                inputCounty: county,
+                inputCategory: category,
+                normalizedLevel,
+                normalizedCounty,
+                normalizedCategory,
+                hashInput,
+                hashLength: hash.length
+            });
+
+            return hash;
+        } catch (error) {
+            // Comprehensive error handling
+            this._logError('netlifyGenerateHash', error, {
+                inputLevel: level,
+                inputCounty: county,
+                inputCategory: category
+            });
+            
+            // Return a fallback hash to prevent complete failure
+            return crypto.createHash('md5')
+                .update(`FALLBACK::${level || 'UNKNOWN'}::${county || 'UNKNOWN'}::${category}`)
+                .digest('hex');
+        }
+    }
+
+    async netlifyGetCache(level, county, requestedCategory = 'all') {
+        try {
+            // Validate initialization
+            if (!this.initialized) {
+                console.warn('⚠️ Cache not initialized before retrieval');
+                await this.initialize();
+            }
+
+            // Normalize inputs
+            const normalizedLevel = this.normalizeLevel(level);
+            const normalizedCounty = this.normalizeCounty(county);
+            const normalizedCategory = (requestedCategory || 'all').toUpperCase();
+
+            // Generate hash for lookup
+            const hash = this.netlifyGenerateHash(normalizedLevel, normalizedCounty, normalizedCategory);
+
+            if (!hash) {
+                console.error('❌ Hash generation failed', {
+                    level: normalizedLevel,
+                    county: normalizedCounty,
+                    category: normalizedCategory
+                });
+                return { 
+                    found: false, 
+                    reason: 'Invalid hash generation',
+                    data: null,
+                    diagnostics: { 
+                        level: normalizedLevel, 
+                        county: normalizedCounty,
+                        category: normalizedCategory
+                    }
+                };
+            }
+
+            // Retrieve spreadsheet data
+            const response = await this.sheets.spreadsheets.values.get({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Cache!A:H'
+            }).catch(error => {
+                this._logError('Google Sheets Retrieval', error, {
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Cache!A:H'
+                });
+                throw error;
+            });
+
+            const rows = response.data.values || [];
+            
+            if (rows.length <= 1) {
+                console.warn('⚠️ Cache is empty or only contains headers');
+                return { 
+                    found: false, 
+                    reason: 'No cache entries',
+                    data: null,
+                    diagnostics: { 
+                        totalRows: rows.length 
+                    }
+                };
+            }
+
+            // Find matching row
+            const matchingRowIndex = rows.findIndex((row, index) => {
+                if (index === 0) return false;
+                const rowHash = row[row.length - 1];
+                return rowHash === hash;
+            });
+
+            // No matching row found
+            if (matchingRowIndex === -1) {
+                return {
+                    found: false,
+                    reason: 'No matching cache entry',
+                    data: null,
+                    diagnostics: {
+                        hash,
+                        level: normalizedLevel,
+                        county: normalizedCounty,
+                        category: normalizedCategory
+                    }
+                };
+            }
+
+            // Extract matching row data
+            const matchingRow = rows[matchingRowIndex];
+            
+            // Validate row structure
+            if (matchingRow.length < 4) {
+                console.warn('⚠️ Incomplete cache row', { rowData: matchingRow });
+                return {
+                    found: false,
+                    reason: 'Incomplete cache row',
+                    data: null,
+                    diagnostics: { rowData: matchingRow }
+                };
+            }
+
+            // Parse row data with robust error handling
+            try {
+                const googleResults = JSON.parse(matchingRow[2] || '[]');
+                const openaiAnalysis = JSON.parse(matchingRow[3] || '{}');
+
+                return {
+                    found: true,
+                    data: {
+                        query: matchingRow[0],
+                        level: matchingRow[1],
+                        googleResults,
+                        openaiAnalysis,
+                        timestamp: matchingRow[4] || 'Unknown'
+                    },
+                    source: 'cache'
+                };
+            } catch (parseError) {
+                console.error('❌ Failed to parse cache row', {
+                    error: parseError,
+                    rowData: matchingRow
+                });
+                return {
+                    found: false,
+                    reason: 'Cache data parsing failed',
+                    data: null,
+                    diagnostics: { 
+                        rowData: matchingRow,
+                        error: parseError.message
+                    }
+                };
+            }
+        } catch (error) {
+            const errorDetails = this._logError('netlifyGetCache', error, {
+                inputLevel: level,
+                inputCounty: county,
+                requestedCategory,
+                initializationStatus: this.initialized
+            });
+
+            return {
+                found: false,
+                reason: 'Retrieval failed',
+                data: null,
+                errorDetails: {
+                    message: error.message,
+                    context: errorDetails,
+                    initializationStatus: this.initialized
+                }
+            };
+        }
     }
 
     // Get timestamp in PST with exact format
@@ -236,72 +536,125 @@ export class GoogleSheetsCache {
         return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
     }
 
-    // Get cache entry by level, county and category
-    async netlifyGetCache(level, county, requestedCategory) {
-        if (!this.enabled) return { found: false };
-        if (!this.initialized) await this.initialize();
-
-        try {
-            // Generate hash using exact patterns
-            const hash = this.netlifyGenerateHash(level, county, 'all');
-            if (!hash) {
-                console.log('Cache → Get | Invalid parameters:', { level, county });
-                return { found: false };
-            }
+    // Test hash generation across different scenarios
+    testHashGeneration() {
+        console.group('🧪 Hash Generation Test Suite');
+        
+        const testCases = [
+            // Federal Level Tests
+            { 
+                level: 'Federal', 
+                county: null, 
+                expectedPrefix: 'FEDERAL::ALL' 
+            },
+            { 
+                level: 'federal', 
+                county: null, 
+                expectedPrefix: 'FEDERAL::ALL' 
+            },
             
-            console.log('Cache → Get | Looking up:', {
-                level: level.trim(),
-                county,
-                requestedCategory,
-                hash
-            });
-
-            const response = await this.sheets.spreadsheets.values.get({
-                spreadsheetId: this.spreadsheetId,
-                range: 'Cache!A:H'
-            });
-
-            const rows = response.data.values || [];
-            const dataRows = rows.length > 0 && rows[0][0] === 'Query' ? rows.slice(1) : rows;
+            // State Level Tests
+            { 
+                level: 'State', 
+                county: null, 
+                expectedPrefix: 'STATE::CALIFORNIA::ALL' 
+            },
+            { 
+                level: 'state', 
+                county: null, 
+                expectedPrefix: 'STATE::CALIFORNIA::ALL' 
+            },
             
-            // Find exact matches only
-            const matchingRows = dataRows.filter(row => 
-                row[5] === hash && // Hash must match exactly
-                row[1] === level.trim() && // Level must match exactly
-                row.length === 8 // Must have all columns
-            );
-
-            if (matchingRows.length === 0) {
-                console.log('Cache → Get | No matches found');
-                return { found: false };
+            // County Level Tests
+            { 
+                level: 'County', 
+                county: 'Alameda', 
+                expectedPrefix: 'COUNTY::' 
+            },
+            { 
+                level: 'county', 
+                county: 'alameda county', 
+                expectedPrefix: 'COUNTY::' 
+            },
+            { 
+                level: 'County', 
+                county: 'County:Los Angeles', 
+                expectedPrefix: 'COUNTY::' 
             }
+        ];
 
-            // Get most recent entry
-            const latestRow = matchingRows.reduce((latest, current) => {
-                const currentDate = new Date(current[4]); // Timestamp is in column E
-                const latestDate = new Date(latest[4]);
-                return currentDate > latestDate ? current : latest;
+        testCases.forEach((testCase, index) => {
+            console.log(`\n🔍 Test Case #${index + 1}:`, {
+                level: testCase.level,
+                county: testCase.county
             });
 
-            // Return in exact format
-            return {
-                found: true,
-                data: {
-                    query: latestRow[0],
-                    level: latestRow[1],
-                    googleResults: JSON.parse(latestRow[2]),
-                    openaiAnalysis: JSON.parse(latestRow[3]),
-                    timestamp: latestRow[4],
-                    hash: latestRow[5],
-                    googleSearchCache: latestRow[6],
-                    openaiSearchCache: latestRow[7]
+            try {
+                const hash = this.netlifyGenerateHash(testCase.level, testCase.county);
+                
+                // Validate hash generation
+                if (!hash || hash.length !== 32) {
+                    throw new Error('Invalid hash length');
                 }
-            };
 
-        } catch (error) {
-            console.error('Cache → Get | Error:', error);
-            return { found: false };
+                // Optional: You can add more specific validation here
+                console.log('✅ Hash Generated Successfully:', {
+                    hash: hash,
+                    length: hash.length
+                });
+
+            } catch (error) {
+                console.error('❌ Hash Generation Failed:', {
+                    level: testCase.level,
+                    county: testCase.county,
+                    error: error.message
+                });
+            }
+        });
+
+        console.groupEnd();
+    }
+
+    // Helper method to truncate for logging
+    _truncateForLogging(data) {
+        // If data is null or undefined, return empty array
+        if (!data) return [];
+
+        // If data is an array, proceed with truncation
+        if (Array.isArray(data)) {
+            return data.map(entry => {
+                // Truncate each entry's properties
+                const truncatedEntry = {};
+                for (const [key, value] of Object.entries(entry)) {
+                    if (typeof value === 'string') {
+                        truncatedEntry[key] = value.length > 500 
+                            ? value.substring(0, 500) + '...' 
+                            : value;
+                    } else {
+                        truncatedEntry[key] = value;
+                    }
+                }
+                return truncatedEntry;
+            }).slice(0, 50);  // Limit to 50 entries
         }
+
+        // If data is an object, handle it similarly
+        if (typeof data === 'object') {
+            const truncatedObject = {};
+            for (const [key, value] of Object.entries(data)) {
+                if (typeof value === 'string') {
+                    truncatedObject[key] = value.length > 500 
+                        ? value.substring(0, 500) + '...' 
+                        : value;
+                } else {
+                    truncatedObject[key] = value;
+                }
+            }
+            return [truncatedObject];
+        }
+
+        // For any other type, return it as a single-item array
+        return [data];
     }
 
     // Append a row to the cache sheet
@@ -384,30 +737,25 @@ export class GoogleSheetsCache {
     // Set cache entry
     async netlifySetCache(level, county, category, data) {
         try {
+            console.log('Cache Set: Processing', { 
+                level, 
+                category, 
+                googleResultsCount: data?.googleResults?.length || 0,
+                openaiAnalysisCount: data?.openaiAnalysis?.length || 0,
+                googleResultsSample: this._truncateForLogging([data?.googleResults]),
+                openaiAnalysisSample: this._truncateForLogging([data?.openaiAnalysis])
+            });
+
             if (!this.initialized) await this.initialize();
             if (!level) throw new Error('Level is required');
 
-            // Normalize inputs
             const normalizedLevel = level.trim();
-            let normalizedCounty = county ? county.replace(/^County:/, '').replace(/ County$/i, '').trim() : null;
-            
-            // Generate hash first to check for existing entries
-            const hash = this.netlifyGenerateHash(normalizedLevel, normalizedCounty, category);
-            if (!hash) throw new Error('Failed to generate hash');
+            const normalizedCounty = county ? county.replace(/^County:\s*/i, '').replace(/\s*county\s*/i, '').trim() : null;
 
-            // Check if entry already exists
-            const existingEntry = await this.netlifyGetCache(normalizedLevel, normalizedCounty, category);
-            if (existingEntry) {
-                console.log('Cache → Set | Entry already exists:', {
-                    level: normalizedLevel,
-                    county: normalizedCounty,
-                    hash,
-                    timestamp: this.netlifyGetPSTTimestamp()
-                });
-                return true;
-            }
-
-            // Get query format exactly as per documentation
+            const hash = crypto.createHash('md5')
+                .update(`${normalizedLevel}:${normalizedCounty || ''}:${category}`)
+                .digest('hex');
+        
             let query;
             switch (normalizedLevel) {
                 case 'Federal':
@@ -426,58 +774,161 @@ export class GoogleSheetsCache {
                     throw new Error(`Invalid level: ${normalizedLevel}`);
             }
 
-            // Match working example row structure exactly
+            const googleResultsJson = typeof data.googleResults === 'string' 
+                ? data.googleResults 
+                : JSON.stringify(data.googleResults || []);
+            
+            const openaiAnalysisJson = typeof data.openaiAnalysis === 'string'
+                ? data.openaiAnalysis
+                : JSON.stringify(data.openaiAnalysis || []);
+
             const rowData = [
-                query,                                    // Query - exact format from docs
-                normalizedLevel,                         // Level - "Federal", "State", or "County"
-                JSON.stringify(data.googleResults || []), // Results array
-                JSON.stringify(data.openaiAnalysis || []), // Analysis array
-                this.netlifyGetPSTTimestamp(),           // Timestamp in exact format
-                hash,                                    // MD5 hash of level::all pattern
-                'Search',                                // Default cache type
-                'Search'                                 // Default cache type
+                query,
+                normalizedLevel,
+                googleResultsJson,
+                openaiAnalysisJson,
+                new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
+                hash,
+                'Cache',
+                'Cache'
             ];
 
-            // Log the exact row structure for verification
-            console.log('Cache → Set | Row matches example:', {
-                query: rowData[0],
-                level: rowData[1],
-                timestamp: rowData[4],
-                hash: rowData[5]
+            console.log(`Cache Set: Completed for ${normalizedLevel} level`, {
+                fullRowData: this._truncateForLogging(rowData)
             });
+            return rowData;
+        } catch (error) {
+            console.error('Cache Set Error:', error.message);
+            throw error;
+        }
+    }
 
-            // Append to sheet
-            const response = await this.sheets.spreadsheets.values.append({
-                spreadsheetId: this.spreadsheetId,
-                range: 'Cache!A:H',
-                valueInputOption: 'RAW',
-                insertDataOption: 'INSERT_ROWS',
-                resource: {
-                    values: [rowData]
+    // Comprehensive diagnostics method
+    async runDiagnostics() {
+        console.log('🔬 Running Comprehensive Cache Diagnostics');
+        
+        try {
+            // 1. Consistent Hash Generation Across Levels
+            console.group('🔍 Hash Generation Consistency Test');
+            const testScenarios = [
+                { 
+                    name: 'Federal Level Consistency', 
+                    inputs: [
+                        { level: 'Federal', county: null },
+                        { level: 'federal', county: null }
+                    ]
+                },
+                { 
+                    name: 'State Level Consistency', 
+                    inputs: [
+                        { level: 'State', county: null },
+                        { level: 'state', county: null }
+                    ]
+                },
+                { 
+                    name: 'County Level Consistency', 
+                    inputs: [
+                        { level: 'County', county: 'Alameda' },
+                        { level: 'county', county: 'alameda county' },
+                        { level: 'County', county: 'County:Los Angeles' }
+                    ]
+                }
+            ];
+
+            testScenarios.forEach(scenario => {
+                console.log(`\n📋 Scenario: ${scenario.name}`);
+                const hashes = scenario.inputs.map(input => 
+                    this.netlifyGenerateHash(input.level, input.county)
+                );
+
+                // Check if all hashes in the scenario are identical
+                const uniqueHashes = new Set(hashes);
+                if (uniqueHashes.size === 1) {
+                    console.log('✅ Consistent Hash Generation:', {
+                        scenario: scenario.name,
+                        hash: hashes[0],
+                        inputs: scenario.inputs
+                    });
+                } else {
+                    console.error('❌ Inconsistent Hash Generation:', {
+                        scenario: scenario.name,
+                        hashes: hashes,
+                        inputs: scenario.inputs
+                    });
                 }
             });
+            console.groupEnd();
 
-            console.log('Cache → Set | Success:', {
-                level: normalizedLevel,
-                county: normalizedCounty,
-                hash,
-                updatedRange: response.data.updates?.updatedRange,
-                updatedRows: response.data.updates?.updatedRows,
-                timestamp: this.netlifyGetPSTTimestamp()
+            // 2. Input Format Normalization
+            console.group('🧹 Input Normalization Test');
+            const normalizationTests = [
+                { 
+                    type: 'Level Normalization', 
+                    method: this.normalizeLevel,
+                    inputs: ['Federal', 'federal', 'FEDERAL', ' Federal ', '']
+                },
+                { 
+                    type: 'County Normalization', 
+                    method: this.normalizeCounty,
+                    inputs: [
+                        'Alameda', 
+                        'alameda county', 
+                        'County:Los Angeles', 
+                        ' los angeles ', 
+                        ''
+                    ]
+                }
+            ];
+
+            normalizationTests.forEach(test => {
+                console.log(`\n📝 ${test.type} Test:`);
+                test.inputs.forEach(input => {
+                    try {
+                        const normalized = test.method.call(this, input);
+                        console.log(`Input: "${input}" → Normalized: "${normalized}"`);
+                    } catch (error) {
+                        console.error(`❌ Normalization Failed for "${input}":`, error);
+                    }
+                });
             });
+            console.groupEnd();
 
-            return true;
+            // 3. Detailed Logging Process
+            console.group('📊 Detailed Hash Generation Logging');
+            const detailedTestCases = [
+                { level: 'Federal', county: null },
+                { level: 'State', county: null },
+                { level: 'County', county: 'Alameda' }
+            ];
 
+            detailedTestCases.forEach(testCase => {
+                console.log(`\n🔢 Detailed Hash for ${testCase.level} Level:`);
+                const hash = this.netlifyGenerateHash(testCase.level, testCase.county);
+                console.log('Comprehensive Hash Details:', {
+                    input: {
+                        level: testCase.level,
+                        county: testCase.county
+                    },
+                    normalizedLevel: this.normalizeLevel(testCase.level),
+                    normalizedCounty: testCase.county ? this.normalizeCounty(testCase.county) : 'N/A',
+                    generatedHash: hash
+                });
+            });
+            console.groupEnd();
+
+            // Optional: Cache Initialization Test
+            console.group('🗄️ Cache Initialization');
+            try {
+                await this.initialize();
+                console.log('✅ Cache Initialization Successful');
+            } catch (initError) {
+                console.error('❌ Cache Initialization Failed:', initError);
+            }
+            console.groupEnd();
+
+            console.log('🎉 Diagnostics Completed Successfully');
         } catch (error) {
-            console.error('Cache → Set | Error:', {
-                error: error.message,
-                stack: error.stack,
-                level,
-                county,
-                category,
-                timestamp: this.netlifyGetPSTTimestamp()
-            });
-            throw error;
+            console.error('🚨 Comprehensive Diagnostics Failed:', error);
         }
     }
 }
