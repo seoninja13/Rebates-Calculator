@@ -7,6 +7,7 @@ export default class RebatePrograms {
         this.baseUrl = this.isNetlify ? '/.netlify/functions' : 'http://localhost:3000/api';
         this.results = {};
         this.searchHistory = new Map();
+        // These are project types (categories), not levels
         this.activeFilters = new Set(['heat-pumps', 'solar', 'ev-charger', 'hvac']);
         
         // Log environment details
@@ -192,334 +193,28 @@ export default class RebatePrograms {
         });
     }
 
-    async analyze(location) {
-        try {
-            const response = await fetch(`${this.baseUrl}/analyze`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ location })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            this.results = data;
-
-            // Clear existing programs
-            const programGrid = document.getElementById('programGrid');
-            programGrid.innerHTML = '';
-
-            // Create and append program cards
-            const allPrograms = [
-                ...(data.federal?.programs || []),
-                ...(data.state?.programs || []),
-                ...(data.county?.programs || [])
-            ];
-
-            allPrograms.forEach(program => {
-                const card = this.createProgramCard(program);
-                programGrid.appendChild(card);
-            });
-
-            this.updateDisplayedPrograms();
-            return data;
-
-        } catch (error) {
-            console.error('Error analyzing rebates:', error);
-            throw error;
-        }
-    }
-
-    async processCategory(category, query, updateUI = true) {
-        let fullQuery = query;
-        
-        // Build search queries based on category
-        if (category === 'Federal') {
-            fullQuery = 'Federal energy rebate programs california, US government energy incentives california';
-        } else if (category === 'State') {
-            fullQuery = 'California state energy rebate programs, California state government energy incentives';
-        } else if (category === 'County') {
-            fullQuery = `${query} County energy rebate programs california, ${query} County utility incentives california`;
-        }
-
-        console.log('\n===> REQUESTING DATA:', {
-            category,
-            query: fullQuery,
-            environment: this.isNetlify ? 'Netlify' : 'Local'
-        });
-
-        try {
-            // Use different logic based on environment
-            const data = this.isNetlify 
-                ? await this.processNetlifyRequest(category, fullQuery, query)
-                : await this.processLocalRequest(category, fullQuery);
-
-            // Update UI if needed
-            if (updateUI) {
-                this.updateUIWithResults(category, data);
-            }
-
-            return data;
-        } catch (error) {
-            console.error('\n===> ERROR:', {
-                category,
-                error: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
-    }
-
-    async processLocalRequest(category, query) {
-        console.log('\n===> LOCAL REQUEST:', { category, query });
-        
-        // First check cache
-        const cacheResponse = await fetch(`${this.baseUrl}/check-cache`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                query, 
-                category,
-                shouldSearch: false
-            }),
-        });
-
-        if (!cacheResponse.ok) {
-            throw new Error(`Cache check failed: ${cacheResponse.status}`);
-        }
-
-        const cacheResult = await cacheResponse.json();
-        
-        if (cacheResult.found) {
-            console.log('\n===> LOCAL CACHE HIT:', {
-                category,
-                source: 'cache',
-                programCount: cacheResult.programs?.length || 0
-            });
-            return {
-                analysis: { programs: cacheResult.programs },
-                source: 'cache'
-            };
-        }
-
-        // If not in cache, do a fresh search
-        console.log('\n===> LOCAL CACHE MISS - Proceeding with search');
-        const response = await fetch(`${this.baseUrl}/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                query, 
-                category,
-                shouldSearch: true
-            }),
-        });
-
-        if (!response.ok) {
-            throw new Error(`Search failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('\n===> LOCAL SEARCH COMPLETE:', {
-            category,
-            source: 'search',
-            programCount: data.programs?.length || 0
-        });
-
-        return {
-            analysis: { programs: data.programs },
-            source: 'search'
-        };
-    }
-
-    async processNetlifyRequest(category, fullQuery, county) {
-        console.log('\n===> NETLIFY REQUEST:', { 
-            category, 
-            fullQuery,
-            county 
-        });
-
-        // First check cache
-        try {
-            const cacheResponse = await fetch(`${this.baseUrl}/check-cache`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    query: fullQuery,
-                    category,
-                    county,
-                    shouldSearch: false // Always check cache first
-                }),
-            });
-
-            if (!cacheResponse.ok) {
-                const errorData = await cacheResponse.json();
-                console.group('🚨 NETLIFY CACHE ERROR');
-                console.error('Cache check failed:', {
-                    status: cacheResponse.status,
-                    error: errorData.error,
-                    message: errorData.message,
-                    details: errorData.details
-                });
-                console.groupEnd();
-                throw new Error(`Cache check failed: ${errorData.message}`);
-            }
-
-            const cacheResult = await cacheResponse.json();
-
-            if (cacheResult.found) {
-                console.group('📦 NETLIFY CACHE STATUS');
-                console.log('%c=== USING CACHED RESULTS ===', 'color: #4CAF50; font-weight: bold; font-size: 14px');
-                console.log('✓ Using Cached Google Search Results');
-                console.log('✓ Using Cached OpenAI Analysis');
-                console.log('Category:', category);
-                console.log('Programs Found:', cacheResult.programs?.length || 0);
-                console.groupEnd();
-
-                return {
-                    analysis: { programs: cacheResult.programs },
-                    source: 'cache'
-                };
-            }
-
-            console.group('🔍 NETLIFY CACHE STATUS');
-            console.log('%c=== CACHE MISSING - STARTING FRESH SEARCH ===', 'color: #2196F3; font-weight: bold; font-size: 14px');
-            console.log('➤ Will perform new Google Search');
-            console.log('➤ Will perform new OpenAI Analysis');
-            console.log('Category:', category);
-            console.groupEnd();
-        } catch (error) {
-            console.group('🚨 NETLIFY CACHE ERROR');
-            console.error('Cache check failed:', error);
-            console.groupEnd();
-        }
-
-        // If not in cache or cache check failed, do fresh analysis
-        console.group('🔄 NETLIFY FRESH SEARCH');
-        console.log('%c=== PERFORMING FRESH SEARCH AND ANALYSIS ===', 'color: #FF9800; font-weight: bold; font-size: 14px');
-        console.log('➤ Sending Google Search Request');
-        console.log('Category:', category);
-        console.log('Query:', fullQuery);
-        console.groupEnd();
-
-        const analyzeResponse = await fetch(`${this.baseUrl}/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-                query: fullQuery,
-                category,
-                county,
-                shouldSearch: true
-            }),
-        });
-
-        if (!analyzeResponse.ok) {
-            const errorData = await analyzeResponse.json();
-            console.group('🚨 NETLIFY ANALYZE ERROR');
-            console.error('Analysis failed:', {
-                status: analyzeResponse.status,
-                error: errorData.error,
-                message: errorData.message,
-                details: errorData.details
-            });
-            console.groupEnd();
-            throw new Error(`Analysis failed: ${errorData.message}`);
-        }
-
-        const data = await analyzeResponse.json();
-        console.group('✨ NETLIFY SEARCH COMPLETE');
-        console.log('%c=== FRESH SEARCH COMPLETED ===', 'color: #4CAF50; font-weight: bold; font-size: 14px');
-        console.log('✓ Google Search Complete');
-        console.log('✓ OpenAI Analysis Complete');
-        console.log('Category:', category);
-        console.log('Programs Found:', data.programs?.length || 0);
-        console.groupEnd();
-
-        return {
-            analysis: { programs: data.programs },
-            source: 'search'
-        };
-    }
-
-    updateUIWithResults(category, data) {
-        const resultsContainer = document.getElementById(`${category.toLowerCase()}Results`);
-        if (resultsContainer) {
-            resultsContainer.innerHTML = '';
-            const programs = data.analysis?.programs || [];
-            programs.forEach((program) => {
-                const card = this.createProgramCard(program);
-                resultsContainer.appendChild(card);
-            });
-        }
-        this.updateIcons(category, false, data.source === 'cache');
-    }
-
-    async analyzeSearchResults(results, category) {
-        if (!results || results.length === 0) {
-            return "No results found to analyze.";
-        }
-
-        try {
-            const response = await fetch(`${this.baseUrl}/api/analyze-search-results`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    query: results.map(result => ({
-                        title: result.title,
-                        link: result.link,
-                        snippet: result.snippet
-                    })),
-                    category: category
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            return data.analysis;
-        } catch (error) {
-            console.error('Error analyzing results:', error);
-            return `Error analyzing results: ${error.message}`;
-        }
-    }
-
     async analyze(county) {
         console.log('Starting analyze for county:', county, {
             timestamp: new Date().toISOString(),
             county,
-            categories: ['Federal', 'State', 'County'],
-            note: 'Processing Federal, State, and County categories'
+            levels: ['Federal', 'State', 'County'],
+            note: 'Processing Federal, State, and County levels'
         });
 
         this.results = {}; // Reset results at start of analyze
         
         try {
-            // Process all categories but don't update UI yet
-            console.log('\n===> PROCESSING FEDERAL CATEGORY');
-            const federalResults = await this.processCategory('Federal', county, false);
+            // Process all levels but don't update UI yet
+            console.log('\n===> PROCESSING FEDERAL LEVEL');
+            const federalResults = await this.processLevel('Federal', county, false);
             this.results.federal = federalResults.analysis;
 
-            console.log('\n===> PROCESSING STATE CATEGORY');
-            const stateResults = await this.processCategory('State', county, false);
+            console.log('\n===> PROCESSING STATE LEVEL');
+            const stateResults = await this.processLevel('State', county, false);
             this.results.state = stateResults.analysis;
 
-            console.log('\n===> PROCESSING COUNTY CATEGORY');
-            const countyResults = await this.processCategory('County', county, false);
+            console.log('\n===> PROCESSING COUNTY LEVEL');
+            const countyResults = await this.processLevel('County', county, false);
             this.results.county = countyResults.analysis;
             
             console.log('\n===> FINAL RESULTS:', {
@@ -536,17 +231,29 @@ export default class RebatePrograms {
                     source: countyResults.source
                 }
             });
+
+            // Get selected project types (categories)
+            const selectedCategories = this.getSelectedFilterTypes();
             
-            // Now update UI for all categories at once
-            ['federal', 'state', 'county'].forEach(category => {
-                const resultsContainer = document.getElementById(`${category}Results`);
+            // Now update UI for all levels at once
+            ['federal', 'state', 'county'].forEach(level => {
+                const resultsContainer = document.getElementById(`${level}Results`);
                 if (resultsContainer) {
                     resultsContainer.innerHTML = '';
-                    const programs = this.results[category]?.programs || [];
-                    console.log(`\n===> UPDATING UI FOR ${category.toUpperCase()}:`, {
+                    const programs = this.results[level]?.programs || [];
+                    console.log(`\n===> UPDATING UI FOR ${level.toUpperCase()}:`, {
                         programCount: programs.length
                     });
-                    programs.forEach((program) => {
+                    
+                    // Filter programs by selected project types
+                    const filteredPrograms = selectedCategories.length > 0 
+                        ? programs.filter(program => {
+                            const programCategory = this.getCategoryFromProgram(program);
+                            return selectedCategories.includes(programCategory);
+                        })
+                        : programs;
+                        
+                    filteredPrograms.forEach((program) => {
                         const card = this.createProgramCard(program);
                         resultsContainer.appendChild(card);
                     });
@@ -568,8 +275,181 @@ export default class RebatePrograms {
         }
     }
 
-    updateIcons(category, isSearching, isCached) {
-        const sectionId = `${category.toLowerCase()}Section`;
+    async processLevel(level, query, updateUI = true) {
+        let fullQuery = query;
+        
+        // Build search queries based on level
+        if (level === 'Federal') {
+            fullQuery = 'Federal energy rebate programs california, US government energy incentives california';
+        } else if (level === 'State') {
+            fullQuery = 'California state energy rebate programs, California state government energy incentives';
+        } else if (level === 'County') {
+            fullQuery = `${query} County energy rebate programs california, ${query} County utility incentives california`;
+        }
+
+        console.log('\n===> REQUESTING DATA:', {
+            level,
+            query: fullQuery,
+            environment: this.isNetlify ? 'Netlify' : 'Local'
+        });
+
+        try {
+            // Use different logic based on environment
+            const data = this.isNetlify 
+                ? await this.processNetlifyRequest(level, fullQuery, query)
+                : await this.processLocalRequest(level, fullQuery);
+
+            // Update UI if needed
+            if (updateUI) {
+                this.updateUIWithResults(level, data);
+            }
+
+            return data;
+        } catch (error) {
+            console.error('\n===> ERROR:', {
+                level,
+                error: error.message,
+                stack: error.stack
+            });
+            throw error;
+        }
+    }
+
+    async processNetlifyRequest(level, fullQuery, county) {
+        console.log('\n===> NETLIFY REQUEST:', { level, query: fullQuery });
+        
+        const response = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                level,
+                county,
+                category: Array.from(this.activeFilters) // Send selected project types
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Netlify request failed: ${response.status}`);
+        }
+
+        return await response.json();
+    }
+
+    async processLocalRequest(level, query) {
+        console.log('\n===> LOCAL REQUEST:', { level, query });
+        
+        // First check cache
+        const cacheResponse = await fetch(`${this.baseUrl}/check-cache`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                query, 
+                level,
+                shouldSearch: false
+            }),
+        });
+
+        if (!cacheResponse.ok) {
+            throw new Error(`Cache check failed: ${cacheResponse.status}`);
+        }
+
+        const cacheResult = await cacheResponse.json();
+        
+        if (cacheResult.found) {
+            console.log('\n===> LOCAL CACHE HIT:', {
+                level,
+                source: 'cache',
+                programCount: cacheResult.programs?.length || 0
+            });
+            return {
+                analysis: { programs: cacheResult.programs },
+                source: 'cache'
+            };
+        }
+
+        // If not in cache, do a fresh search
+        console.log('\n===> LOCAL CACHE MISS - Proceeding with search');
+        const response = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                query, 
+                level,
+                shouldSearch: true
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`Search failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('\n===> LOCAL SEARCH COMPLETE:', {
+            level,
+            source: 'search',
+            programCount: data.programs?.length || 0
+        });
+
+        return {
+            analysis: { programs: data.programs },
+            source: 'search'
+        };
+    }
+
+    updateUIWithResults(level, data) {
+        const resultsContainer = document.getElementById(`${level.toLowerCase()}Results`);
+        if (resultsContainer) {
+            resultsContainer.innerHTML = '';
+            const programs = data.analysis?.programs || [];
+            programs.forEach((program) => {
+                const card = this.createProgramCard(program);
+                resultsContainer.appendChild(card);
+            });
+        }
+        this.updateIcons(level, false, data.source === 'cache');
+    }
+
+    async analyzeSearchResults(results, level) {
+        if (!results || results.length === 0) {
+            return "No results found to analyze.";
+        }
+
+        try {
+            const response = await fetch(`${this.baseUrl}/api/analyze-search-results`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: results.map(result => ({
+                        title: result.title,
+                        link: result.link,
+                        snippet: result.snippet
+                    })),
+                    level: level
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.analysis;
+        } catch (error) {
+            console.error('Error analyzing results:', error);
+            return `Error analyzing results: ${error.message}`;
+        }
+    }
+
+    updateIcons(level, isSearching, isCached) {
+        const sectionId = `${level.toLowerCase()}Section`;
         const section = document.getElementById(sectionId);
         if (!section) return;
 
@@ -584,19 +464,19 @@ export default class RebatePrograms {
         }
     }
 
-    getCacheKey(category, query) {
+    getCacheKey(level, query) {
         // Normalize the text by removing all whitespace and converting to lowercase
-        const normalizedText = `${category}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
+        const normalizedText = `${level}:${query}`.trim().toLowerCase().replace(/\s+/g, '');
         return normalizedText;
     }
 
-    isRepeatSearch(category, county) {
-        const searchKey = `${category}:${county || 'ALL'}`;
+    isRepeatSearch(level, county) {
+        const searchKey = `${level}:${county || 'ALL'}`;
         const lastSearch = this.searchHistory.get(searchKey);
         
         if (lastSearch) {
             console.log('\n===> REPEAT SEARCH DETECTED:', {
-                category,
+                level,
                 county,
                 lastSearchTime: lastSearch.timestamp
             });
@@ -606,7 +486,7 @@ export default class RebatePrograms {
         // Track this search
         this.searchHistory.set(searchKey, {
             timestamp: new Date().toISOString(),
-            category,
+            level,
             county
         });
         
