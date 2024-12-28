@@ -237,6 +237,85 @@ So we're ALWAYS logging 6 rows per complete search, and the "Search-Cache" colum
 
 
 
+===> Caching logic:
+1. If the search query is the same as the previous one, return the cached results.
+2. If the search query is different from the previous one, perform a fresh search and cache the results.
+3. We are caching both the search results and the analysis results from openAI in Google Sheets.
+
+# System Workflows and API Endpoints
+
+The system supports two distinct workflows for retrieving rebate information:
+
+1. Direct Cache Retrieval Workflow:
+   Endpoint: /.netlify/functions/direct-retrieval
+   Method: POST
+   Parameters:
+   - category: "Federal" | "State" | "County"
+   - county: string (required if category is "County")
+
+   Flow:
+   - Bypasses Google Search and OpenAI completely
+   - Uses exact hash formulas:
+     * Federal: md5("FEDERAL::ALL") -> '97dd6bb017f636fd49043c72e5a4240d'
+     * State:   md5("STATE::CALIFORNIA::ALL") -> '6afa817149bc61f1b4e324530c2e9751'
+     * County:  md5("COUNTY::${countyName}::ALL") -> e.g. 'da9857730a363cdee68bae857012f34e' for Alameda
+   - Extracts category-specific program information from cache
+   - Returns "No data available" if cache miss
+   - No fallback to search if data not found
+
+   Response Format:
+   ```javascript
+   {
+     success: boolean,
+     data: {
+       results: Array,  // Program information from cache
+       timestamp: string,
+       level: string,
+       query: string
+     } | null,
+     message?: string  // "No cached data available" if cache miss
+   }
+   ```
+
+2. Search-Analysis Workflow (Original):
+   Endpoint: /.netlify/functions/analyze
+   Method: POST
+   Parameters:
+   - category: "Federal" | "State" | "County"
+   - county: string (required if category is "County")
+   - shouldSearch: boolean (must be true for this workflow)
+
+   Flow:
+   - Performs Google searches
+   - Analyzes results with OpenAI
+   - Caches both search results and analysis
+   - Uses existing caching patterns
+   - Follows all existing search and analysis requirements
+
+   Response Format: (Same as original analyze endpoint)
+   ```javascript
+   {
+     level: string,
+     county: string,
+     results: Array  // Analyzed program information
+   }
+   ```
+
+The workflows are independent and can be switched without affecting each other:
+- For direct cache access: Call direct-retrieval endpoint
+- For search + analysis: Call analyze endpoint with shouldSearch=true
+
+Error Handling:
+- Both endpoints return 400 for invalid input
+- Both endpoints return 500 for system errors
+- Both maintain consistent error response format:
+  ```javascript
+  {
+    success: false,
+    error: string  // Error message
+  }
+  ```
+
 ===> Making changes to the UI:
 1. If you make any changes to the UI, do not change the backend code.
 

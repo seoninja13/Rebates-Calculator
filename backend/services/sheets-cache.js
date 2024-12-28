@@ -26,8 +26,20 @@ export class GoogleSheetsCache {
 
         try {
             sendLogToClient('Cache → Initialize | Setting up Google auth');
+            
+            // Handle credentials that may be string or object
+            let credentials = process.env.GOOGLE_SHEETS_CREDENTIALS;
+            if (typeof credentials === 'string') {
+                try {
+                    credentials = JSON.parse(credentials);
+                } catch (parseError) {
+                    logError('Parse Credentials', parseError);
+                    return false;
+                }
+            }
+
             const auth = new google.auth.GoogleAuth({
-                credentials: JSON.parse(process.env.GOOGLE_SHEETS_CREDENTIALS),
+                credentials,
                 scopes: ['https://www.googleapis.com/auth/spreadsheets']
             });
 
@@ -165,52 +177,68 @@ export class GoogleSheetsCache {
     }
 
     async checkCache(query, level) {
-        if (!this.enabled) return null;
-
-        const normalizedQuery = this.normalizeQuery(query);
-        const hash = this.generateHash(normalizedQuery, level);
+        if (!this.enabled || !query) {
+            return { found: false };
+        }
 
         try {
-            const rows = await this.getSheetRows();
+            // Generate hash and log details
+            const normalizedQuery = query.toLowerCase().trim();
+            const normalizedLevel = level.toLowerCase().trim();
+            const hashInput = `${normalizedQuery}|${normalizedLevel}`;
+            const hash = crypto.createHash('md5').update(hashInput).digest('hex');
             
-            const match = rows.slice(1).find(row => 
-                row[5] === hash && 
-                row[0].toLowerCase().trim() === normalizedQuery.toLowerCase() &&
-                row[1] === level
-            );
-
-            if (match) {
-                try {
-                    const cacheEntry = {
-                        found: true,
-                        googleResults: JSON.parse(match[2] || 'null'),
-                        openaiAnalysis: JSON.parse(match[3] || 'null'),
-                        timestamp: match[4],
-                        hash: match[5]
-                    };
-
-                    sendLogToClient('Cache → Hit', {
-                        query: normalizedQuery,
-                        level,
-                        hash
-                    });
-
-                    return cacheEntry;
-                } catch (parseError) {
-                    logError('Parse Cache Entry', parseError);
-                    return { found: false };
-                }
-            }
-
-            sendLogToClient('Cache → Miss', {
-                query: normalizedQuery,
-                level,
-                hash
+            sendLogToClient('Cache → Hash Generation', {
+                originalQuery: query,
+                originalLevel: level,
+                normalizedQuery,
+                normalizedLevel,
+                hashInput,
+                generatedHash: hash
             });
 
-            return { found: false };
+            // Get all cache data
+            const response = await this.sheets.spreadsheets.values.get({
+                spreadsheetId: this.spreadsheetId,
+                range: 'Cache!A:H'  // Get all columns
+            });
+
+            const rows = response.data.values || [];
+            
+            // Find matching row by query and level (columns A and B)
+            const match = rows.find(row => 
+                row[0]?.toLowerCase().trim() === normalizedQuery && 
+                row[1]?.toLowerCase().trim() === normalizedLevel
+            );
+            
+            sendLogToClient('Cache → Lookup Result', {
+                queryFound: !!match,
+                storedHash: match ? match[5] : null,  // Hash is in column F (index 5)
+                generatedHash: hash,
+                hashesMatch: match ? match[5] === hash : false,
+                totalCacheEntries: rows.length
+            });
+
+            if (!match) {
+                return { found: false };
+            }
+
+            return {
+                found: true,
+                hash: match[5],  // Hash from column F
+                query: match[0], // Original query from column A
+                level: match[1], // Level from column B
+                data: {
+                    googleResults: JSON.parse(match[2] || '[]'),     // Google results from column C
+                    openaiAnalysis: JSON.parse(match[3] || '{}'),    // OpenAI analysis from column D
+                    timestamp: match[4],                             // Timestamp from column E
+                    googleSearchType: match[6],                      // Google search type from column G
+                    openaiSearchType: match[7]                       // OpenAI search type from column H
+                }
+            };
+
         } catch (error) {
-            logError('Check Cache', error);
+            logError('Cache Check', error);
             return { found: false };
         }
     }

@@ -9,6 +9,7 @@ export default class RebatePrograms {
         this.searchHistory = new Map();
         // These are project types (categories), not levels
         this.activeFilters = new Set(['heat-pumps', 'solar', 'ev-charger', 'hvac']);
+        this.activeFlow = 'direct-cache'; // Default to direct cache mode
         
         // Log environment details
         console.log('\n===> ENVIRONMENT DETECTION:', {
@@ -17,7 +18,8 @@ export default class RebatePrograms {
             isNetlifyProd,
             isNetlifyDev,
             isNetlify: this.isNetlify,
-            baseUrl: this.baseUrl
+            baseUrl: this.baseUrl,
+            activeFlow: this.activeFlow
         });
 
         this.setupEventListeners();
@@ -318,24 +320,74 @@ export default class RebatePrograms {
     async processNetlifyRequest(level, fullQuery, county) {
         console.log('\n===> NETLIFY REQUEST:', { level, query: fullQuery });
         
-        const response = await fetch(`${this.baseUrl}/analyze`, {
+        // First try direct cache retrieval
+        const cacheResponse = await fetch(`${this.baseUrl}/direct-retrieval`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ 
                 category: level,       // Required: Federal/State/County
-                county: county,        // Required for County category
-                query: fullQuery,      // Optional: search query
-                shouldSearch: true     // Optional: force new search
+                county: county         // Required for County category
+            })
+        });
+
+        if (!cacheResponse.ok) {
+            throw new Error(`Direct cache request failed: ${cacheResponse.status}`);
+        }
+
+        const cacheResult = await cacheResponse.json();
+        
+        // If found in cache, return immediately
+        if (cacheResult.success && cacheResult.found) {
+            console.log('\n===> CACHE HIT:', {
+                level,
+                source: 'cache',
+                programCount: cacheResult.data?.programs?.length || 0
+            });
+            return {
+                analysis: cacheResult.data,
+                source: 'cache'
+            };
+        }
+
+        // If not found and we're in direct-cache mode, return empty result
+        if (this.activeFlow === 'direct-cache') {
+            console.log('\n===> CACHE MISS - Direct Cache Mode:', {
+                level,
+                message: cacheResult.message
+            });
+            return {
+                analysis: { programs: [] },
+                source: 'cache',
+                message: cacheResult.message
+            };
+        }
+
+        // Otherwise, fall back to full analysis
+        console.log('\n===> CACHE MISS - Proceeding with full analysis');
+        const response = await fetch(`${this.baseUrl}/analyze`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                category: level,       
+                county: county,        
+                query: fullQuery,      
+                shouldSearch: true     
             })
         });
 
         if (!response.ok) {
-            throw new Error(`Netlify request failed: ${response.status}`);
+            throw new Error(`Analysis request failed: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+        return {
+            analysis: data,
+            source: 'analysis'
+        };
     }
 
     async processLocalRequest(level, query) {
@@ -405,14 +457,32 @@ export default class RebatePrograms {
 
     updateUIWithResults(level, data) {
         const resultsContainer = document.getElementById(`${level.toLowerCase()}Results`);
-        if (resultsContainer) {
-            resultsContainer.innerHTML = '';
-            const programs = data.analysis?.programs || [];
-            programs.forEach((program) => {
-                const card = this.createProgramCard(program);
-                resultsContainer.appendChild(card);
-            });
+        if (!resultsContainer) return;
+
+        resultsContainer.innerHTML = '';
+
+        // Handle no results case
+        if (!data.analysis?.programs || data.analysis.programs.length === 0) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'no-results-message';
+            messageDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>${data.message || 'No programs found'}</span>
+                </div>
+            `;
+            resultsContainer.appendChild(messageDiv);
+            this.updateIcons(level, false, data.source === 'cache');
+            return;
         }
+
+        // Display programs
+        data.analysis.programs.forEach((program) => {
+            const card = this.createProgramCard(program);
+            resultsContainer.appendChild(card);
+        });
+
+        // Update status icons
         this.updateIcons(level, false, data.source === 'cache');
     }
 
@@ -425,7 +495,7 @@ export default class RebatePrograms {
             const response = await fetch(`${this.baseUrl}/api/analyze-search-results`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     query: results.map(result => ({
@@ -528,15 +598,84 @@ export default class RebatePrograms {
         }
     }
 
-    displayResults(data) {
-        const resultsContainer = document.getElementById('resultsContainer');
-        if (resultsContainer) {
-            resultsContainer.innerHTML = '';
-            const programs = data.programs || [];
-            programs.forEach((program) => {
-                const card = this.createProgramCard(program);
-                resultsContainer.appendChild(card);
+    displayResults(programs, level, source = {}) {
+        const sectionId = `${level.toLowerCase()}Results`;
+        const container = document.getElementById(sectionId);
+        if (!container) {
+            console.error(`Container not found: ${sectionId}`);
+            return;
+        }
+
+        // Clear previous results
+        container.innerHTML = '';
+        
+        if (source.cached) {
+            const cacheIndicator = document.createElement('div');
+            cacheIndicator.className = 'cache-indicator';
+            cacheIndicator.innerHTML = '<i class="fas fa-bolt"></i> Showing cached results';
+            container.appendChild(cacheIndicator);
+        }
+
+        programs.forEach(program => this.createProgramCard(program, source));
+        
+        // Show the section
+        container.closest('.results-section').style.display = 'block';
+    }
+
+    async searchPrograms(level, county = null) {
+        console.log('Searching programs for:', { level, county });
+        
+        try {
+            // First try to get data from cache
+            const cachedData = await this.getCachedData(level, county);
+            if (cachedData?.success && cachedData.displayData?.results?.length > 0) {
+                console.log('Using cached data:', cachedData);
+                this.displayResults(cachedData.displayData.results, level, { cached: true });
+                return;
+            }
+
+            // If no cache, proceed with normal search
+            const response = await fetch(`${this.baseUrl}/analyze`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    category: level,       // Required: Federal/State/County
+                    county: county,        // Required for County category
+                    query: '',             // Optional: search query
+                    shouldSearch: true     // Optional: force new search
+                })
             });
+
+            if (!response.ok) {
+                throw new Error(`Network response was not ok`);
+            }
+
+            const data = await response.json();
+            this.displayResults(data.displayData.results, level);
+        } catch (error) {
+            console.error('Error searching programs:', error);
+            this.handleError(error);
+        }
+    }
+
+    async getCachedData(level, county = null) {
+        try {
+            const response = await fetch(`${this.baseUrl}/get-cached-data`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level, county })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch cached data');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.warn('Cache retrieval failed:', error);
+            return null;
         }
     }
 
@@ -554,27 +693,9 @@ export default class RebatePrograms {
             throw new Error('Please select at least one category (Solar, HVAC, etc.)');
         }
         
-        // Use the first selected filter as our project type
-        const projectType = selectedFilters[0];  // e.g. 'solar', 'hvac', etc.
+        // Instead of making a direct request, use analyze() which handles all levels
+        const results = await this.analyze(county);
         
-        const response = await fetch(`${this.baseUrl}/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                category: 'County',    // Required: Federal/State/County
-                county: county,        // Required for County category
-                query: projectType,    // Optional: type of project
-                shouldSearch: true     // Optional: force new search
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-
-        const data = await response.json();
-        this.displayResults(data);
+        // Results are already displayed by analyze(), no need to call displayResults
     }
 }

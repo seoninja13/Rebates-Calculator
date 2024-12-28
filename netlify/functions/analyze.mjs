@@ -1,6 +1,7 @@
 import { GoogleSheetsCache } from '../../backend/services/sheets-cache.js';
 import { OpenAI } from 'openai';
 import fetch from 'node-fetch';
+import { projectFlowRouter } from './services/project-flow-router.mjs';
 
 // Helper function to get search queries
 function netlifyGetSearchQueries(level, county) {
@@ -817,93 +818,45 @@ function promiseWithTimeout(promise, timeout, errorMessage) {
 const sheetsCache = new GoogleSheetsCache();
 
 export async function handler(event, context) {
-    console.group('🚀 HANDLER EXECUTION DIAGNOSTICS');
+    console.group('🚀 ANALYZE HANDLER');
     console.log('📋 Incoming Event', {
         method: event.httpMethod,
         queryParams: event.queryStringParameters,
         headers: event.headers
     });
 
-    // Test route for API key verification
-    if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/analyze/test-auth') {
-        return {
-            statusCode: 200,
-            body: JSON.stringify({
-                googleApiKey: process.env.GOOGLE_API_KEY ? {
-                    present: true,
-                    length: process.env.GOOGLE_API_KEY.length,
-                    prefix: process.env.GOOGLE_API_KEY.substring(0, 5),
-                    suffix: process.env.GOOGLE_API_KEY.slice(-5)
-                } : 'MISSING',
-                googleSearchEngineId: process.env.GOOGLE_SEARCH_ENGINE_ID ? {
-                    present: true,
-                    length: process.env.GOOGLE_SEARCH_ENGINE_ID.length,
-                    value: process.env.GOOGLE_SEARCH_ENGINE_ID
-                } : 'MISSING'
-            })
-        };
-    }
-
-    // Validate API credentials at startup
-    console.log('🔑 API Credentials Check', {
-        googleApiKey: process.env.GOOGLE_API_KEY ? `${process.env.GOOGLE_API_KEY.substring(0, 5)}...${process.env.GOOGLE_API_KEY.slice(-5)}` : 'MISSING',
-        googleSearchEngineId: process.env.GOOGLE_SEARCH_ENGINE_ID ? `${process.env.GOOGLE_SEARCH_ENGINE_ID.substring(0, 5)}...` : 'MISSING',
-        googleApiKeyLength: process.env.GOOGLE_API_KEY?.length || 0,
-        searchEngineIdLength: process.env.GOOGLE_SEARCH_ENGINE_ID?.length || 0
-    });
-
-    if (!process.env.GOOGLE_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
-        console.error('❌ Missing Google API credentials');
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ 
-                error: 'Google Search API configuration is missing',
-                details: {
-                    apiKeyPresent: !!process.env.GOOGLE_API_KEY,
-                    searchEngineIdPresent: !!process.env.GOOGLE_SEARCH_ENGINE_ID
-                }
-            })
-        };
-    }
-
     try {
-        // Initialize cache
-        const cacheInitialized = await sheetsCache.initialize();
-        if (!cacheInitialized) {
-            console.warn('⚠️ Cache initialization failed, proceeding without caching');
-        }
-
-        // Parse request body
-        const { query, category, county, shouldSearch } = JSON.parse(event.body || '{}');
-
-        console.log('🔍 Search Parameters', {
-            query,
-            category, // This represents Federal/State/County
-            county,
-            shouldSearch
+        // Parse request parameters
+        const { category, county, query } = JSON.parse(event.body || '{}');
+        
+        console.log('🔍 Analysis Parameters', {
+            category,
+            county: county || 'N/A',
+            query: query || 'N/A'
         });
 
-        // Validate input parameters
-        if (!category || !['Federal', 'State', 'County'].includes(category)) {
-            console.error('❌ Missing or invalid category (Federal/State/County)');
+        // First check cache
+        const hash = generateHash(category, county);
+        console.log('🔑 Cache Check', { hash });
+        
+        const cacheRow = await sheetsCache.findByHash(hash);
+        if (cacheRow) {
+            console.log('📦 Cache Hit', { hash });
             return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Missing or invalid category (Federal/State/County)' })
+                statusCode: 200,
+                body: JSON.stringify({
+                    success: true,
+                    source: 'cache',
+                    data: cacheRow
+                })
             };
         }
 
-        // For County searches, ensure county is provided
-        if (category === 'County' && !county) {
-            console.error('❌ County is required for County-level searches');
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'County is required for County-level searches' })
-            };
-        }
+        console.log('📭 Cache Miss - Proceeding with full analysis', { hash });
 
-        // Get search queries based on category (which represents Federal/State/County) and county
+        // Get search queries based on category and county
         const searchQueries = netlifyGetSearchQueries(category, county);
-
+        
         console.log('🔎 Generated Search Queries', {
             queryCount: searchQueries.length,
             queries: searchQueries
@@ -943,7 +896,7 @@ export async function handler(event, context) {
         });
 
         let analyzedResults;
-        if (cacheInitialized) {
+        if (cacheRow) {
             // Check cache before analysis
             const cacheResult = await sheetsCache.checkCache(query || '', category);
             
@@ -967,7 +920,7 @@ export async function handler(event, context) {
             );
 
             // Log to cache if initialized
-            if (cacheInitialized) {
+            if (cacheRow) {
                 await sheetsCache.logSearch({
                 query: query || '',
                 level: category,
