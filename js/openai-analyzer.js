@@ -301,6 +301,15 @@ export default class RebatePrograms {
                 ? await this.processNetlifyRequest(level, fullQuery, query)
                 : await this.processLocalRequest(level, fullQuery);
 
+            // Handle case where processNetlifyRequest returns null (duplicate request)
+            if (!data) {
+                console.log(`[LOG] Skipping UI update for ${level} - duplicate request`);
+                return {
+                    analysis: { programs: [] },
+                    source: 'skipped'
+                };
+            }
+
             // Update UI if needed
             if (updateUI) {
                 this.updateUIWithResults(level, data);
@@ -308,7 +317,7 @@ export default class RebatePrograms {
 
             return data;
         } catch (error) {
-            console.error('\n===> ERROR:', {
+            console.error('\n===> ERROR IN PROCESS LEVEL:', {
                 level,
                 error: error.message,
                 stack: error.stack
@@ -318,76 +327,64 @@ export default class RebatePrograms {
     }
 
     async processNetlifyRequest(level, fullQuery, county) {
-        console.log('\n===> NETLIFY REQUEST:', { level, query: fullQuery });
-        
-        // First try direct cache retrieval
-        const cacheResponse = await fetch(`${this.baseUrl}/direct-retrieval`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                category: level,       // Required: Federal/State/County
-                county: county         // Required for County category
-            })
-        });
-
-        if (!cacheResponse.ok) {
-            throw new Error(`Direct cache request failed: ${cacheResponse.status}`);
+        // Prevent duplicate requests
+        if (this.isRequestPending?.[level]) {
+            console.log(`[LOG] Skipping duplicate request for ${level}`);
+            return null;
         }
 
-        const cacheResult = await cacheResponse.json();
-        
-        // If found in cache, return immediately
-        if (cacheResult.success && cacheResult.found) {
-            console.log('\n===> CACHE HIT:', {
-                level,
-                source: 'cache',
-                programCount: cacheResult.data?.programs?.length || 0
+        try {
+            this.isRequestPending = this.isRequestPending || {};
+            this.isRequestPending[level] = true;
+
+            const response = await fetch(`${this.baseUrl}/direct-retrieval`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    level,
+                    query: fullQuery,
+                    county
+                })
             });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // If found in cache, filter by category before returning
+            if (data.success && data.found && data.data) {
+                const categories = Array.from(this.activeFilters);
+                const category = categories[0];
+
+                if (category) {
+                    // Filter the programs by category
+                    const filteredData = {
+                        ...data.data,
+                        programs: data.data.programs?.filter(program => 
+                            program.category?.toLowerCase() === category.toLowerCase()
+                        ) || []
+                    };
+                    return {
+                        analysis: filteredData,
+                        source: 'cache'
+                    };
+                }
+            }
+
             return {
-                analysis: cacheResult.data,
-                source: 'cache'
+                analysis: data.data || { programs: [] },
+                source: data.found ? 'cache' : 'search'
             };
+        } catch (error) {
+            console.error(`Error in processNetlifyRequest for ${level}:`, error);
+            throw error;
+        } finally {
+            this.isRequestPending[level] = false;
         }
-
-        // If not found and we're in direct-cache mode, return empty result
-        if (this.activeFlow === 'direct-cache') {
-            console.log('\n===> CACHE MISS - Direct Cache Mode:', {
-                level,
-                message: cacheResult.message
-            });
-            return {
-                analysis: { programs: [] },
-                source: 'cache',
-                message: cacheResult.message
-            };
-        }
-
-        // Otherwise, fall back to full analysis
-        console.log('\n===> CACHE MISS - Proceeding with full analysis');
-        const response = await fetch(`${this.baseUrl}/analyze`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                category: level,       
-                county: county,        
-                query: fullQuery,      
-                shouldSearch: true     
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Analysis request failed: ${response.status}`);
-        }
-
-        const data = await response.json();
-        return {
-            analysis: data,
-            source: 'analysis'
-        };
     }
 
     async processLocalRequest(level, query) {
@@ -413,11 +410,8 @@ export default class RebatePrograms {
         const cacheResult = await cacheResponse.json();
         
         if (cacheResult.found) {
-            console.log('\n===> LOCAL CACHE HIT:', {
-                level,
-                source: 'cache',
-                programCount: cacheResult.programs?.length || 0
-            });
+            console.log('Using cached data:', cacheResult);
+            this.displayResults(cacheResult.displayData.results, level, { cached: true });
             return {
                 analysis: { programs: cacheResult.programs },
                 source: 'cache'
@@ -687,15 +681,21 @@ export default class RebatePrograms {
     }
 
     async searchRebates(county) {
-        // Get the first selected filter type as our project type
-        const selectedFilters = this.getSelectedFilterTypes();
-        if (selectedFilters.length === 0) {
-            throw new Error('Please select at least one category (Solar, HVAC, etc.)');
+        console.log('\n===> SEARCHING REBATES:', {
+            county,
+            activeFlow: this.activeFlow
+        });
+
+        try {
+            if (this.activeFlow === 'direct-cache') {
+                // Process all levels
+                await this.analyze(county);
+            } else {
+                await this.analyze(county);
+            }
+        } catch (error) {
+            console.error('\n===> ERROR IN SEARCH REBATES:', error);
+            throw error;
         }
-        
-        // Instead of making a direct request, use analyze() which handles all levels
-        const results = await this.analyze(county);
-        
-        // Results are already displayed by analyze(), no need to call displayResults
     }
 }
