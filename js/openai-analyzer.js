@@ -112,31 +112,81 @@ export default class RebatePrograms {
     }
 
     createProgramCard(program) {
-        const template = document.getElementById('programCardTemplate');
-        const card = template.content.cloneNode(true);
-        
-        // Get the category for this program
-        const category = this.getCategoryFromProgram(program);
-        card.querySelector('.program-card').dataset.category = category;
-
-        // Fill in the card details
-        card.querySelector('.program-title').textContent = program.title;
-        card.querySelector('.program-category').textContent = this.formatCategory(category);
-        card.querySelector('.program-amount').textContent = this.formatAmount(program.amount);
-        card.querySelector('.program-description').textContent = program.summary;
-        
-        if (program.eligibleProjects && program.eligibleProjects.length > 0) {
-            const projectsList = document.createElement('ul');
-            program.eligibleProjects.forEach(project => {
-                const li = document.createElement('li');
-                li.textContent = project;
-                projectsList.appendChild(li);
-            });
-            card.querySelector('.eligible-projects').appendChild(projectsList);
+        if (!program || typeof program !== 'object') {
+            console.error('Invalid program data:', program);
+            return null;
         }
 
-        card.querySelector('.geographic-scope').textContent = program.geographicScope;
+        const card = document.createElement('div');
+        card.className = 'program-card';
         
+        // Create the card content
+        card.innerHTML = `
+            <div class="program-summary">
+                <div class="summary-content">
+                    <h3>${program.title || program.programName || 'Untitled Program'}</h3>
+                    <p class="program-type">${program.programType || 'Unknown Type'}</p>
+                    <p class="rebate-summary">${program.collapsedSummary || program.amount || 'Amount not specified'}</p>
+                    <p class="program-desc">${program.summary || 'No description available'}</p>
+                </div>
+                <button class="toggle-details" aria-label="Toggle Details">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+            </div>
+            <div class="program-details" style="display: none;">
+                <div class="details-grid">
+                    ${program.eligibleProjects ? `
+                    <div class="detail-item">
+                        <h4>Eligible Projects</h4>
+                        <ul>
+                            ${Array.isArray(program.eligibleProjects) ? 
+                                program.eligibleProjects.map(project => 
+                                    `<li>${typeof project === 'object' ? project.name : project}</li>`
+                                ).join('') : 
+                                `<li>${program.eligibleProjects}</li>`
+                            }
+                        </ul>
+                    </div>
+                    ` : ''}
+                    ${program.requirements ? `
+                    <div class="detail-item">
+                        <h4>Requirements</h4>
+                        <ul>
+                            ${Array.isArray(program.requirements) ? 
+                                program.requirements.map(req => `<li>${req}</li>`).join('') : 
+                                `<li>${program.requirements}</li>`
+                            }
+                        </ul>
+                    </div>
+                    ` : ''}
+                    ${program.applicationProcess ? `
+                    <div class="detail-item">
+                        <h4>Application Process</h4>
+                        <p>${program.applicationProcess}</p>
+                    </div>
+                    ` : ''}
+                    ${program.contactInfo ? `
+                    <div class="detail-item">
+                        <h4>Contact Information</h4>
+                        <p>${program.contactInfo}</p>
+                        ${program.websiteLink ? `<p><a href="${program.websiteLink}" target="_blank">Program Website</a></p>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        // Add event listener for toggle button
+        const toggleButton = card.querySelector('.toggle-details');
+        const detailsSection = card.querySelector('.program-details');
+        if (toggleButton && detailsSection) {
+            toggleButton.addEventListener('click', () => {
+                const isExpanded = detailsSection.style.display !== 'none';
+                detailsSection.style.display = isExpanded ? 'none' : 'block';
+                toggleButton.querySelector('i').className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
+            });
+        }
+
         return card;
     }
 
@@ -196,88 +246,115 @@ export default class RebatePrograms {
     }
 
     async analyze(county) {
-        console.log('Starting analyze for county:', county, {
-            timestamp: new Date().toISOString(),
-            county,
-            levels: ['Federal', 'State', 'County'],
-            note: 'Processing Federal, State, and County levels'
-        });
-
-        this.results = {}; // Reset results at start of analyze
-        
         try {
-            // Process all levels but don't update UI yet
-            console.log('\n===> PROCESSING FEDERAL LEVEL');
-            const federalResults = await this.processLevel('Federal', county, false);
-            this.results.federal = federalResults.analysis;
-
-            console.log('\n===> PROCESSING STATE LEVEL');
-            const stateResults = await this.processLevel('State', county, false);
-            this.results.state = stateResults.analysis;
-
-            console.log('\n===> PROCESSING COUNTY LEVEL');
-            const countyResults = await this.processLevel('County', county, false);
-            this.results.county = countyResults.analysis;
-            
-            console.log('\n===> FINAL RESULTS:', {
-                federal: {
-                    programCount: this.results.federal?.programs?.length || 0,
-                    source: federalResults.source
-                },
-                state: {
-                    programCount: this.results.state?.programs?.length || 0,
-                    source: stateResults.source
-                },
-                county: {
-                    programCount: this.results.county?.programs?.length || 0,
-                    source: countyResults.source
-                }
-            });
-
-            // Get selected project types (categories)
-            const selectedCategories = this.getSelectedFilterTypes();
-            
-            // Now update UI for all levels at once
-            ['federal', 'state', 'county'].forEach(level => {
-                const resultsContainer = document.getElementById(`${level}Results`);
-                if (resultsContainer) {
-                    resultsContainer.innerHTML = '';
-                    const programs = this.results[level]?.programs || [];
-                    console.log(`\n===> UPDATING UI FOR ${level.toUpperCase()}:`, {
-                        programCount: programs.length
-                    });
-                    
-                    // Filter programs by selected project types
-                    const filteredPrograms = selectedCategories.length > 0 
-                        ? programs.filter(program => {
-                            const programCategory = this.getCategoryFromProgram(program);
-                            return selectedCategories.includes(programCategory);
-                        })
-                        : programs;
-                        
-                    filteredPrograms.forEach((program) => {
-                        const card = this.createProgramCard(program);
-                        resultsContainer.appendChild(card);
-                    });
-                }
-            });
-            
-            return {
-                federal: this.results.federal?.programs || [],
-                state: this.results.state?.programs || [],
-                county: this.results.county?.programs || []
+            const results = {
+                federal: [],
+                state: [],
+                county: []
             };
+
+            // Show loading state
+            document.getElementById('resultsContainer').style.display = 'none';
+
+            // Search all levels
+            await Promise.all([
+                this.searchPrograms('federal', county).then(data => {
+                    if (data?.displayData?.results) {
+                        results.federal = data.displayData.results;
+                    }
+                }),
+                this.searchPrograms('state', county).then(data => {
+                    if (data?.displayData?.results) {
+                        results.state = data.displayData.results;
+                    }
+                }),
+                this.searchPrograms('county', county).then(data => {
+                    if (data?.displayData?.results) {
+                        results.county = data.displayData.results;
+                    }
+                })
+            ]);
+
+            // Display combined results
+            this.displayResults(results);
+
+            // Show results container
+            document.getElementById('resultsContainer').style.display = 'block';
+
+            return results;
         } catch (error) {
-            console.error('\n===> ERROR IN ANALYZE:', {
-                error: error.message,
-                county,
-                stack: error.stack
-            });
+            console.error('Error in analyze:', error);
             throw error;
         }
     }
 
-    async processLevel(level, query, updateUI = true) {
+    async searchPrograms(level, county = null) {
+        try {
+            // Try to get cached data first
+            const cachedData = await this.getCachedData(level, county);
+            if (cachedData?.success && cachedData.displayData?.results?.length > 0) {
+                console.log('Using cached data:', cachedData);
+                return cachedData;
+            }
+
+            // If no cached data, make API call
+            const url = '/.netlify/functions/direct-retrieval';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    level,
+                    county,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error('Error searching programs:', error);
+            this.handleError(error);
+            return null;
+        }
+    }
+
+    async getCachedData(level, county = null) {
+        try {
+            const url = '/.netlify/functions/get-cached-data';
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    level,
+                    county,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch cached data');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.warn('Cache retrieval failed:', error);
+            return null;
+        }
+    }
+
+    handleError(error) {
+        console.error('Error:', error);
+        const errorMessage = error.message || 'An error occurred while searching for rebate programs.';
+        // You can add UI error handling here if needed
+    }
+
+    processLevel(level, query, updateUI = true) {
         let fullQuery = query;
         
         // Build search queries based on level
@@ -327,15 +404,12 @@ export default class RebatePrograms {
     }
 
     async processNetlifyRequest(level, fullQuery, county) {
-        // Prevent duplicate requests
-        if (this.isRequestPending?.[level]) {
-            console.log(`[LOG] Skipping duplicate request for ${level}`);
-            return null;
-        }
-
         try {
-            this.isRequestPending = this.isRequestPending || {};
-            this.isRequestPending[level] = true;
+            console.log('\n===> SENDING REQUEST:', {
+                level,
+                query: fullQuery,
+                county
+            });
 
             const response = await fetch(`${this.baseUrl}/direct-retrieval`, {
                 method: 'POST',
@@ -354,36 +428,33 @@ export default class RebatePrograms {
             }
 
             const data = await response.json();
+            console.log('\n===> RECEIVED RESPONSE:', {
+                success: data.success,
+                found: data.found,
+                level: data.level,
+                dataKeys: Object.keys(data.data || {}),
+                openaiKeys: Object.keys(data.data?.openaiAnalysis || {}),
+                programCount: data.data?.programs?.length || 0
+            });
+
+            // Extract programs from the response
+            const programs = data.data?.programs || [];
+            console.log('\n===> EXTRACTED PROGRAMS:', {
+                count: programs.length,
+                firstProgram: programs[0]
+            });
             
-            // If found in cache, filter by category before returning
-            if (data.success && data.found && data.data) {
-                const categories = Array.from(this.activeFilters);
-                const category = categories[0];
-
-                if (category) {
-                    // Filter the programs by category
-                    const filteredData = {
-                        ...data.data,
-                        programs: data.data.programs?.filter(program => 
-                            program.category?.toLowerCase() === category.toLowerCase()
-                        ) || []
-                    };
-                    return {
-                        analysis: filteredData,
-                        source: 'cache'
-                    };
-                }
-            }
-
             return {
-                analysis: data.data || { programs: [] },
+                analysis: {
+                    programs: programs,
+                    googleResults: data.data?.googleResults || [],
+                    openaiAnalysis: data.data?.openaiAnalysis || {}
+                },
                 source: data.found ? 'cache' : 'search'
             };
         } catch (error) {
             console.error(`Error in processNetlifyRequest for ${level}:`, error);
             throw error;
-        } finally {
-            this.isRequestPending[level] = false;
         }
     }
 
@@ -592,92 +663,133 @@ export default class RebatePrograms {
         }
     }
 
-    displayResults(programs, level, source = {}) {
-        const sectionId = `${level.toLowerCase()}Results`;
-        const container = document.getElementById(sectionId);
-        if (!container) {
-            console.error(`Container not found: ${sectionId}`);
-            return;
-        }
-
-        // Clear previous results
-        container.innerHTML = '';
+    displayResults(results) {
+        console.log('Displaying results:', results);
         
-        if (source.cached) {
-            const cacheIndicator = document.createElement('div');
-            cacheIndicator.className = 'cache-indicator';
-            cacheIndicator.innerHTML = '<i class="fas fa-bolt"></i> Showing cached results';
-            container.appendChild(cacheIndicator);
-        }
+        // Create a map to store programs by category
+        const programsByCategory = {
+            solar: [],
+            hvac: [],
+            insulation: [],
+            windows: [],
+            appliances: [],
+            'water-heater': [],
+            lighting: [],
+            weatherization: [],
+            roofing: [],
+            battery: [],
+            'heat-pumps': [],
+            'ev-charger': []
+        };
 
-        programs.forEach(program => this.createProgramCard(program, source));
-        
-        // Show the section
-        container.closest('.results-section').style.display = 'block';
+        // Helper function to categorize a program
+        const categorizeProgram = (program) => {
+            const title = program.title.toLowerCase();
+            if (title.includes('solar')) return 'solar';
+            if (title.includes('hvac') || title.includes('cooling')) return 'hvac';
+            if (title.includes('heat pump')) return 'heat-pumps';
+            if (title.includes('insulation')) return 'insulation';
+            if (title.includes('window')) return 'windows';
+            if (title.includes('appliance')) return 'appliances';
+            if (title.includes('water heat')) return 'water-heater';
+            if (title.includes('light')) return 'lighting';
+            if (title.includes('weather')) return 'weatherization';
+            if (title.includes('roof')) return 'roofing';
+            if (title.includes('battery') || title.includes('storage')) return 'battery';
+            if (title.includes('ev') || title.includes('charger')) return 'ev-charger';
+            return null; // uncategorized
+        };
+
+        // Categorize all programs
+        ['federal', 'state', 'county'].forEach(level => {
+            if (results[level]) {
+                results[level].forEach(program => {
+                    const category = categorizeProgram(program);
+                    if (category && programsByCategory[category]) {
+                        programsByCategory[category].push({
+                            ...program,
+                            level: level
+                        });
+                    }
+                });
+            }
+        });
+
+        // Update the UI for each category
+        Object.entries(programsByCategory).forEach(([category, programs]) => {
+            const sectionContainer = document.querySelector(`.program-section[data-category="${category}"]`);
+            if (!sectionContainer) {
+                console.log(`Creating container for ${category} programs`);
+                // Create new section if it doesn't exist
+                const newSection = this.createProgramSection(category, programs);
+                document.getElementById('resultsContainer').appendChild(newSection);
+            } else {
+                console.log(`Updating container for ${category} programs`);
+                // Update existing section
+                const contentContainer = sectionContainer.querySelector('.program-content');
+                contentContainer.innerHTML = ''; // Clear existing content
+                
+                if (programs.length === 0) {
+                    contentContainer.innerHTML = `<div class="program-row">No ${category.replace('-', ' ')} programs found.</div>`;
+                } else {
+                    programs.forEach(program => {
+                        const row = document.createElement('div');
+                        row.className = 'program-row';
+                        
+                        const title = document.createElement('div');
+                        title.className = 'program-title';
+                        title.textContent = program.title;
+                        
+                        const amount = document.createElement('div');
+                        amount.className = 'program-amount';
+                        amount.textContent = program.amount || program.summary;
+                        
+                        row.appendChild(title);
+                        row.appendChild(amount);
+                        contentContainer.appendChild(row);
+                    });
+                }
+            }
+        });
     }
 
-    async searchPrograms(level, county = null) {
-        console.log('Searching programs for:', { level, county });
-        
-        try {
-            // First try to get data from cache
-            const cachedData = await this.getCachedData(level, county);
-            if (cachedData?.success && cachedData.displayData?.results?.length > 0) {
-                console.log('Using cached data:', cachedData);
-                this.displayResults(cachedData.displayData.results, level, { cached: true });
-                return;
-            }
+    createProgramSection(category, programs) {
+        const section = document.createElement('div');
+        section.className = 'program-section';
+        section.setAttribute('data-category', category);
 
-            // If no cache, proceed with normal search
-            const response = await fetch(`${this.baseUrl}/analyze`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ 
-                    category: level,       // Required: Federal/State/County
-                    county: county,        // Required for County category
-                    query: '',             // Optional: search query
-                    shouldSearch: true     // Optional: force new search
-                })
+        const header = document.createElement('h2');
+        header.textContent = category.split('-').map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+
+        const content = document.createElement('div');
+        content.className = 'program-content';
+
+        if (programs.length === 0) {
+            content.innerHTML = `<div class="program-row">No ${category.replace('-', ' ')} programs found.</div>`;
+        } else {
+            programs.forEach(program => {
+                const row = document.createElement('div');
+                row.className = 'program-row';
+                
+                const title = document.createElement('div');
+                title.className = 'program-title';
+                title.textContent = program.title;
+                
+                const amount = document.createElement('div');
+                amount.className = 'program-amount';
+                amount.textContent = program.amount || program.summary;
+                
+                row.appendChild(title);
+                row.appendChild(amount);
+                content.appendChild(row);
             });
-
-            if (!response.ok) {
-                throw new Error(`Network response was not ok`);
-            }
-
-            const data = await response.json();
-            this.displayResults(data.displayData.results, level);
-        } catch (error) {
-            console.error('Error searching programs:', error);
-            this.handleError(error);
         }
-    }
 
-    async getCachedData(level, county = null) {
-        try {
-            const response = await fetch(`${this.baseUrl}/get-cached-data`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ level, county })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch cached data');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.warn('Cache retrieval failed:', error);
-            return null;
-        }
-    }
-
-    displayError(message) {
-        const errorContainer = document.getElementById('errorContainer');
-        if (errorContainer) {
-            errorContainer.textContent = message;
-        }
+        section.appendChild(header);
+        section.appendChild(content);
+        return section;
     }
 
     async searchRebates(county) {

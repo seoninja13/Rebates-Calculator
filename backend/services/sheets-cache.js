@@ -276,13 +276,32 @@ export class GoogleSheetsCache {
         console.log('Raw OpenAI Analysis:', matchingRow[3]);
         console.log('==================\n');
 
-        const parsedData = {
-            googleResults: JSON.parse(matchingRow[2] || '[]'),
-            openaiAnalysis: JSON.parse(matchingRow[3] || '{}'),
-            programs: JSON.parse(matchingRow[2] || '[]')  // For backward compatibility
-        };
-        
-        console.log('Parsed Data:', JSON.stringify(parsedData, null, 2));
+        let parsedData;
+        try {
+            const googleResults = JSON.parse(matchingRow[2] || '[]');
+            const openaiAnalysis = JSON.parse(matchingRow[3] || '{}');
+            const programs = openaiAnalysis.programs || [];
+
+            console.log('\n🔄 PARSED DATA');
+            console.log('==================');
+            console.log('Google Results Count:', googleResults.length);
+            console.log('OpenAI Analysis Keys:', Object.keys(openaiAnalysis));
+            console.log('Programs Count:', programs.length);
+            if (programs.length > 0) {
+                console.log('First Program:', JSON.stringify(programs[0], null, 2));
+            }
+            console.log('==================\n');
+
+            parsedData = {
+                googleResults,
+                openaiAnalysis,
+                programs
+            };
+        } catch (error) {
+            console.error('Error parsing cache data:', error);
+            console.error('Raw matchingRow:', matchingRow);
+            return null;
+        }
 
         return {
             query: matchingRow[0],

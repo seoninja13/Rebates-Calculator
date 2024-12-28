@@ -73,6 +73,7 @@ export async function handler(event, context) {
         // Check cache with the query and level
         const cacheResult = await cache.checkCache(query, level);
         if (!cacheResult) {
+            console.log("[LOG] Direct Cache → No Result Found", { level, county });
             return {
                 statusCode: 200,
                 body: JSON.stringify({
@@ -93,21 +94,37 @@ export async function handler(event, context) {
             found: cacheResult.found,
             hash: cacheResult.hash,
             timestamp: cacheResult.timestamp || 'N/A',
-            programCount: cacheResult.data?.programs?.length || 0
+            programCount: cacheResult.data?.programs?.length || 0,
+            dataKeys: Object.keys(cacheResult.data || {}),
+            openaiKeys: Object.keys(cacheResult.data?.openaiAnalysis || {}),
+            firstProgram: cacheResult.data?.programs?.[0]
         });
 
         // Return the result
+        const responseData = {
+            success: true,
+            level,
+            county,
+            found: cacheResult.found,
+            hash: cacheResult.hash,
+            timestamp: cacheResult.timestamp || null,
+            data: {
+                googleResults: cacheResult.data?.googleResults || [],
+                openaiAnalysis: cacheResult.data?.openaiAnalysis || {},
+                programs: cacheResult.data?.programs || []
+            }
+        };
+
+        console.log("[LOG] Direct Cache → Response Data", {
+            success: responseData.success,
+            found: responseData.found,
+            programCount: responseData.data.programs.length,
+            firstProgram: responseData.data.programs[0]
+        });
+
         return {
             statusCode: 200,
-            body: JSON.stringify({
-                success: true,
-                found: cacheResult.found,
-                level,
-                county,
-                hash: cacheResult.hash,
-                timestamp: cacheResult.timestamp,
-                data: cacheResult.data
-            })
+            body: JSON.stringify(responseData)
         };
 
     } catch (error) {

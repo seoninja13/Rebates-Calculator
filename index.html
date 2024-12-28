@@ -11,539 +11,235 @@
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       line-height: 1.6;
-      color: #333;
       margin: 0;
       padding: 0;
-      background-color: #f5f7fa;
+      background: #f0f2f5;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 20px;
+      padding: 2rem;
     }
 
-    /* Program Card Styles */
-    .program-card {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
-      padding: 24px;
-      transition: all 0.3s ease;
+    /* Hero Section */
+    .hero {
+      background-color: #4CAF50;
+      color: white;
+      padding: 2rem;
+      text-align: center;
+      border-radius: 8px;
+      margin-bottom: 2rem;
     }
 
-    .program-summary {
+    .hero h1 {
+      margin: 0;
+      font-size: 2.5rem;
+    }
+
+    /* Blue Search Bar */
+    .blue-search-bar {
+      background-color: #3f87cb;
+      padding: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .category-icons {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      color: white;
+    }
+
+    .category-icon {
       display: flex;
-      justify-content: space-between;
       align-items: center;
-      gap: 16px;
+      gap: 0.5rem;
       cursor: pointer;
-      padding: 16px 0;
+      padding: 0.5rem;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
     }
 
-    .summary-content {
+    .category-icon:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .category-icon.active {
+      background-color: rgba(255, 255, 255, 0.2);
+      border-color: white;
+      font-weight: 500;
+    }
+
+    .category-icon i {
+      font-size: 1.2rem;
+      width: 1.5rem;
+      text-align: center;
+    }
+
+    /* Search Section */
+    .search-section {
+      background-color: #3f87cb;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .location-selector {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
       flex: 1;
     }
 
-    .summary-content ul {
-      list-style-type: disc;
-      margin: 10px 0 0 20px;
-      padding: 0;
+    #countySelect {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
     }
 
-    .summary-content li {
-      color: #4b5563;
-      margin-bottom: 5px;
-      line-height: 1.4;
-    }
-
-    .summary-content h3 {
-      color: #2563eb;
-      margin: 0;
-      font-size: 1.2rem;
-      line-height: 1.4;
-    }
-
-    .rebate-summary {
-      margin: 0;
-      font-size: 1.25rem;
-      color: #2563eb;
-      line-height: 1.4;
-      font-weight: 500;
-    }
-
-    .toggle-details {
-      background: none;
-      border: none;
-      color: #2563eb;
-      cursor: pointer;
-      padding: 8px;
-      border-radius: 50%;
-      width: 36px;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background-color 0.2s;
-      flex-shrink: 0;
-    }
-
-    .toggle-details:hover {
-      background-color: rgba(26, 115, 232, 0.1);
-    }
-
-    .program-details {
-      margin-top: 20px;
-      border-top: 1px solid #e8eaed;
-      padding-top: 20px;
-    }
-
-    .details-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 24px;
-    }
-
-    .detail-item {
-      margin-bottom: 16px;
-    }
-
-    .detail-item h4 {
-      color: #202124;
-      margin: 0 0 8px 0;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .detail-item p {
-      color: #5f6368;
-      margin: 0;
-      line-height: 1.5;
-    }
-
-    .detail-item a {
-      color: #1a73e8;
-      text-decoration: none;
-    }
-
-    .detail-item a:hover {
-      text-decoration: underline;
-    }
-
-    /* Category-specific colors */
-    .program-card[data-category="federal"] .summary-content h3 {
-      color: #1a73e8;
-    }
-
-    .program-card[data-category="state"] .summary-content h3 {
-      color: #34a853;
-    }
-
-    .program-card[data-category="county"] .summary-content h3 {
-      color: #ea4335;
-    }
-
-    /* Category-specific background colors */
-    .program-card[data-category="federal"] {
-      background: linear-gradient(to bottom right, #ffffff, #f0f7ff);
-    }
-
-    .program-card[data-category="state"] {
-      background: linear-gradient(to bottom right, #ffffff, #f0fff4);
-    }
-
-    .program-card[data-category="county"] {
-      background: linear-gradient(to bottom right, #ffffff, #fff5f5);
-    }
-
-    .program-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    }
-
-    .program-header {
-      margin-bottom: 20px;
-    }
-
-    .program-header h3 {
-      color: #2563eb;
-      font-size: 1.8rem;
-      font-weight: 600;
-      margin: 0 0 12px 0;
-      line-height: 1.3;
-    }
-
-    .program-header p {
-      color: #4b5563;
-      margin: 0;
-      font-size: 1.1rem;
-      line-height: 1.6;
-    }
-
-    .program-section {
-      margin-bottom: 16px;
-      padding: 12px;
+    /* Category Section */
+    .category-section {
+      background: white;
       border-radius: 8px;
-      background-color: #f8fafc;
+      overflow: hidden;
+      margin-bottom: 2rem;
     }
 
-    .section-header {
+    .category-header {
+      background-color: #4CAF50;
+      color: white;
+      padding: 1rem;
+      font-size: 1.5rem;
+      margin: 0;
+    }
+
+    .category-content {
+      padding: 1rem;
+    }
+
+    .rebate-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
     }
 
-    .section-title {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: #1a73e8;
-      margin: 0;
+    .rebate-row:last-child {
+      border-bottom: none;
     }
 
-    .section-icons {
-      display: flex;
-      gap: 0.5rem;
-      color: #666;
+    .rebate-title {
+      font-size: 1.1rem;
+      color: #333;
     }
 
-    .section-icons i {
-      font-size: 1.2rem;
-    }
-
-    .info-item {
-      padding: 8px;
-      color: #4b6368;
-    }
-
-    .info-item div {
-      display: flex;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
-    .info-item i {
-      color: #3b82f6;
-      margin-top: 4px;
-    }
-
-    .info-item a {
-      color: #2563eb;
-      text-decoration: none;
-    }
-
-    .info-item a:hover {
-      text-decoration: underline;
-    }
-
-    /* Grid Layout */
-    .program-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-top: 20px;
-    }
-
-    /* Form Styles */
-    .search-form {
-      background: white;
-      padding: 25px;
-      border-radius: 12px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      margin-bottom: 30px;
-    }
-
-    .search-wrapper {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin: 20px 0;
-    }
-
-    select, button {
-      padding: 12px 20px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      font-size: 16px;
-    }
-
-    select {
-      width: 200px;
-      background-color: white;
-    }
-
-    button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    button:hover {
-      background-color: #2E7D32;
-    }
-
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
-
-    /* Status Indicators */
-    .status-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 0.9rem;
+    .rebate-amount {
+      font-size: 1.1rem;
+      color: #2E7D32;
       font-weight: 500;
     }
 
-    .status-active {
-      background: #dcfce7;
-      color: #166534;
-    }
-
-    .status-expired {
-      background: #fee2e2;
-      color: #991b1b;
-    }
-
-    .status-pending {
-      background: #fef9c3;
-      color: #854d0e;
-    }
-
-    /* Responsive Design Improvements */
-    @media (max-width: 768px) {
-      .program-card {
-        padding: 20px;
-      }
-
-      .program-header {
-        flex-direction: column;
-        gap: 10px;
-      }
-
-      .program-type {
-        margin-left: 0;
-      }
-
-      .program-section {
-        padding: 15px;
-      }
-
-      .program-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* Updated Loading Animation */
-    .construction-loader {
+    /* Results Container */
+    #resultsContainer {
       display: none;
-      width: 200px;
-      height: 200px;
-      margin: 5vh auto 40px auto;
-      position: relative;
     }
 
-    .worker {
-      position: absolute;
-      left: 50%;
-      bottom: -10px;
-      transform: translate(-50%, -50%);
-      font-size: 60px;
-      line-height: 1;
-      z-index: 2;
+    /* Loading Indicator */
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+      padding: 1rem;
     }
 
-    .worker::before {
-      content: '👷';
+    .loading-indicator.show {
+      display: block;
     }
 
-    /* Loading circle */
-    .loading-circle {
-      position: absolute;
-      left: 50%;
-      bottom: -30px;
-      transform: translate(-50%, 0);
-      width: 120px;
-      height: 120px;
+    .spinner {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
       border: 4px solid #f3f3f3;
       border-top: 4px solid #4CAF50;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
 
-    @keyframes spin {
-      0% { transform: translate(-50%, 0) rotate(0deg); }
-      100% { transform: translate(-50%, 0) rotate(360deg); }
-    }
-
     .loading-text {
-      text-align: center;
-      color: #4CAF50;
-      font-size: 1.5rem;
-      font-weight: bold;
-      margin-top: 20px;
-      animation: pulse 2s ease-in-out infinite;
+      margin-top: 0.5rem;
+      color: #666;
+      font-size: 1rem;
     }
 
-    @keyframes pulse {
-      0% { opacity: 0.5; }
-      50% { opacity: 1; }
-      100% { opacity: 0.5; }
+    /* Project Types */
+    .project-types {
+      display: flex;
+      gap: 1rem;
+      margin-left: auto;
+      color: white;
     }
 
-    /* Additional Styles */
-    .rebates-container h2 {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-
-    .error-message {
-      background-color: #fee2e2;
-      border: 1px solid #ef4444;
-      color: #991b1b;
-      padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 0.5rem;
-      display: none;
-    }
-
-    .error-content {
+    .project-type {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .error-content i {
-      font-size: 1.25rem;
-    }
-
-    /* Add styles for program type sections */
-    #resultsContainer > div {
-      margin-bottom: 40px;
-    }
-
-    #resultsContainer h2 {
-      color: #1e40af;
-      font-size: 1.8rem;
-      margin: 30px 0 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #e2e8f0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    #resultsContainer h2 i {
-      color: #3b82f6;
-    }
-
-    /* Add these new styles for program icons */
-    .program-type-icon {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        font-size: 24px;
-        opacity: 0.8;
-    }
-    .federal-icon {
-        color: #3b82f6; /* blue */
-    }
-    .state-icon {
-        color: #10b981; /* green */
-    }
-    .county-icon {
-        color: #8b5cf6; /* purple */
-    }
-    .source-indicator {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        font-size: 12px;
-        color: #666;
-    }
-
-    /* Estimated Amount Styles */
-    .amount-estimate {
-      font-style: italic;
-      color: #666;
-    }
-    .amount-estimate::before {
-      content: 'Est. ';
-    }
-
-    /* New Styles for Category Filters */
-    .category-filters {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .filter-item {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .filter-item.active {
-      background-color: #f0f7ff;
-      border-color: #1a73e8;
-    }
-
-    .filter-item i {
-      margin-right: 5px;
-    }
-
-    /* New Styles for Location Selector */
-    .location-selector {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    #locationInput {
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      width: 300px;
-    }
-
-    .search-button {
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.3s;
-    }
-
-    .search-button:hover {
-      background-color: #2E7D32;
-    }
-
-    /* Loading Spinner Animation */
-    #rebatesLoadingSpinner {
-      display: none;
-      width: 50px;
-      height: 50px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #3498db;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
+    .project-type i {
+      font-size: 1.2rem;
     }
 
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    .program-section {
+      background-color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .program-section h2 {
+      background-color: #4CAF50;
+      color: white;
+      margin: 0;
+      padding: 1rem;
+      font-size: 1.5rem;
+    }
+
+    .program-content {
+      padding: 0;
+    }
+
+    .program-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid #eee;
+    }
+
+    .program-row:last-child {
+      border-bottom: none;
+    }
+
+    .program-title {
+      font-size: 1rem;
+      color: #333;
+    }
+
+    .program-amount {
+      font-size: 1rem;
+      color: #333;
     }
   </style>
 </head>
@@ -555,55 +251,57 @@
         <h1>Federal, State & Local Homeowner Green Rebates</h1>
       </div>
 
-      <!-- Category Filters -->
-      <div class="category-filters">
-        <div class="filter-item" data-category="solar">
-          <i class="fas fa-sun"></i>
-          Solar
-        </div>
-        <div class="filter-item" data-category="hvac">
-          <i class="fas fa-fan"></i>
-          HVAC
-        </div>
-        <div class="filter-item" data-category="heat-pumps">
-          <i class="fas fa-temperature-high"></i>
-          Heat Pumps
-        </div>
-        <div class="filter-item" data-category="insulation">
-          <i class="fas fa-home"></i>
-          Insulation
-        </div>
-        <div class="filter-item" data-category="windows">
-          <i class="fas fa-square"></i>
-          Windows
-        </div>
-        <div class="filter-item" data-category="appliances">
-          <i class="fas fa-washing-machine"></i>
-          Appliances
-        </div>
-        <div class="filter-item" data-category="ev-charger">
-          <i class="fas fa-charging-station"></i>
-          EV Charger
-        </div>
-        <div class="filter-item" data-category="water-heater">
-          <i class="fas fa-hot-tub"></i>
-          Water Heater
-        </div>
-        <div class="filter-item" data-category="lighting">
-          <i class="fas fa-lightbulb"></i>
-          Lighting
-        </div>
-        <div class="filter-item" data-category="weatherization">
-          <i class="fas fa-cloud-sun"></i>
-          Weatherization
-        </div>
-        <div class="filter-item" data-category="roofing">
-          <i class="fas fa-home"></i>
-          Roofing
-        </div>
-        <div class="filter-item" data-category="battery">
-          <i class="fas fa-battery-full"></i>
-          Battery Storage
+      <!-- Blue Search Bar -->
+      <div class="blue-search-bar">
+        <div class="category-icons">
+          <div class="category-icon" data-category="heat-pumps">
+            <i class="fas fa-temperature-high"></i>
+            Heat Pumps
+          </div>
+          <div class="category-icon" data-category="solar">
+            <i class="fas fa-sun"></i>
+            Solar
+          </div>
+          <div class="category-icon" data-category="ev-charger">
+            <i class="fas fa-charging-station"></i>
+            EV Charger
+          </div>
+          <div class="category-icon" data-category="hvac">
+            <i class="fas fa-fan"></i>
+            HVAC
+          </div>
+          <div class="category-icon" data-category="insulation">
+            <i class="fas fa-home"></i>
+            Insulation
+          </div>
+          <div class="category-icon" data-category="windows">
+            <i class="fas fa-square"></i>
+            Windows
+          </div>
+          <div class="category-icon" data-category="appliances">
+            <i class="fas fa-washing-machine"></i>
+            Appliances
+          </div>
+          <div class="category-icon" data-category="water-heater">
+            <i class="fas fa-hot-tub"></i>
+            Water Heater
+          </div>
+          <div class="category-icon" data-category="lighting">
+            <i class="fas fa-lightbulb"></i>
+            Lighting
+          </div>
+          <div class="category-icon" data-category="weatherization">
+            <i class="fas fa-cloud-sun"></i>
+            Weatherization
+          </div>
+          <div class="category-icon" data-category="roofing">
+            <i class="fas fa-home"></i>
+            Roofing
+          </div>
+          <div class="category-icon" data-category="battery">
+            <i class="fas fa-battery-full"></i>
+            Battery Storage
+          </div>
         </div>
       </div>
 
@@ -673,33 +371,111 @@
           </select>
           <button id="searchButton" class="search-button">
             <span>Search Rebates</span>
-            <i class="fas fa-hard-hat" style="display: none;"></i>
           </button>
         </div>
-        <div id="rebatesLoadingSpinner"></div>
+      </div>
+
+      <!-- Loading Indicator -->
+      <div class="loading-indicator">
+        <div class="spinner"></div>
+        <div class="loading-text">Searching for rebates...</div>
       </div>
 
       <!-- Results Container -->
       <div id="resultsContainer">
-        <div class="program-grid" id="programGrid">
-          <!-- Program cards will be dynamically inserted here -->
+        <!-- Solar Installation -->
+        <div class="program-section" data-category="solar">
+          <h2>Solar Installation</h2>
+          <div class="program-content">
+            <div class="program-row">
+              <div class="program-title">Federal Solar Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 30%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">California Solar Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 10%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">Alameda County Solar Tax Credit</div>
+              <div class="program-amount">$5000 Rebate available for PG&E Customers</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- HVAC Upgrades -->
+        <div class="program-section" data-category="hvac">
+          <h2>HVAC Upgrades</h2>
+          <div class="program-content">
+            <div class="program-row">
+              <div class="program-title">Federal HVAC Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 30%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">California HVAC Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 10%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">Alameda County HVAC Tax Credit</div>
+              <div class="program-amount">$5000 Rebate available for PG&E Customers</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Insulation -->
+        <div class="program-section" data-category="insulation">
+          <h2>Insulation</h2>
+          <div class="program-content">
+            <div class="program-row">
+              <div class="program-title">Federal Insulation Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 30%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">California Insulation Tax Credit</div>
+              <div class="program-amount">Tax credit available for up to 10%</div>
+            </div>
+            <div class="program-row">
+              <div class="program-title">Alameda County Insulation Tax Credit</div>
+              <div class="program-amount">$5000 Rebate available for PG&E Customers</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <template id="programCardTemplate">
-    <div class="program-card">
-      <div class="program-title"></div>
-      <div class="program-category"></div>
-      <div class="program-amount"></div>
-      <div class="program-details">
-        <p class="program-description"></p>
-        <div class="eligible-projects"></div>
-        <div class="geographic-scope"></div>
-      </div>
-    </div>
-  </template>
+  <script>
+    // Add click handlers for categories
+    document.querySelectorAll('.category-icon').forEach(category => {
+      category.addEventListener('click', () => {
+        // Toggle active state for clicked category
+        category.classList.toggle('active');
+        
+        // Get all selected categories
+        const selectedCategories = Array.from(document.querySelectorAll('.category-icon.active'))
+          .map(el => el.dataset.category);
+        
+        // Update the search results based on selected categories
+        updateResults(selectedCategories);
+      });
+    });
+
+    function updateResults(selectedCategories) {
+      // Filter results based on selected categories
+      const resultsContainer = document.getElementById('resultsContainer');
+      const programSections = resultsContainer.querySelectorAll('.program-section');
+
+      if (selectedCategories.length === 0) {
+        // If no categories selected, show all
+        programSections.forEach(section => section.style.display = 'block');
+      } else {
+        // Show only selected categories
+        programSections.forEach(section => {
+          const sectionCategory = section.getAttribute('data-category');
+          section.style.display = selectedCategories.includes(sectionCategory) ? 'block' : 'none';
+        });
+      }
+    }
+  </script>
 
   <script type="module">
     import RebatePrograms from './js/openai-analyzer.js';
@@ -707,190 +483,114 @@
     // Initialize the rebate programs handler
     const rebatePrograms = new RebatePrograms();
 
-    // Helper function to create a program card
-    function formatAmount(amountStr) {
-      if (!amountStr) return '';
-      // Check if it's an estimated amount
-      const isEstimate = amountStr.toLowerCase().includes('est.') || amountStr.toLowerCase().includes('estimated');
-      const amountClass = isEstimate ? 'amount-estimate' : 'amount-exact';
-      // Remove 'Est.' prefix if present as it will be added by CSS
-      const cleanAmount = isEstimate ? amountStr.replace(/^est\.\s*/i, '') : amountStr;
-      return `<span class="${amountClass}">${cleanAmount}</span>`;
+    function createProgramRow(program) {
+      const row = document.createElement('div');
+      row.className = 'program-row';
+      
+      const title = document.createElement('div');
+      title.className = 'program-title';
+      title.textContent = program.title;
+      
+      const amount = document.createElement('div');
+      amount.className = 'program-amount';
+      amount.textContent = program.amount || program.summary;
+      
+      row.appendChild(title);
+      row.appendChild(amount);
+      
+      return row;
     }
 
-    function createProgramCard(program, source = { googleSearch: false, openaiAnalysis: false }) {
-      console.log('Creating card for program:', program);
-      
-      const card = document.createElement('div');
-      card.className = 'program-card';
-
-      // Create the summary section (always visible)
-      const summary = document.createElement('div');
-      summary.className = 'program-summary';
-      
-      // Create the toggle button
-      const toggleBtn = document.createElement('button');
-      toggleBtn.className = 'toggle-details';
-      toggleBtn.innerHTML = '<i class="fas fa-chevron-down"></i>';
-      
-      // Create the summary content with formatted amount
-      const summaryContent = document.createElement('div');
-      summaryContent.className = 'summary-content';
-      
-      // Format the collapsed summary to handle estimated amounts
-      const formattedSummary = program.collapsedSummary 
-        ? program.collapsedSummary
-            .split(/,\s*/)
-            .map(part => {
-              const [amount, ...rest] = part.split(/(?=\s+(?:rebate|grant|tax credit|loan)\s+for\s+)/i);
-              return amount && rest.length > 0 
-                ? formatAmount(amount) + rest.join('')
-                : part;
-            })
-            .join(', ')
-        : program.summary || 'Program details not available';
-      
-      summaryContent.innerHTML = `
-          <h3 class="rebate-summary">${formattedSummary}</h3>
-      `;
-      
-      summary.appendChild(summaryContent);
-      summary.appendChild(toggleBtn);
-
-      // Create the details section (hidden by default)
-      const details = document.createElement('div');
-      details.className = 'program-details';
-      details.style.display = 'none';
-      details.innerHTML = `
-          <div class="details-grid">
-              <div class="detail-item">
-                  <h4>Program Name</h4>
-                  <p>${program.title || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Program Type</h4>
-                  <p>${program.type || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Amount</h4>
-                  <p>${formatAmount(program.amount) || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Eligible Projects</h4>
-                  <p>${Array.isArray(program.eligibleProjects) ? program.eligibleProjects.join(', ') : (program.eligibleProjects || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Eligible Recipients</h4>
-                  <p>${Array.isArray(program.eligibleRecipients) ? program.eligibleRecipients.join(', ') : (program.eligibleRecipients || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Geographic Scope</h4>
-                  <p>${program.geographicScope || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Requirements</h4>
-                  <p>${Array.isArray(program.requirements) ? program.requirements.join(', ') : (program.requirements || 'Not Available')}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Application Process</h4>
-                  <p>${program.applicationProcess || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Deadline</h4>
-                  <p>${program.deadline || 'Not Available'}</p>
-              </div>
-              ${program.websiteLink ? `
-              <div class="detail-item">
-                  <h4>Website</h4>
-                  <p><a href="${program.websiteLink}" target="_blank">${program.websiteLink}</a></p>
-              </div>
-              ` : ''}
-              <div class="detail-item">
-                  <h4>Contact Information</h4>
-                  <p>${program.contactInfo || 'Not Available'}</p>
-              </div>
-              <div class="detail-item">
-                  <h4>Processing Time</h4>
-                  <p>${program.processingTime || 'Not Available'}</p>
-              </div>
-          </div>
-      `;
-
-      // Add click handler for toggle
-      toggleBtn.addEventListener('click', () => {
-          const isExpanded = details.style.display !== 'none';
-          details.style.display = isExpanded ? 'none' : 'block';
-          toggleBtn.querySelector('i').className = isExpanded ? 'fas fa-chevron-down' : 'fas fa-chevron-up';
-      });
-
-      card.appendChild(summary);
-      card.appendChild(details);
-      return card;
-    }
-
-    // Helper function to display programs
-    function displayPrograms(programs, level, source) {  
-      const sectionId = `${level.toLowerCase()}Results`; 
-      const programsContainer = document.getElementById(sectionId);
-      if (!programsContainer) {
-        console.error(`Container not found for level: ${level}`);
-        return;
-      }
-      
-      programsContainer.innerHTML = '';
-
-      if (!programs || programs.length === 0) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'no-results';
-        messageDiv.innerHTML = `
-          <div class="program-header">
-            <h3 style="color: #666;">No Programs Found</h3>
-            <p>No ${level} rebate programs found for these categories.</p>
-          </div>
-        `;
-        programsContainer.appendChild(messageDiv);
-        return;
-      }
+    function categorizePrograms(programs) {
+      const categories = {
+        solar: [],
+        hvac: [],
+        insulation: []
+      };
 
       programs.forEach(program => {
-        program.level = level;  
-        const card = createProgramCard(program, source);
-        programsContainer.appendChild(card);
+        const title = program.title.toLowerCase();
+        if (title.includes('solar')) {
+          categories.solar.push(program);
+        } else if (title.includes('hvac') || title.includes('heat pump') || title.includes('cooling')) {
+          categories.hvac.push(program);
+        } else if (title.includes('insulation') || title.includes('weatherization')) {
+          categories.insulation.push(program);
+        }
       });
+
+      return categories;
     }
 
-    // Handle form submission
-    document.getElementById('searchButton').addEventListener('click', async function(event) {
-      event.preventDefault();
-      console.log('Button clicked');
-      
+    // Event listener for search button
+    document.getElementById('searchButton').addEventListener('click', async () => {
       const county = document.getElementById('countySelect').value;
       if (!county) {
-        alert('Please select a county');
+        alert('Please select a county first');
         return;
       }
-      console.log('Selected county:', county);
+
+      // Show loading state
+      const button = document.getElementById('searchButton');
+      const buttonText = button.querySelector('span');
+      const loadingIndicator = document.querySelector('.loading-indicator');
       
-      // Show loading icon
-      const loadingIcon = this.querySelector('.fa-hard-hat');
-      if (loadingIcon) {
-        loadingIcon.style.display = 'inline-block';
-      }
+      buttonText.textContent = 'Searching...';
+      button.disabled = true;
+      loadingIndicator.classList.add('show');
+
+      // Hide results while loading
+      document.getElementById('resultsContainer').style.display = 'none';
 
       try {
-        await rebatePrograms.searchRebates(county);
+        // Clear previous results
+        ['solarResults', 'hvacResults', 'insulationResults'].forEach(id => {
+          const container = document.getElementById(id);
+          if (container) {
+            container.innerHTML = '';
+          }
+        });
+
+        // Perform the search
+        const results = await rebatePrograms.analyze(county);
+        
+        // Combine all programs
+        const allPrograms = [
+          ...(results.federal || []),
+          ...(results.state || []),
+          ...(results.county || [])
+        ];
+
+        // Categorize programs
+        const categories = categorizePrograms(allPrograms);
+
+        // Update UI for each category
+        Object.entries(categories).forEach(([category, programs]) => {
+          const container = document.getElementById(`${category}Results`);
+          if (container) {
+            if (programs.length === 0) {
+              container.innerHTML = `<div class="program-row">No ${category} programs found.</div>`;
+            } else {
+              programs.forEach(program => {
+                container.appendChild(createProgramRow(program));
+              });
+            }
+          }
+        });
+
+        // Show results container
+        document.getElementById('resultsContainer').style.display = 'block';
+
+        // Hide loading state
+        buttonText.textContent = 'Search Rebates';
+        button.disabled = false;
+        loadingIndicator.classList.remove('show');
       } catch (error) {
-        console.error('Error:', error);
-        const errorDisplay = document.getElementById('errorDisplay');
-        if (errorDisplay) {
-          errorDisplay.textContent = error.message;
-          errorDisplay.style.display = 'block';
-        }
-      } finally {
-        // Hide loading icon
-        if (loadingIcon) {
-          loadingIcon.style.display = 'none';
-        }
+        console.error('Error during search:', error);
+        buttonText.textContent = 'Search Failed';
+        button.disabled = false;
+        loadingIndicator.classList.remove('show');
+        alert('An error occurred during the search. Please try again.');
       }
     });
   </script>
