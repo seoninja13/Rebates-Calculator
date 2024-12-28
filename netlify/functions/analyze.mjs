@@ -1,4 +1,4 @@
-import { GoogleSheetsCache } from './services/sheets-cache.mjs';
+import { GoogleSheetsCache } from '../../backend/services/sheets-cache.js';
 import { OpenAI } from 'openai';
 import fetch from 'node-fetch';
 
@@ -6,20 +6,35 @@ import fetch from 'node-fetch';
 function netlifyGetSearchQueries(level, county) {
     if (!level) throw new Error('Level is required');
     
+    // Enhanced logging
+    console.log('🔎 Generating Search Queries', { 
+        level, 
+        county: county || 'N/A' 
+    });
+
     switch (level.trim()) {
         case 'Federal':
             return [
-                'federal energy rebate programs california, US government energy incentives california'
+                'federal energy rebate programs california',
+                'US government energy efficiency incentives for homeowners',
+                'federal tax credits for renewable energy installations',
+                'energy savings programs for residential and commercial properties'
             ];
         case 'State':
             return [
-                'California state energy rebate programs, California state government energy incentives'
+                'California state energy rebate programs for solar and efficiency',
+                'California government energy incentives for home upgrades',
+                'California clean energy financial assistance programs',
+                'state-level energy efficiency rebates and grants'
             ];
         case 'County':
             if (!county) throw new Error('County is required for county-level search');
             const cleanCounty = county.replace(/^County:/, '').trim();
             return [
-                `${cleanCounty} County energy rebate programs, ${cleanCounty} County energy incentives`
+                `${cleanCounty} County energy rebate and efficiency programs`,
+                `local energy incentives in ${cleanCounty} County for residential upgrades`,
+                `${cleanCounty} County utility company energy savings programs`,
+                `renewable energy and efficiency rebates in ${cleanCounty} County`
             ];
         default:
             throw new Error(`Invalid level: ${level}`);
@@ -148,28 +163,53 @@ class GoogleSearchAPIManager extends APICallManager {
     }
 
     async search(query, timeout = 7000) {
+        console.log('🌐 Initiating Google Search', {
+            query,
+            timeout,
+            apiKeyPresence: process.env.GOOGLE_API_KEY ? '✅ PRESENT' : '❌ MISSING',
+            searchEngineIdPresence: process.env.GOOGLE_SEARCH_ENGINE_ID ? '✅ PRESENT' : '❌ MISSING'
+        });
+
         if (!process.env.GOOGLE_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
             throw new Error('Google Search API configuration is missing');
         }
 
-        const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=7`;
+        const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=5`;
         
         try {
-            const searchResults = await this.fetchWithRetry(url, {}, timeout);
-            
-            console.log('📥 GOOGLE SEARCH RESULTS:', {
-                query: query,
-                totalResults: searchResults.searchInformation?.totalResults,
-                itemsCount: searchResults.items?.length,
-                firstResult: searchResults.items?.[0]?.title,
-                timestamp: new Date().toISOString()
+            console.log('🔍 Executing Search URL', { 
+                encodedQuery: encodeURIComponent(query),
+                urlLength: url.length
             });
 
-            return searchResults;
+            const response = await this.fetchWithRetry(url, {}, timeout);
+            
+            console.log('📊 Search Response Metadata', {
+                totalResults: response.searchInformation?.totalResults,
+                searchTime: response.searchInformation?.searchTime,
+                itemsCount: response.items?.length || 0,
+                firstResultTitle: response.items?.[0]?.title,
+                firstResultLink: response.items?.[0]?.link
+            });
+
+            // Detailed logging of each search result
+            if (response.items) {
+                response.items.forEach((item, index) => {
+                    console.log(`🔎 Result #${index + 1}`, {
+                        title: item.title,
+                        link: item.link,
+                        snippet: item.snippet?.substring(0, 200) + '...',
+                        displayLink: item.displayLink
+                    });
+                });
+            }
+
+            return response;
         } catch (error) {
-            console.error('Google Search API Error:', {
+            console.error('❌ Google Search API Error', {
                 query,
-                error: error.message,
+                errorMessage: error.message,
+                errorStack: error.stack,
                 apiMetrics: this.getMetrics()
             });
             throw error;
@@ -229,109 +269,152 @@ class OpenAIAPIManager extends APICallManager {
 
     // Construct comprehensive user message
     constructUserMessage(searchContext, level, county, category) {
-        const contextDetails = searchContext.map(result => 
-            `Title: ${result.title}\n` +
+        // Limit the number of search results to reduce message length
+        const limitedContext = searchContext.slice(0, 3).map(result => 
+            `Title: ${result.title || 'Untitled'}\n` +
             `URL: ${result.link}\n` +
-            `Snippet: ${result.snippet}\n`
+            `Snippet: ${result.snippet?.substring(0, 200) || 'No snippet available'}\n`
         ).join('\n\n');
 
-        return `Analyze energy rebate programs for ${level} level${county ? ` in ${county} County` : ''}:
+        return `Extract energy rebate programs for ${level} level${county ? ` in ${county} County` : ''}:
 
-Search Result Context:
-${contextDetails}
+Search Context (Top Results):
+${limitedContext}
 
-Specific Requirements:
-- Focus on energy efficiency programs
+Requirements:
+- Focus on current, active energy efficiency programs
 - Include residential and commercial rebates
 - Capture programs related to: solar, insulation, HVAC, appliance upgrades
-- Prioritize current and active programs
+- Prioritize programs with clear eligibility and value
 
-Extract ALL relevant energy rebate and incentive programs from these results.`;
+Return a JSON with these program details:
+{
+    "programs": [
+        {
+            "name": "Program Name",
+            "description": "Brief program description",
+            "type": "Rebate/Incentive/Tax Credit",
+            "eligibility": {
+                "residential": boolean,
+                "commercial": boolean,
+                "requirements": ["Specific requirements"]
+            },
+            "estimated_value": {
+                "min": number,
+                "max": number,
+                "currency": "USD"
+            }
+        }
+    ]
+}`;
     }
 
     // Perform OpenAI analysis with advanced error handling
     async analyzeSearchResults(searchContext, level, county, category) {
+        const startTime = Date.now();
+        const TIMEOUT_MS = 25000; // Increased from previous timeout
+
+        console.log('🕒 OpenAI Analysis Start', {
+            searchResultCount: searchContext?.length || 0,
+            level,
+            county,
+            category,
+            inputSize: JSON.stringify(searchContext).length
+        });
+
         try {
-            // Detailed logging of input
-            console.log('🔍 OpenAI Analysis Attempt', {
-                searchResultCount: searchContext.length,
-                level,
-                county,
-                category,
-                attempt: this.retryCount + 1
-            });
+            // Validate inputs
+            if (!searchContext || searchContext.length === 0) {
+                console.warn('No search context provided for analysis');
+                return { programs: [] };
+            }
 
-            const userMessage = this.constructUserMessage(
-                searchContext, 
-                level, 
-                county, 
-                category
-            );
+            const userMessage = this.constructUserMessage(searchContext, level, county, category);
 
-            // Log message details
-            console.log('📝 OpenAI User Message', {
-                length: userMessage.length,
+            console.log('📝 OpenAI Request Details', {
+                messageLength: userMessage.length,
                 firstLines: userMessage.split('\n').slice(0, 5).join('\n')
             });
 
-            const completion = await this.fetchWithRetry(
-                'https://api.openai.com/v1/chat/completions', 
-                {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        model: "gpt-4-1106-preview",
-                        messages: [
-                            { role: "system", content: OPENAI_PROMPTS.SYSTEM_PROMPT },
-                            { role: "user", content: userMessage }
-                        ],
-                        response_format: { type: "json_object" },
-                        temperature: 0.3,  // More conservative
-                        max_tokens: 4096
-                    })
-                },
-                10000
-            );
+            console.time('OpenAI API Call');
+            const openaiResponse = await Promise.race([
+                this.openaiClient.chat.completions.create({
+                    model: "gpt-3.5-turbo-1106", // More stable model
+                    response_format: { type: "json_object" },
+                    messages: [
+                        {
+                            role: "system", 
+                            content: "You are an expert in energy rebate program analysis. Always return a structured JSON response."
+                        },
+                        { 
+                            role: "user", 
+                            content: userMessage 
+                        }
+                    ],
+                    max_tokens: 1500, // Limit token usage
+                    temperature: 0.7
+                }).then(result => {
+                    console.timeEnd('OpenAI API Call');
+                    console.log('✅ OpenAI Response Received', {
+                        responseLength: result?.choices?.[0]?.message?.content?.length || 0,
+                        tokenUsage: result?.usage
+                    });
+                    return result; // Return the full response object
+                }),
+                new Promise((_, reject) => 
+                    setTimeout(() => {
+                        console.log('⏰ OpenAI Request Timeout Triggered');
+                        reject(new Error('OpenAI Analysis Timeout'));
+                    }, TIMEOUT_MS)
+                )
+            ]);
 
-            // Log raw completion
-            console.log('🤖 OpenAI Raw Completion', {
-                tokenUsage: completion.usage,
-                responseLength: completion.choices[0].message.content.length
+            console.log('🤖 OpenAI Raw Response', {
+                responseLength: JSON.stringify(openaiResponse).length,
+                responsePreview: JSON.stringify(openaiResponse.choices[0].message.content).slice(0, 500)
             });
 
-            return completion.choices[0].message.content;
+            // Process OpenAI response
+            const processedPrograms = await processOpenAIResponse(openaiResponse, level, county);
+
+            console.log('✅ Processed Programs', {
+                level: processedPrograms.level,
+                programCount: processedPrograms.count,
+                programDetails: processedPrograms.programs
+            });
+
+            return processedPrograms;
 
         } catch (error) {
             console.error('❌ OpenAI Analysis Error', {
                 error: error.message,
                 stack: error.stack,
-                retryCount: this.retryCount
+                level, 
+                county, 
+                category
             });
 
-            // Implement retry with fallback prompts
+            // Implement retry with fallback
             if (this.retryCount < this.maxRetries) {
                 this.retryCount++;
-                
-                // Use fallback prompt
-                const fallbackPrompt = OPENAI_PROMPTS.FALLBACK_PROMPTS[
-                    this.retryCount - 1
-                ];
+                console.log(`🔄 Retry ${this.retryCount}`);
 
-                console.log(`🔄 Retry ${this.retryCount} with Fallback Prompt`);
-
-                return this.analyzeSearchResults(
-                    searchContext, 
-                    level, 
-                    county, 
-                    category
-                );
+                return this.analyzeSearchResults(searchContext, level, county, category);
             }
 
             // If all retries fail, return empty result
-            return JSON.stringify({ programs: [] });
+            console.warn('⚠️ All OpenAI analysis attempts failed. Returning empty result.', {
+                level,
+                county,
+                category,
+                searchResultCount: searchContext.length
+            });
+
+            return {
+                level,
+                count: 0,
+                programs: []
+            };
         }
     }
 }
@@ -340,9 +423,9 @@ Extract ALL relevant energy rebate and incentive programs from these results.`;
 class SearchResultsProcessor {
     constructor(options = {}) {
         this.options = {
-            maxResults: 5,  // Explicitly set to 5 results
-            maxSnippetLength: options.maxSnippetLength || 250,
-            minRelevanceScore: options.minRelevanceScore || 0.5,
+            maxResults: 5,  // Reduced back to 5
+            maxSnippetLength: 300,
+            minRelevanceScore: 0.1,  // Lowered from 0.3 to 0.1
             deduplicationFields: options.deduplicationFields || ['link']
         };
     }
@@ -404,24 +487,30 @@ class SearchResultsProcessor {
         // Comprehensive relevance scoring
         const relevanceKeywords = [
             'rebate', 'energy', 'incentive', 'efficiency', 
-            'savings', 'program', 'grant', 'subsidy'
+            'savings', 'program', 'grant', 'subsidy', 
+            'tax credit', 'renewable', 'upgrade'
         ];
 
-        // Check title for keywords
+        // Expanded keyword matching
         relevanceKeywords.forEach(keyword => {
+            const matchMultiplier = keyword.split(' ').length;
+            
             if (result.title && result.title.toLowerCase().includes(keyword)) {
-                score += 0.2;
+                score += 0.2 * matchMultiplier;
             }
-        });
-
-        // Check snippet for keywords
-        relevanceKeywords.forEach(keyword => {
+            
             if (result.snippet && result.snippet.toLowerCase().includes(keyword)) {
-                score += 0.2;
+                score += 0.15 * matchMultiplier;
             }
         });
 
-        return Math.min(score, 1);
+        // Bonus for longer, more detailed snippets
+        if (result.snippet && result.snippet.length > 150) {
+            score += 0.1;
+        }
+
+        // Ensure a minimum score of 0.1 if any match is found
+        return Math.max(Math.min(score, 1), 0.1);
     }
 
     // Sort results by relevance score
@@ -526,182 +615,154 @@ function validateAndEnhanceProgram(entry) {
 
 // Helper function to analyze results with OpenAI
 async function netlifyAnalyzeResults(results, level, county, category, query) {
-    // Log input parameters for debugging
-    console.log('OpenAI Analysis Input: {', 
-        `resultsCount: ${results?.length || 0},`, 
-        `level: '${level}',`, 
-        `county: '${county}',`, 
-        `category: '${category}',`, 
-        `query: ${query},`, 
-        `resultTitles: [${results?.map(r => r.title).join(', ') || 'none'}]`, 
-    '}');
+    console.log('🔬 Analyzing Search Results', {
+        resultsType: typeof results,
+        resultsLength: results ? results.length : 'N/A',
+        level,
+        county,
+        category,
+        query
+    });
+
+    // Ensure results is an array and not empty
+    if (!results || !Array.isArray(results) || results.length === 0) {
+        console.warn('❗ No search results to analyze', { 
+            results, 
+            level, 
+            county, 
+            category 
+        });
+        return [];
+    }
 
     try {
-        // Prepare search results for OpenAI
+        // Prepare context for OpenAI analysis
         const searchContext = results.map(result => ({
-            title: result.title || 'Untitled Result',
+            title: result.title || '',
             link: result.link || '',
             snippet: result.snippet || ''
         }));
 
-        // Construct OpenAI prompt
-        const userMessage = openAIManager.constructUserMessage(
+        console.log('📝 Prepared Search Context', {
+            contextLength: searchContext.length,
+            firstResultTitle: searchContext[0]?.title
+        });
+
+        // Perform OpenAI analysis
+        const openaiResponse = await openAIManager.analyzeSearchResults(
             searchContext, 
             level, 
             county, 
             category
         );
 
-        // Perform OpenAI analysis with timeout
-        const openaiResponse = await promiseWithTimeout(
-            openAIManager.analyzeSearchResults(
-                searchContext, 
-                level, 
-                county, 
-                category
-            ),
-            25000,  // 25-second timeout
-            "OpenAI analysis timed out"
-        );
-
-        // Parse OpenAI response
-        const parsedPrograms = await processOpenAIResponse(
-            openaiResponse, 
-            level, 
-            county
-        );
-
-        // Log parsed programs
-        console.log('Parsed OpenAI Programs:', {
-            count: parsedPrograms.programs.length,
-            programs: parsedPrograms.programs
+        console.log('🤖 OpenAI Analysis Response', {
+            responseType: typeof openaiResponse,
+            responseLength: openaiResponse ? JSON.stringify(openaiResponse).length : 'N/A'
         });
 
-        // Handle empty program set
-        if (parsedPrograms.programs.length === 0) {
-            console.warn('No programs found', { 
-                level, 
-                county, 
-                category,
-                searchResultsCount: results.length 
-            });
+        // Process and validate OpenAI response
+        const processedResponse = processOpenAIResponse(openaiResponse, level, county);
 
-            // Return a default empty result set
-            return {
-                level,
-                count: 0,
-                programs: [],
-                searchContext: searchContext
-            };
-        }
+        console.log('✅ Processed OpenAI Response', {
+            processedResponseType: typeof processedResponse,
+            processedResponseLength: processedResponse ? processedResponse.length : 'N/A'
+        });
 
-        return parsedPrograms;
-
+        return processedResponse || [];
     } catch (error) {
-        console.error('OpenAI Analysis Error:', {
-            error: error.message,
-            stack: error.stack,
+        console.error('❌ Analysis Error', {
+            errorMessage: error.message,
+            errorStack: error.stack,
             level,
             county,
             category
         });
-
-        // Return a structured error response
-        return {
-            level,
-            count: 0,
-            programs: [],
-            error: error.message
-        };
+        return [];
     }
 }
 
 // Process and validate OpenAI response
 async function processOpenAIResponse(openaiResponse, level, county) {
     try {
-        // Parse the JSON string directly
-        const parsedResponse = JSON.parse(openaiResponse);
+        // Extract the content from the OpenAI response
+        const parsedResponse = openaiResponse?.choices?.[0]?.message?.content;
 
-        console.log('Parsed OpenAI Programs:', {
-            count: parsedResponse.programs ? parsedResponse.programs.length : 0,
-            programs: parsedResponse.programs
-        });
-
-        // Use the new ensureMultipleCountyPrograms function
-        const processedPrograms = ensureMultipleCountyPrograms(parsedResponse.programs || []);
-
-        console.log('Final Processed Programs:', {
-            level: processedPrograms.level,
-            count: processedPrograms.count
-        });
-
-        // If no programs were processed, log a warning
-        if (processedPrograms.count === 0) {
-            console.warn('No valid programs found in OpenAI response', {
-                rawProgramsCount: parsedResponse.programs ? parsedResponse.programs.length : 0,
-                level,
-                county
+        // Validate the parsed response
+        if (!parsedResponse || typeof parsedResponse !== 'object') {
+            console.error('❌ Invalid OpenAI response', { 
+                responseType: typeof parsedResponse,
+                responseContent: parsedResponse 
             });
+            return { programs: [] };
         }
 
-        return processedPrograms;
+        // Validate programs structure
+        const programs = parsedResponse.programs;
+        if (!Array.isArray(programs) || programs.length === 0) {
+            console.error('❌ No programs found in response', { 
+                programsType: typeof programs,
+                programsLength: programs?.length 
+            });
+            return { programs: [] };
+        }
+
+        // Process programs with robust validation
+        const processedPrograms = programs.map(program => {
+            // Validate each program has required fields
+            if (!program.name || !program.description) {
+                console.warn('⚠️ Incomplete program information', { program });
+                return null;
+            }
+
+            return {
+                programName: program.name || 'Unnamed Program',
+                programType: program.type || 'Rebate',
+                summary: program.description || 'No description available',
+                amount: program.estimated_value 
+                    ? `$${program.estimated_value.min || 0} - $${program.estimated_value.max || 0}` 
+                    : (program.amount || 'Not specified'),
+                eligibleProjects: program.eligibleProjects || [],
+                eligibleRecipients: program.eligibility?.residential ? 'Residential' : 
+                                    program.eligibility?.commercial ? 'Commercial' : 'Not specified',
+                geographicScope: county ? `${county} County` : 'Not specified',
+                websiteLink: '#',
+                requirements: program.eligibility?.requirements || [],
+                applicationProcess: 'Not specified',
+                deadline: 'Not specified',
+                contactInfo: 'Not specified',
+                processingTime: 'Not specified',
+                collapsedSummary: `${program.name} - ${(program.description || '').slice(0, 100)}....`
+            };
+        }).filter(program => program !== null); // Remove any null entries
+
+        console.log('✅ Processed Programs', {
+            level,
+            programCount: processedPrograms.length,
+            programDetails: processedPrograms
+        });
+
+        return {
+            level,
+            count: processedPrograms.length,
+            programs: processedPrograms
+        };
 
     } catch (error) {
-        console.error('Error processing OpenAI response:', {
-            message: error.message,
+        console.error('❌ Analysis Processing Error', {
+            error: error.message,
             stack: error.stack,
-            rawResponse: openaiResponse,
-            level,
-            county
+            level, 
+            county, 
+            category: 'energy'
         });
-        
-        // Return a standardized empty response
+
         return {
             level,
             count: 0,
             programs: []
         };
     }
-}
-
-// Ensure multiple county programs are processed and validated
-function ensureMultipleCountyPrograms(rawPrograms) {
-    // Validate input
-    if (!Array.isArray(rawPrograms) || rawPrograms.length === 0) {
-        console.warn('No programs to process');
-        return { level: 'County', count: 0, programs: [] };
-    }
-
-    // Transform raw programs to match expected structure
-    const processedPrograms = rawPrograms.map(program => ({
-        programName: program.name || program.title,
-        programType: program.type || program.programType || 'Rebate',
-        summary: program.description || program.summary || 'No description available',
-        amount: program.estimated_value?.amount || 'Not specified',
-        eligibleProjects: program.eligibility?.projects || [],
-        eligibleRecipients: program.eligibility?.recipients || 'Not specified',
-        geographicScope: program.funding_source || 'Not specified',
-        websiteLink: program.url || '#',
-        requirements: program.eligibility?.requirements || [],
-        applicationProcess: 'Not specified',
-        deadline: 'Not specified',
-        contactInfo: 'Not specified',
-        processingTime: 'Not specified',
-        collapsedSummary: program.description ? 
-            `${program.name || program.title} - ${program.description.substring(0, 100)}...` 
-            : 'No summary available'
-    }));
-
-    // Validate each processed program
-    const validatedPrograms = processedPrograms
-        .map(program => validateAndEnhanceProgram(program))
-        .filter(program => program !== null);
-
-    return {
-        level: 'County',
-        count: validatedPrograms.length,
-        programs: validatedPrograms
-    };
 }
 
 // Timeout Management Utility
@@ -742,9 +803,7 @@ class TimeoutManager {
 function promiseWithTimeout(promise, timeout, errorMessage) {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
-        timeoutId = setTimeout(() => {
-            reject(new Error(errorMessage));
-        }, timeout);
+        timeoutId = setTimeout(() => reject(new Error(errorMessage)), timeout);
     });
 
     return Promise.race([
@@ -754,115 +813,202 @@ function promiseWithTimeout(promise, timeout, errorMessage) {
 }
 
 // Modified handler with timeout management
+// Initialize cache instance
+const sheetsCache = new GoogleSheetsCache();
+
 export async function handler(event, context) {
-    // Initialize timeout manager
-    const timeoutManager = new TimeoutManager();
+    console.group('🚀 HANDLER EXECUTION DIAGNOSTICS');
+    console.log('📋 Incoming Event', {
+        method: event.httpMethod,
+        queryParams: event.queryStringParameters,
+        headers: event.headers
+    });
 
-    try {
-        // Early parameter validation
-        const { level, county, category = 'all' } = JSON.parse(event.body);
-        
-        if (!level) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: 'Level parameter is required' })
-            };
-        }
-
-        // Check initial timeout
-        timeoutManager.throwIfTimeoutApproaching();
-
-        // Cache retrieval with timeout awareness
-        const cache = new GoogleSheetsCache();
-        let cacheResult;
-        try {
-            cacheResult = await promiseWithTimeout(
-                cache.netlifyGetCache(level, county, category),
-                timeoutManager.getSubOperationTimeout(4, 0),
-                'Cache retrieval timed out'
-            );
-        } catch (cacheError) {
-            console.error('Cache retrieval error:', cacheError);
-            // Continue with search if cache fails
-        }
-
-        // Check timeout after cache attempt
-        timeoutManager.throwIfTimeoutApproaching();
-
-        // Return cached result if available
-        if (cacheResult && cacheResult.found && cacheResult.data) {
-            return {
-                statusCode: 200,
-                body: JSON.stringify({
-                    programs: cacheResult.data.openaiAnalysis || { 
-                        level, 
-                        count: 0, 
-                        programs: [],
-                        source: 'empty_cache'
-                    },
-                    source: 'cache'
-                })
-            };
-        }
-
-        // Prepare search queries
-        const queries = netlifyGetSearchQueries(level, county);
-
-        // Perform search with timeout
-        let searchResults;
-        try {
-            searchResults = await promiseWithTimeout(
-                Promise.all(queries.map(query => netlifyPerformGoogleSearch(query))),
-                timeoutManager.getSubOperationTimeout(4, 1),
-                'Google Search timed out'
-            );
-        } catch (searchError) {
-            console.error('Search error:', searchError);
-            throw searchError; // Rethrow to be caught by outer handler
-        }
-
-        // Check timeout after search
-        timeoutManager.throwIfTimeoutApproaching();
-
-        // Analyze results with timeout
-        let openaiResult;
-        try {
-            openaiResult = await promiseWithTimeout(
-                netlifyAnalyzeResults(searchResults, level, county, category),
-                timeoutManager.getSubOperationTimeout(4, 2),
-                'OpenAI analysis timed out'
-            );
-        } catch (analysisError) {
-            console.error('Analysis error:', analysisError);
-            throw analysisError; // Rethrow to be caught by outer handler
-        }
-
-        // Final timeout check before caching
-        timeoutManager.throwIfTimeoutApproaching();
-
-        // Cache the results with timeout
-        try {
-            await promiseWithTimeout(
-                cache.netlifySetCache(level, county, category, openaiResult),
-                timeoutManager.getSubOperationTimeout(4, 3),
-                'Cache storage timed out'
-            );
-        } catch (cacheSetError) {
-            console.error('Cache storage error:', cacheSetError);
-            // Non-critical error, continue with response
-        }
-
-        // Return successful response
+    // Test route for API key verification
+    if (event.httpMethod === 'GET' && event.path === '/.netlify/functions/analyze/test-auth') {
         return {
             statusCode: 200,
-            body: JSON.stringify(openaiResult)
+            body: JSON.stringify({
+                googleApiKey: process.env.GOOGLE_API_KEY ? {
+                    present: true,
+                    length: process.env.GOOGLE_API_KEY.length,
+                    prefix: process.env.GOOGLE_API_KEY.substring(0, 5),
+                    suffix: process.env.GOOGLE_API_KEY.slice(-5)
+                } : 'MISSING',
+                googleSearchEngineId: process.env.GOOGLE_SEARCH_ENGINE_ID ? {
+                    present: true,
+                    length: process.env.GOOGLE_SEARCH_ENGINE_ID.length,
+                    value: process.env.GOOGLE_SEARCH_ENGINE_ID
+                } : 'MISSING'
+            })
+        };
+    }
+
+    // Validate API credentials at startup
+    console.log('🔑 API Credentials Check', {
+        googleApiKey: process.env.GOOGLE_API_KEY ? `${process.env.GOOGLE_API_KEY.substring(0, 5)}...${process.env.GOOGLE_API_KEY.slice(-5)}` : 'MISSING',
+        googleSearchEngineId: process.env.GOOGLE_SEARCH_ENGINE_ID ? `${process.env.GOOGLE_SEARCH_ENGINE_ID.substring(0, 5)}...` : 'MISSING',
+        googleApiKeyLength: process.env.GOOGLE_API_KEY?.length || 0,
+        searchEngineIdLength: process.env.GOOGLE_SEARCH_ENGINE_ID?.length || 0
+    });
+
+    if (!process.env.GOOGLE_API_KEY || !process.env.GOOGLE_SEARCH_ENGINE_ID) {
+        console.error('❌ Missing Google API credentials');
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ 
+                error: 'Google Search API configuration is missing',
+                details: {
+                    apiKeyPresent: !!process.env.GOOGLE_API_KEY,
+                    searchEngineIdPresent: !!process.env.GOOGLE_SEARCH_ENGINE_ID
+                }
+            })
+        };
+    }
+
+    try {
+        // Initialize cache
+        const cacheInitialized = await sheetsCache.initialize();
+        if (!cacheInitialized) {
+            console.warn('⚠️ Cache initialization failed, proceeding without caching');
+        }
+
+        // Parse request body
+        const { query, category, county, shouldSearch } = JSON.parse(event.body || '{}');
+
+        console.log('🔍 Search Parameters', {
+            query,
+            category, // This represents Federal/State/County
+            county,
+            shouldSearch
+        });
+
+        // Validate input parameters
+        if (!category || !['Federal', 'State', 'County'].includes(category)) {
+            console.error('❌ Missing or invalid category (Federal/State/County)');
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'Missing or invalid category (Federal/State/County)' })
+            };
+        }
+
+        // For County searches, ensure county is provided
+        if (category === 'County' && !county) {
+            console.error('❌ County is required for County-level searches');
+            return {
+                statusCode: 400,
+                body: JSON.stringify({ error: 'County is required for County-level searches' })
+            };
+        }
+
+        // Get search queries based on category (which represents Federal/State/County) and county
+        const searchQueries = netlifyGetSearchQueries(category, county);
+
+        console.log('🔎 Generated Search Queries', {
+            queryCount: searchQueries.length,
+            queries: searchQueries
+        });
+
+        // Perform Google searches for each query
+        const searchResultPromises = searchQueries.map(async (query) => {
+            console.log('🌐 Executing Search for Query', { query });
+            const searchResults = await netlifyPerformGoogleSearch(query);
+            
+            console.log('📊 Search Results for Query', {
+                query,
+                resultsCount: searchResults ? searchResults.length : 0,
+                firstResultTitle: searchResults && searchResults[0] ? searchResults[0].title : 'N/A'
+            });
+
+            return searchResults;
+        });
+
+        // Wait for all searches to complete
+        const allSearchResults = await Promise.all(searchResultPromises);
+
+        console.log('🧩 Combined Search Results', {
+            totalSearchResultsCount: allSearchResults.length,
+            searchResultsDetails: allSearchResults.map(results => ({
+                count: results ? results.length : 0,
+                firstResultTitle: results && results[0] ? results[0].title : 'N/A'
+            }))
+        });
+
+        // Flatten search results
+        const flattenedSearchResults = allSearchResults.flat().filter(result => result);
+
+        console.log('📝 Flattened Search Results', {
+            totalFlattenedResults: flattenedSearchResults.length,
+            firstResultTitle: flattenedSearchResults[0] ? flattenedSearchResults[0].title : 'N/A'
+        });
+
+        let analyzedResults;
+        if (cacheInitialized) {
+            // Check cache before analysis
+            const cacheResult = await sheetsCache.checkCache(query || '', category);
+            
+            if (cacheResult?.found && cacheResult.openaiAnalysis) {
+                console.log('📦 Cache Hit', {
+                    query: query || '',
+                    category,
+                    timestamp: cacheResult.timestamp
+                });
+                analyzedResults = cacheResult.openaiAnalysis;
+            }
+        }
+
+        if (!analyzedResults) {
+            // Analyze search results
+            analyzedResults = await netlifyAnalyzeResults(
+                flattenedSearchResults, 
+                category, 
+                county, 
+                category
+            );
+
+            // Log to cache if initialized
+            if (cacheInitialized) {
+                await sheetsCache.logSearch({
+                query: query || '',
+                level: category,
+                googleResults: flattenedSearchResults,
+                openaiAnalysis: analyzedResults,
+                isGoogleCached: false,
+                isOpenAICached: false
+                });
+            }
+
+            console.log('🤖 Fresh Analysis Results', {
+                analyzedResultsType: typeof analyzedResults,
+                analyzedResultsCount: analyzedResults ? analyzedResults.length : 0
+            });
+        }
+
+        // Prepare response
+        const responseBody = JSON.stringify({
+            level: category, // Store Federal/State/County in the Level column
+            county,
+            results: analyzedResults || []
+        });
+
+        console.groupEnd();
+
+        return {
+            statusCode: 200,
+            body: responseBody,
+            headers: {
+                'Content-Type': 'application/json'
+            }
         };
 
     } catch (error) {
-        // Comprehensive error handling
-        console.error('Function execution error:', error);
+        console.error('❌ Handler Execution Error', {
+            errorMessage: error.message,
+            errorStack: error.stack
+        });
+        console.groupEnd();
 
-        const errorResponse = {
+        return {
             statusCode: error.message.includes('timeout') ? 408 : 500,
             body: JSON.stringify({
                 error: error.message,
@@ -871,29 +1017,73 @@ export async function handler(event, context) {
                 details: error.stack
             })
         };
-
-        return errorResponse;
     }
 }
 
-// Modify existing search function to use SearchResultsProcessor
-async function netlifyPerformGoogleSearch(query, timeout = 7000) {
-    const searchResults = await googleSearchManager.search(query, timeout);
-    
-    const resultsProcessor = new SearchResultsProcessor({
-        maxResults: 5,
-        maxSnippetLength: 250,
-        minRelevanceScore: 0.5
-    });
+// Modified Google search function with comprehensive error handling and logging
+async function netlifyPerformGoogleSearch(query) {
+    console.log('🌐 Executing Google Search', { query });
 
-    const processedResults = resultsProcessor.processSearchResults([searchResults]);
+    if (!query || typeof query !== 'string') {
+        console.warn('⚠️ Invalid search query', { query });
+        return [];
+    }
 
-    console.log('🔍 PROCESSED SEARCH RESULTS:', {
-        totalResultsReceived: processedResults.totalResultsReceived,
-        uniqueResultsCount: processedResults.uniqueResultsCount,
-        processedResultsCount: processedResults.processedResultsCount,
-        resultLimit: processedResults.resultLimit
-    });
+    try {
+        const url = `https://www.googleapis.com/customsearch/v1?key=${process.env.GOOGLE_API_KEY}&cx=${process.env.GOOGLE_SEARCH_ENGINE_ID}&q=${encodeURIComponent(query)}&num=10`;
+        
+        const response = await googleSearchManager.fetchWithRetry(url);
 
-    return processedResults.results;
+        console.log('📡 Google Search Response', {
+            status: response.status,
+            totalResults: response.searchInformation?.totalResults || 0
+        });
+
+        // Check if items exist in the response
+        if (!response.items || response.items.length === 0) {
+            console.warn('🚫 No search results found', { query });
+            return [];
+        }
+
+        // Process and validate search results
+        const processedResults = response.items.map(item => ({
+            title: item.title || 'Untitled',
+            link: item.link || '',
+            snippet: item.snippet || '',
+            displayLink: item.displayLink || ''
+        })).filter(result => result.link);  // Ensure each result has a valid link
+
+        console.log('✅ Processed Search Results', {
+            query,
+            processedResultsCount: processedResults.length
+        });
+
+        return processedResults;
+
+    } catch (error) {
+        // Enhanced error logging
+        console.error('❌ Google Search Error', {
+            query,
+            errorMessage: error.message,
+            apiKeyLength: process.env.GOOGLE_API_KEY?.length || 0,
+            searchEngineIdLength: process.env.GOOGLE_SEARCH_ENGINE_ID?.length || 0,
+            apiKeyPresent: !!process.env.GOOGLE_API_KEY,
+            searchEngineIdPresent: !!process.env.GOOGLE_SEARCH_ENGINE_ID,
+            errorResponse: error.response ? {
+                status: error.response.status,
+                data: error.response.data
+            } : 'No response data'
+        });
+
+        if (error.message.includes('403')) {
+            console.error('🔑 Google API Authentication Error', {
+                message: 'API key may be invalid, expired, or reached quota limit',
+                apiKeyPrefix: process.env.GOOGLE_API_KEY?.substring(0, 5) + '...',
+                searchEngineIdPrefix: process.env.GOOGLE_SEARCH_ENGINE_ID?.substring(0, 5) + '...'
+            });
+        }
+
+        // Return empty array instead of throwing an error
+        return [];
+    }
 }

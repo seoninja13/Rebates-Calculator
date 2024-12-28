@@ -1,4 +1,4 @@
-import { GoogleSheetsCache } from './sheets-cache.mjs';
+import { GoogleSheetsCache } from '../../../backend/services/sheets-cache.js';
 
 // Test function for query normalization
 async function testCountyNormalization() {

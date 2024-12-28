@@ -50,9 +50,10 @@ app.use(cors({
 // SSE setup
 const clients = new Set();
 
-function sendLogToClient(message, details = null) {
+function sendLogToClient(message, type = '', details = null) {
     const logMessage = JSON.stringify({
         message,
+        type,
         details,
         timestamp: new Date().toISOString()
     });
@@ -117,7 +118,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Initialize cache with proper error handling
+// Initialize cache
 const cache = new GoogleSheetsCache();
 let cacheInitialized = false;
 
@@ -125,13 +126,14 @@ let cacheInitialized = false;
 (async () => {
     try {
         cacheInitialized = await cache.initialize();
-        console.log('Cache initialization status:', cacheInitialized ? 'Success' : 'Failed');
-        if (!cacheInitialized) {
-            console.error('Failed to initialize cache');
-        }
+        sendLogToClient('Cache initialization complete', 'system', {
+            status: cacheInitialized ? 'Success' : 'Failed'
+        });
     } catch (error) {
-        console.error('Cache initialization error:', error);
-        // Don't throw the error, just log it and continue
+        sendLogToClient('Cache initialization failed', 'error', {
+            error: error.message,
+            stack: error.stack
+        });
     }
 })();
 
@@ -141,9 +143,9 @@ try {
     openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
     });
-    console.log('OpenAI initialized successfully');
+    sendLogToClient('OpenAI initialized successfully', 'system');
 } catch (error) {
-    console.error('Failed to initialize OpenAI:', error);
+    sendLogToClient('Failed to initialize OpenAI', 'error', { error: error.message });
 }
 
 // Google Search API configuration
@@ -165,22 +167,19 @@ async function localPerformGoogleSearch(query) {
         }
         const data = await response.json();
         
-        // Log detailed search results
-        console.log('\n=== Google Search Results ===');
-        console.log('Total Results:', data.searchInformation?.totalResults);
-        console.log('Search Time:', data.searchInformation?.searchTime, 'seconds');
-        console.log('\nResults:');
-        data.items?.forEach((item, index) => {
-            console.log(`\n[Result ${index + 1}]`);
-            console.log('Title:', item.title);
-            console.log('Link:', item.link);
-            console.log('Snippet:', item.snippet);
-            console.log('---');
+        sendLogToClient('Google Search Results', 'search', {
+            totalResults: data.searchInformation?.totalResults,
+            searchTime: data.searchInformation?.searchTime,
+            query,
+            resultCount: data.items?.length || 0
         });
         
         return data;
     } catch (error) {
-        console.error('Google Search Error:', error);
+        sendLogToClient('Google Search Error', 'error', {
+            error: error.message,
+            query
+        });
         throw error;
     }
 }
@@ -211,9 +210,11 @@ function localGetSearchQueries(category, county) {
 // Helper function to analyze with OpenAI
 async function localAnalyzeWithOpenAI(results, category) {
     try {
-        // Build prompt for OpenAI
         const resultsText = JSON.stringify(results, null, 2);
-        console.log('Results Text for OpenAI:', resultsText);
+        sendLogToClient('Preparing OpenAI Analysis', 'analysis', {
+            category,
+            resultCount: results.length
+        });
 
         const prompt = `Extract information about ${category} energy rebate programs from these search results:
         ${resultsText}
@@ -257,7 +258,7 @@ async function localAnalyzeWithOpenAI(results, category) {
             }]
         }`;
 
-        console.log('Sending to OpenAI...');
+        sendLogToClient('Sending to OpenAI', 'analysis');
         const completion = await openai.chat.completions.create({
             model: "gpt-4-1106-preview",
             messages: [
@@ -276,12 +277,16 @@ async function localAnalyzeWithOpenAI(results, category) {
         });
 
         const content = completion.choices[0].message.content;
-        console.log('OpenAI Response:', content);
-        
         const parsedResponse = JSON.parse(content);
+        
         if (!parsedResponse.programs || !Array.isArray(parsedResponse.programs)) {
             throw new Error('Invalid response format from OpenAI');
         }
+
+        sendLogToClient('OpenAI Analysis Complete', 'analysis', {
+            category,
+            programCount: parsedResponse.programs.length
+        });
 
         return {
             category: category,
@@ -290,22 +295,12 @@ async function localAnalyzeWithOpenAI(results, category) {
         };
 
     } catch (error) {
-        console.error('Analysis Error:', error);
+        sendLogToClient('OpenAI Analysis Error', 'error', {
+            error: error.message,
+            category
+        });
         throw error;
     }
-}
-
-// Helper function for consistent logging
-function logMessage(direction, type, message, details = null) {
-    const logData = {
-        message,
-        details,
-        timestamp: new Date().toISOString(),
-        type
-    };
-    
-    console.log(`[${direction}] ${message}`, details || '');
-    sendLogToClient(message, details);
 }
 
 // Helper function to perform multiple searches
@@ -313,7 +308,7 @@ async function performMultipleSearches(category, county) {
     const queries = localGetSearchQueries(category, county);
     let allResults = [];
 
-    sendLogToClient('API → Google', 'search_batch_start', `Starting ${queries.length} Google searches for ${category}`, {
+    sendLogToClient('Starting Multiple Searches', 'search', {
         category,
         county,
         queryCount: queries.length,
@@ -322,29 +317,15 @@ async function performMultipleSearches(category, county) {
 
     for (const query of queries) {
         try {
-            sendLogToClient('API → Google', 'search_query', 'Sending search query to Google', {
-                category,
-                query
-            });
-
             const results = await localPerformGoogleSearch(query);
-            
-            sendLogToClient('Google → API', 'search_results_received', 'Received results from Google', {
-                category,
-                query,
-                resultCount: results.items?.length || 0
-            });
-
-            if (results) {
+            if (results?.items) {
                 allResults = allResults.concat(results.items);
             }
         } catch (error) {
-            sendLogToClient('Google → API', 'search_error', 'Error from Google Search API', {
+            sendLogToClient('Search Error', 'error', {
                 error: error.message,
-                category,
                 query
             });
-            // Continue with next query even if this one fails
         }
     }
 
@@ -353,37 +334,30 @@ async function performMultipleSearches(category, county) {
         index === self.findIndex((r) => r.link === result.link)
     );
 
-    sendLogToClient('Google → API', 'search_batch_complete', `Completed all Google searches for ${category}`, {
+    sendLogToClient('Search Complete', 'search', {
         category,
-        totalQueries: queries.length,
         totalResults: allResults.length,
-        uniqueResults: uniqueResults.length,
-        queries
+        uniqueResults: uniqueResults.length
     });
 
     return uniqueResults;
 }
 
-// API endpoint for analysis with better error handling
+// API endpoint for analysis
 app.post('/api/analyze', async (req, res) => {
     const { query, category, county } = req.body;
-    const shouldSearch = req.body.shouldSearch === true;  // Explicitly check for true
+    const shouldSearch = req.body.shouldSearch === true;
+    const startTime = Date.now();
 
     try {
-        sendLogToClient('UI → API', 'analyze_request', 'Received analyze request', {
+        sendLogToClient('Analyze Request', 'request', {
             category,
             county,
             query,
             shouldSearch
         });
 
-        // Only proceed with search if explicitly requested
         if (!shouldSearch) {
-            sendLogToClient('API → UI', 'search_skipped', 'Search not requested', { 
-                category, 
-                county,
-                shouldSearch
-            });
             return res.status(400).json({ 
                 error: 'Search not requested. Check cache first.',
                 shouldSearch
@@ -393,144 +367,75 @@ app.post('/api/analyze', async (req, res) => {
         // Check cache first
         if (cacheInitialized) {
             try {
-                const cacheKey = `${category}:${county}`;
-                const cachedResults = await cache.checkCache(cacheKey, category);
+                const normalizedQuery = `${category}:${county}`;
+                const cachedResults = await cache.checkCache(normalizedQuery, category);
                 
-                if (cachedResults && cachedResults.found) {
-                    sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
+                if (cachedResults?.found && cachedResults.openaiAnalysis) {
+                    sendLogToClient('Cache Hit', 'cache', {
                         category,
                         county,
                         timestamp: cachedResults.timestamp
                     });
 
-                    // Log the cache hit
-                    try {
-                        await cache.appendRow({
-                            query: cacheKey,
-                            category: category,
-                            googleResults: JSON.stringify(cachedResults.googleResults || []),
-                            openaiAnalysis: JSON.stringify(cachedResults.openaiAnalysis || {}),
-                            timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                            hash: cachedResults.hash,
-                            googleSearchCache: 'Cache',
-                            openaiSearchCache: 'Cache'
-                        });
+                    // Log cache hit
+                    await cache.logSearch({
+                        query: normalizedQuery,
+                        level: category,
+                        googleResults: cachedResults.googleResults,
+                        openaiAnalysis: cachedResults.openaiAnalysis,
+                        isGoogleCached: true,
+                        isOpenAICached: true
+                    });
 
-                        const analysis = JSON.parse(cachedResults.openaiAnalysis);
-                        return res.json({
-                            programs: analysis.programs || [],
-                            source: {
-                                googleSearch: 'Cache',
-                                openaiAnalysis: 'Cache'
-                            }
-                        });
-                    } catch (logError) {
-                        console.error('Failed to log cache hit:', logError);
-                    }
+                    const analysis = JSON.parse(cachedResults.openaiAnalysis);
+                    return res.json({
+                        programs: analysis.programs || [],
+                        source: {
+                            googleSearch: 'Cache',
+                            openaiAnalysis: 'Cache'
+                        }
+                    });
                 }
             } catch (cacheError) {
-                console.error('Cache check failed:', cacheError);
-                // Continue with search if cache check fails
+                sendLogToClient('Cache Check Failed', 'error', {
+                    error: cacheError.message
+                });
             }
         }
 
-        // If we reach here, either cache wasn't initialized, check failed, or no cache hit
-        // Proceed with search
-        console.log('Proceeding with search, shouldSearch is true');
-        sendLogToClient('API → Internal', 'search_start', 'Starting new search', {
-            category,
-            county,
-            query,
-            shouldSearch
-        });
-
-        // Perform multiple Google searches
-        sendLogToClient('API → Google', 'search_start', `Starting ${localGetSearchQueries(category, county).length} Google searches for ${category}`, {
-            category,
-            county,
-            queryCount: localGetSearchQueries(category, county).length,
-            queries: localGetSearchQueries(category, county)
-        });
-
+        // Perform search and analysis
         const searchResults = await performMultipleSearches(category, county);
         
         if (!searchResults || searchResults.length === 0) {
-            sendLogToClient('Google → API', 'search_error', 'No search results found', { category, county });
             return res.status(404).json({ error: 'No search results found' });
         }
 
-        // Format ALL results for OpenAI analysis
         const formattedResults = searchResults.map(result => ({
             title: result.title,
             link: result.link,
             snippet: result.snippet
         }));
 
-        // Send ALL results to OpenAI for analysis
-        sendLogToClient('API → OpenAI', 'analysis_request', 'Sending combined Google results to OpenAI for analysis', {
-            category,
-            resultCount: formattedResults.length,
-            searchQueries: localGetSearchQueries(category, county)
-        });
-        
         const analysis = await localAnalyzeWithOpenAI(formattedResults, category);
-        
-        sendLogToClient('OpenAI → API', 'analysis_complete', 'Received program analysis from OpenAI', {
-            category,
-            programCount: analysis.programs?.length,
-            totalSearchResults: formattedResults.length
-        });
 
-        // Store new search results
+        // Store in cache if initialized
         if (cacheInitialized) {
             try {
-                sendLogToClient('API → Cache', 'cache_store', 'Storing Google and OpenAI results in Google Sheets', {
-                    category,
-                    county,
-                    queries: localGetSearchQueries(category, county),
-                    googleResultsCount: searchResults.length,
-                    openaiProgramsCount: analysis.programs?.length
-                });
-
-                await cache.appendRow({
-                    query: localGetSearchQueries(category, county).join(' | '),
-                    category: category,
-                    googleResults: JSON.stringify(searchResults),
-                    openaiAnalysis: JSON.stringify(analysis),
-                    timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                    hash: cache.localGenerateHash(`${category}:${county}`),
-                    googleSearchCache: 'Search',  // New search
-                    openaiSearchCache: 'Search'   // New analysis
-                });
-
-                sendLogToClient('Cache → API', 'cache_store_success', 'New Google and OpenAI results stored in Google Sheets', {
-                    category,
-                    county,
-                    timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" })
+                const normalizedQuery = `${category}:${county}`;
+                await cache.logSearch({
+                    query: normalizedQuery,
+                    level: category,
+                    googleResults: searchResults,
+                    openaiAnalysis: analysis,
+                    isGoogleCached: false,
+                    isOpenAICached: false
                 });
             } catch (cacheError) {
-                sendLogToClient('Cache → API', 'cache_store_error', 'Failed to store Google and OpenAI results in Google Sheets', {
-                    error: cacheError.message,
-                    category,
-                    county
+                sendLogToClient('Cache Store Failed', 'error', {
+                    error: cacheError.message
                 });
             }
         }
-
-        // Add metadata about the search process to the response
-        analysis.searchMetadata = {
-            totalQueries: localGetSearchQueries(category, county).length,
-            totalResults: searchResults.length,
-            queries: localGetSearchQueries(category, county),
-            timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-            source: 'search'
-        };
-
-        sendLogToClient('API → UI', 'response_sent', 'Sending final results', {
-            category,
-            programCount: analysis.programs?.length,
-            searchMetadata: analysis.searchMetadata
-        });
 
         res.json({
             programs: analysis.programs || [],
@@ -540,7 +445,7 @@ app.post('/api/analyze', async (req, res) => {
             }
         });
     } catch (error) {
-        sendLogToClient('API → UI', 'error', 'Analysis failed', {
+        sendLogToClient('Analysis Failed', 'error', {
             error: error.message,
             stack: error.stack,
             duration: Date.now() - startTime
@@ -555,99 +460,56 @@ app.post('/api/analyze', async (req, res) => {
     }
 });
 
-// Add check-cache endpoint
+// Check cache endpoint
 app.post('/api/check-cache', async (req, res) => {
     const { query, category, county } = req.body;
     const startTime = Date.now();
 
     try {
-        sendLogToClient('UI → API', 'cache_check', 'Checking cache', {
+        sendLogToClient('Cache Check Request', 'cache', {
             category,
             county,
             query
         });
 
         if (!cacheInitialized) {
-            sendLogToClient('API → UI', 'cache_error', 'Cache not initialized', {
-                category,
-                county
-            });
             return res.status(503).json({ error: 'Cache not initialized' });
         }
 
-        // Get all possible queries for this category
-        const queries = localGetSearchQueries(category, county);
-        const combinedCacheKey = queries.join(' | ');
-
-        try {
-            sendLogToClient('API → Cache', 'cache_lookup', 'Looking up cache entry', {
+        const normalizedQuery = `${category}:${county}`;
+        const cachedResults = await cache.checkCache(normalizedQuery, category);
+        
+        if (cachedResults?.found) {
+            sendLogToClient('Cache Hit', 'cache', {
                 category,
                 county,
-                queries
+                timestamp: cachedResults.timestamp
             });
 
-            const cachedResults = await cache.checkCache(combinedCacheKey, category);
-            
-            if (cachedResults && cachedResults.found) {
-                sendLogToClient('Cache → API', 'cache_hit', 'Found cached results', {
-                    category,
-                    county,
-                    timestamp: cachedResults.timestamp
-                });
+            // Log cache hit
+            await cache.logSearch({
+                query: normalizedQuery,
+                level: category,
+                googleResults: cachedResults.googleResults,
+                openaiAnalysis: cachedResults.openaiAnalysis,
+                isGoogleCached: true,
+                isOpenAICached: true
+            });
 
-                // Log the cache hit
-                try {
-                    await cache.appendRow({
-                        query: combinedCacheKey,
-                        category: category,
-                        googleResults: JSON.stringify(cachedResults.googleResults || []),
-                        openaiAnalysis: JSON.stringify(cachedResults.openaiAnalysis || {}),
-                        timestamp: new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles" }),
-                        hash: cachedResults.hash,
-                        googleSearchCache: 'Cache',
-                        openaiSearchCache: 'Cache'
-                    });
-
-                    sendLogToClient('Cache → API', 'cache_log', 'Logged cache hit', {
-                        category,
-                        county,
-                        timestamp: cachedResults.timestamp
-                    });
-                } catch (logError) {
-                    sendLogToClient('Cache → API', 'cache_log_error', 'Failed to log cache hit', {
-                        error: logError.message,
-                        category,
-                        county
-                    });
+            const analysis = JSON.parse(cachedResults.openaiAnalysis);
+            return res.json({
+                found: true,
+                programs: analysis.programs || [],
+                source: {
+                    googleSearch: 'Cache',
+                    openaiAnalysis: 'Cache'
                 }
-
-                const analysis = JSON.parse(cachedResults.openaiAnalysis);
-                return res.json({
-                    found: true,
-                    programs: analysis.programs || [],
-                    source: {
-                        googleSearch: 'Cache',
-                        openaiAnalysis: 'Cache'
-                    }
-                });
-            }
-
-            sendLogToClient('Cache → API', 'cache_doesnt_exist', 'No previous cache entry exists', {
-                category,
-                county
             });
-            return res.json({ found: false });
-
-        } catch (cacheError) {
-            sendLogToClient('Cache → API', 'cache_error', 'Cache lookup failed', {
-                error: cacheError.message,
-                category,
-                county
-            });
-            return res.status(500).json({ error: 'Cache lookup failed' });
         }
+
+        return res.json({ found: false });
     } catch (error) {
-        sendLogToClient('API → UI', 'error', 'Cache check failed', {
+        sendLogToClient('Cache Check Failed', 'error', {
             error: error.message,
             stack: error.stack,
             duration: Date.now() - startTime
@@ -662,17 +524,21 @@ app.post('/api/check-cache', async (req, res) => {
     }
 });
 
-// Serve static files from the root directory
-app.use(express.static(path.join(__dirname, '..'))); // Go up one level from /backend
+// Serve static files
+app.use(express.static(path.join(__dirname, '..')));
 
-// Root route - serve index.html
+// Root route
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
+    sendLogToClient('Unhandled Error', 'error', {
+        error: err.message,
+        stack: err.stack
+    });
+    
     res.status(500).json({
         error: 'Internal server error',
         message: err.message,
@@ -680,20 +546,23 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Start server with proper error handling
+// Start server
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    console.log(`SSE endpoint available at http://localhost:${PORT}/api/logs`);
+    sendLogToClient('Server Started', 'system', {
+        port: PORT,
+        sseEndpoint: `http://localhost:${PORT}/api/logs`
+    });
 }).on('error', (error) => {
-    console.error('Failed to start server:', error);
+    sendLogToClient('Server Start Failed', 'error', {
+        error: error.message
+    });
 });
 
-// Handle server shutdown
+// Handle shutdown
 process.on('SIGTERM', () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
+    sendLogToClient('Server Shutdown', 'system');
     server.close(() => {
-        console.log('Server closed');
         process.exit(0);
     });
 });

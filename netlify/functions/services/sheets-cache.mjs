@@ -617,37 +617,53 @@ export class GoogleSheetsCache {
 
     // Helper method to truncate for logging
     _truncateForLogging(data) {
-        // If data is null or undefined, return empty array
+        // If data is null or undefined, return an empty array
         if (!data) return [];
 
-        // If data is an array, proceed with truncation
+        // If data is already an array, process it
         if (Array.isArray(data)) {
             return data.map(entry => {
-                // Truncate each entry's properties
+                // Handle different types of entries
+                if (entry === null || entry === undefined) return null;
+                
+                // If entry is a primitive, return it directly
+                if (typeof entry !== 'object') return entry;
+
+                // If entry is an object, truncate its properties
                 const truncatedEntry = {};
                 for (const [key, value] of Object.entries(entry)) {
+                    // Convert numeric keys to strings if needed
+                    const safeKey = String(key);
+                    
                     if (typeof value === 'string') {
-                        truncatedEntry[key] = value.length > 500 
+                        truncatedEntry[safeKey] = value.length > 500 
                             ? value.substring(0, 500) + '...' 
                             : value;
+                    } else if (value === null || value === undefined) {
+                        truncatedEntry[safeKey] = null;
                     } else {
-                        truncatedEntry[key] = value;
+                        // For other types, convert to string or keep as is
+                        truncatedEntry[safeKey] = String(value);
                     }
                 }
                 return truncatedEntry;
-            }).slice(0, 50);  // Limit to 50 entries
+            }).filter(entry => entry !== null).slice(0, 50);  // Limit to 50 entries
         }
 
         // If data is an object, handle it similarly
         if (typeof data === 'object') {
             const truncatedObject = {};
             for (const [key, value] of Object.entries(data)) {
+                const safeKey = String(key);
+                
                 if (typeof value === 'string') {
-                    truncatedObject[key] = value.length > 500 
+                    truncatedObject[safeKey] = value.length > 500 
                         ? value.substring(0, 500) + '...' 
                         : value;
+                } else if (value === null || value === undefined) {
+                    truncatedObject[safeKey] = null;
                 } else {
-                    truncatedObject[key] = value;
+                    truncatedObject[safeKey] = String(value);
                 }
             }
             return [truncatedObject];
@@ -736,74 +752,66 @@ export class GoogleSheetsCache {
 
     // Set cache entry
     async netlifySetCache(level, county, category, data) {
-        try {
-            console.log('Cache Set: Processing', { 
-                level, 
-                category, 
-                googleResultsCount: data?.googleResults?.length || 0,
-                openaiAnalysisCount: data?.openaiAnalysis?.length || 0,
-                googleResultsSample: this._truncateForLogging(data?.googleResults ? [data.googleResults] : []),
-                openaiAnalysisSample: this._truncateForLogging(data?.openaiAnalysis ? [data.openaiAnalysis] : [])
+        // Validate data before caching
+        const googleResults = data.googleResults || [];
+        const openaiAnalysis = data.openaiAnalysis || [];
+
+        // Only cache if there are meaningful results
+        if (googleResults.length > 0 || (openaiAnalysis && openaiAnalysis.length > 0)) {
+            console.log('Cache → Append | Preparing data', {
+                query: data.query,
+                level,
+                googleResultsCount: googleResults.length,
+                analysisCount: openaiAnalysis ? openaiAnalysis.length : 0
             });
 
-            if (!this.initialized) await this.initialize();
-            if (!level) throw new Error('Level is required');
-
-            const normalizedLevel = level.trim();
-            const normalizedCounty = county ? county.replace(/^County:\s*/i, '').replace(/\s*county\s*/i, '').trim() : null;
-
-            const hash = crypto.createHash('md5')
-                .update(`${normalizedLevel}:${normalizedCounty || ''}:${category}`)
-                .digest('hex');
-        
-            let query;
-            switch (normalizedLevel) {
-                case 'Federal':
-                    query = 'federal energy rebate programs california, US government energy incentives california';
-                    break;
-                case 'State':
-                    query = 'California state energy rebate programs, California state government energy incentives';
-                    break;
-                case 'County':
-                    if (!normalizedCounty) {
-                        throw new Error('County name is required for county-level query');
-                    }
-                    query = `${normalizedCounty} County energy rebate programs california, ${normalizedCounty} County utility incentives california`;
-                    break;
-                default:
-                    throw new Error(`Invalid level: ${normalizedLevel}`);
-            }
-
-            const googleResultsJson = data?.googleResults 
-                ? (typeof data.googleResults === 'string' 
-                    ? data.googleResults 
-                    : JSON.stringify(data.googleResults)) 
-                : '[]';
-            
-            const openaiAnalysisJson = data?.openaiAnalysis 
-                ? (typeof data.openaiAnalysis === 'string'
-                    ? data.openaiAnalysis
-                    : JSON.stringify(data.openaiAnalysis))
-                : '[]';
-
+            // Prepare row data following the specified structure
             const rowData = [
-                query,
-                normalizedLevel,
-                googleResultsJson,
-                openaiAnalysisJson,
-                new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }),
-                hash,
-                'Cache',
-                'Cache'
+                data.query,                  // Query
+                level,                       // Level
+                JSON.stringify(googleResults),  // Google Results
+                JSON.stringify(openaiAnalysis || []),  // OpenAI Analysis
+                this.netlifyGetPSTTimestamp(),  // Timestamp
+                this.netlifyGenerateHash(level, county, category),  // Hash
+                googleResults.length > 0 ? 'Search' : 'Cache',  // Google Search Cache
+                openaiAnalysis && openaiAnalysis.length > 0 ? 'Search' : 'Cache'  // OpenAI Search Cache
             ];
 
-            console.log(`Cache Set: Completed for ${normalizedLevel} level`, {
-                fullRowData: this._truncateForLogging(rowData)
+            try {
+                // Append the row to the cache sheet
+                const appendResponse = await this.sheets.spreadsheets.values.append({
+                    spreadsheetId: this.spreadsheetId,
+                    range: 'Cache!A:H',
+                    valueInputOption: 'RAW',
+                    insertDataOption: 'INSERT_ROWS',
+                    resource: { values: [rowData] }
+                });
+
+                console.log('Cache → Append | Success', {
+                    updatedRange: appendResponse.data.updates.updatedRange,
+                    updatedRows: appendResponse.data.updates.updatedRows,
+                    timestamp: rowData[4]  // Timestamp
+                });
+
+                return appendResponse;
+            } catch (error) {
+                console.error('Cache → Append | Error', {
+                    errorMessage: error.message,
+                    query: data.query,
+                    level
+                });
+                throw error;
+            }
+        } else {
+            console.log('Cache → Skipped | No meaningful results to cache', {
+                query: data.query,
+                level,
+                googleResultsCount: googleResults.length,
+                openaiAnalysisCount: openaiAnalysis ? openaiAnalysis.length : 0
             });
-            return rowData;
-        } catch (error) {
-            console.error('Cache Set Error:', error.message);
-            throw error;
+            
+            // Return null to indicate no caching occurred
+            return null;
         }
     }
 

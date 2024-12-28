@@ -1,4 +1,4 @@
-import { GoogleSheetsCache } from './sheets-cache.mjs';
+import { GoogleSheetsCache } from '../../../backend/services/sheets-cache.js';
 
 function verifyHashGeneration() {
     const cache = new GoogleSheetsCache();
@@ -27,9 +27,10 @@ function verifyHashGeneration() {
 
     testCases.forEach((testCase, index) => {
         try {
-            const generatedHash = cache.netlifyGenerateHash(
+            const generatedHash = cache.generateHash(
                 testCase.level, 
-                testCase.county
+                testCase.county,
+                'all'
             );
 
             const status = generatedHash === testCase.expectedHash ? '✅ PASS' : '❌ FAIL';

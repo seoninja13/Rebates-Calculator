@@ -1,4 +1,4 @@
-import { GoogleSheetsCache } from './sheets-cache.mjs';
+import { GoogleSheetsCache } from '../../../backend/services/sheets-cache.js';
 
 function comprehensiveHashVerification() {
     const cache = new GoogleSheetsCache();
@@ -24,9 +24,10 @@ function comprehensiveHashVerification() {
 
     testCases.forEach((testCase, index) => {
         try {
-            const generatedHash = cache.netlifyGenerateHash(
+            const generatedHash = cache.generateHash(
                 testCase.level, 
-                testCase.county
+                testCase.county,
+                'all'
             );
 
             const status = generatedHash === testCase.expectedHash ? '✅ PASS' : '❌ FAIL';
@@ -62,7 +63,7 @@ function comprehensiveHashVerification() {
 
     countyTestCases.forEach(county => {
         const cache = new GoogleSheetsCache();
-        const normalizedCounty = cache.normalizeCounty(county);
+        const normalizedQuery = cache.normalizeQuery(county);
         console.log(`Input: "${county}" → Normalized: "${normalizedCounty}"`);
     });
 }

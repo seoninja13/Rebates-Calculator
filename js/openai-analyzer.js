@@ -324,9 +324,10 @@ export default class RebatePrograms {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({ 
-                level,
-                county,
-                category: Array.from(this.activeFilters) // Send selected project types
+                category: level,       // Required: Federal/State/County
+                county: county,        // Required for County category
+                query: fullQuery,      // Optional: search query
+                shouldSearch: true     // Optional: force new search
             })
         });
 
@@ -347,9 +348,9 @@ export default class RebatePrograms {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                query, 
-                level,
-                shouldSearch: false
+                category: level,       // Required: Federal/State/County
+                query: query,          // Optional: search query
+                shouldSearch: false    // Don't force search on cache check
             }),
         });
 
@@ -379,9 +380,9 @@ export default class RebatePrograms {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ 
-                query, 
-                level,
-                shouldSearch: true
+                category: level,       // Required: Federal/State/County
+                query: query,          // Optional: search query
+                shouldSearch: true     // Force new search
             }),
         });
 
@@ -432,7 +433,7 @@ export default class RebatePrograms {
                         link: result.link,
                         snippet: result.snippet
                     })),
-                    level: level
+                    category: level  // Changed from level to category for consistency
                 })
             });
 
@@ -562,9 +563,10 @@ export default class RebatePrograms {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                level: 'County',       // The level we're searching at (Federal/State/County)
-                county: county,        // The selected county name
-                projectType: projectType // The type of project (solar, hvac, etc.)
+                category: 'County',    // Required: Federal/State/County
+                county: county,        // Required for County category
+                query: projectType,    // Optional: type of project
+                shouldSearch: true     // Optional: force new search
             })
         });
 
