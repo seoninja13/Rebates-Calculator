@@ -44,7 +44,6 @@
 }
 
 .program-row::after {
-    content: "▸";
     position: absolute;
     right: 12px;
     top: 50%;
