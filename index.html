@@ -152,34 +152,6 @@
       display: none;
     }
 
-    /* Loading Indicator */
-    .loading-indicator {
-      display: none;
-      text-align: center;
-      margin-top: 1rem;
-      padding: 1rem;
-    }
-
-    .loading-indicator.show {
-      display: block;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #4CAF50;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    .loading-text {
-      margin-top: 0.5rem;
-      color: #666;
-      font-size: 1rem;
-    }
-
     /* Project Types */
     .project-types {
       display: flex;
@@ -196,11 +168,6 @@
 
     .project-type i {
       font-size: 1.2rem;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
 
     .program-section {
@@ -241,6 +208,178 @@
       font-size: 1rem;
       color: #333;
     }
+
+    .info-message {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      background: #f5f5f5;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .error-message {
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      background: #fff5f5;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .button-text {
+      display: inline-block;
+    }
+
+    /* Loading Spinner */
+    #loadingSpinner {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+    
+    .spinner-container {
+      display: none;
+      text-align: center;
+      padding: 40px 0;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Level Sections */
+    .level-section {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .level-header {
+      color: #2c3e50;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #3498db;
+    }
+
+    /* Category Sections */
+    .category-section {
+      margin: 1rem 0;
+      padding: 1rem;
+      background-color: white;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .category-title {
+      color: #34495e;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+    }
+
+    .program-content {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1rem;
+    }
+
+    .program-section {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .category-header {
+      color: white;
+      background-color: #4CAF50;
+      padding: 0.5rem 1rem;
+      margin: -1rem -1rem 1rem -1rem;
+      border-radius: 8px 8px 0 0;
+    }
+
+    .level-indicator {
+      color: #2c3e50;
+      font-weight: bold;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border-bottom: 2px solid #3498db;
+    }
+
+    .program-content {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .program-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin: 0.5rem 0;
+      border-left: 4px solid #4CAF50;
+    }
+
+    .program-title {
+      color: #2c3e50;
+      margin: 0 0 0.5rem 0;
+      font-size: 1.2rem;
+    }
+
+    .program-description {
+      color: #666;
+      margin: 0.5rem 0;
+      font-size: 0.95rem;
+    }
+
+    .program-amount {
+      color: #2ecc71;
+      font-weight: bold;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid #eee;
+    }
+
+    .level-indicator {
+      color: #2c3e50;
+      font-weight: bold;
+      padding: 1rem 0 0.5rem 0;
+      margin-top: 1rem;
+      border-bottom: 2px solid #3498db;
+    }
+
+    .loading-spinner {
+      text-align: center;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 1rem;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -254,13 +393,13 @@
       <!-- Blue Search Bar -->
       <div class="blue-search-bar">
         <div class="category-icons">
-          <div class="category-icon" data-category="heat-pumps">
-            <i class="fas fa-temperature-high"></i>
-            Heat Pumps
-          </div>
           <div class="category-icon" data-category="solar">
             <i class="fas fa-sun"></i>
             Solar
+          </div>
+          <div class="category-icon" data-category="heat-pumps">
+            <i class="fas fa-temperature-high"></i>
+            Heat Pumps
           </div>
           <div class="category-icon" data-category="ev-charger">
             <i class="fas fa-charging-station"></i>
@@ -370,19 +509,18 @@
             <option value="Yuba">Yuba</option>
           </select>
           <button id="searchButton" class="search-button">
-            <span>Search Rebates</span>
+            <span class="button-text">Search Rebates</span>
           </button>
         </div>
       </div>
 
-      <!-- Loading Indicator -->
-      <div class="loading-indicator">
+      <div id="loadingSpinner" class="loading-spinner" style="display: none;">
         <div class="spinner"></div>
-        <div class="loading-text">Searching for rebates...</div>
+        <p>Searching for rebate programs...</p>
       </div>
 
       <!-- Results Container -->
-      <div id="resultsContainer">
+      <div id="resultsContainer" style="display: none;">
         <!-- Solar Installation -->
         <div class="program-section" data-category="solar">
           <h2>Solar Installation</h2>
@@ -443,154 +581,36 @@
     </div>
   </div>
 
-  <script>
-    // Add click handlers for categories
-    document.querySelectorAll('.category-icon').forEach(category => {
-      category.addEventListener('click', () => {
-        // Toggle active state for clicked category
-        category.classList.toggle('active');
-        
-        // Get all selected categories
-        const selectedCategories = Array.from(document.querySelectorAll('.category-icon.active'))
-          .map(el => el.dataset.category);
-        
-        // Update the search results based on selected categories
-        updateResults(selectedCategories);
-      });
-    });
-
-    function updateResults(selectedCategories) {
-      // Filter results based on selected categories
-      const resultsContainer = document.getElementById('resultsContainer');
-      const programSections = resultsContainer.querySelectorAll('.program-section');
-
-      if (selectedCategories.length === 0) {
-        // If no categories selected, show all
-        programSections.forEach(section => section.style.display = 'block');
-      } else {
-        // Show only selected categories
-        programSections.forEach(section => {
-          const sectionCategory = section.getAttribute('data-category');
-          section.style.display = selectedCategories.includes(sectionCategory) ? 'block' : 'none';
-        });
-      }
-    }
-  </script>
-
   <script type="module">
-    import RebatePrograms from './js/openai-analyzer.js';
-    
-    // Initialize the rebate programs handler
-    const rebatePrograms = new RebatePrograms();
+    import { RebatePrograms } from './js/RebatePrograms.js';
+    import { analyze } from './js/openai-analyzer.js';
 
-    function createProgramRow(program) {
-      const row = document.createElement('div');
-      row.className = 'program-row';
-      
-      const title = document.createElement('div');
-      title.className = 'program-title';
-      title.textContent = program.title;
-      
-      const amount = document.createElement('div');
-      amount.className = 'program-amount';
-      amount.textContent = program.amount || program.summary;
-      
-      row.appendChild(title);
-      row.appendChild(amount);
-      
-      return row;
-    }
+    // Initialize RebatePrograms and make it globally accessible
+    window.rebatePrograms = new RebatePrograms();
 
-    function categorizePrograms(programs) {
-      const categories = {
-        solar: [],
-        hvac: [],
-        insulation: []
-      };
-
-      programs.forEach(program => {
-        const title = program.title.toLowerCase();
-        if (title.includes('solar')) {
-          categories.solar.push(program);
-        } else if (title.includes('hvac') || title.includes('heat pump') || title.includes('cooling')) {
-          categories.hvac.push(program);
-        } else if (title.includes('insulation') || title.includes('weatherization')) {
-          categories.insulation.push(program);
-        }
-      });
-
-      return categories;
-    }
-
-    // Event listener for search button
-    document.getElementById('searchButton').addEventListener('click', async () => {
-      const county = document.getElementById('countySelect').value;
-      if (!county) {
-        alert('Please select a county first');
+    document.getElementById('searchButton').addEventListener('click', async function() {
+      // Check if any categories are selected
+      if (window.rebatePrograms.activeCategories.size === 0) {
+        const container = document.getElementById('resultsContainer');
+        container.innerHTML = '<p class="info-message">Please select at least one category to search.</p>';
+        container.style.display = 'block';
         return;
       }
 
-      // Show loading state
-      const button = document.getElementById('searchButton');
-      const buttonText = button.querySelector('span');
-      const loadingIndicator = document.querySelector('.loading-indicator');
-      
-      buttonText.textContent = 'Searching...';
-      button.disabled = true;
-      loadingIndicator.classList.add('show');
-
-      // Hide results while loading
-      document.getElementById('resultsContainer').style.display = 'none';
+      // Hide any existing results and show spinner
+      const container = document.getElementById('resultsContainer');
+      container.style.display = 'none';
+      window.rebatePrograms.showLoadingSpinner();
 
       try {
-        // Clear previous results
-        ['solarResults', 'hvacResults', 'insulationResults'].forEach(id => {
-          const container = document.getElementById(id);
-          if (container) {
-            container.innerHTML = '';
-          }
-        });
-
-        // Perform the search
-        const results = await rebatePrograms.analyze(county);
-        
-        // Combine all programs
-        const allPrograms = [
-          ...(results.federal || []),
-          ...(results.state || []),
-          ...(results.county || [])
-        ];
-
-        // Categorize programs
-        const categories = categorizePrograms(allPrograms);
-
-        // Update UI for each category
-        Object.entries(categories).forEach(([category, programs]) => {
-          const container = document.getElementById(`${category}Results`);
-          if (container) {
-            if (programs.length === 0) {
-              container.innerHTML = `<div class="program-row">No ${category} programs found.</div>`;
-            } else {
-              programs.forEach(program => {
-                container.appendChild(createProgramRow(program));
-              });
-            }
-          }
-        });
-
-        // Show results container
-        document.getElementById('resultsContainer').style.display = 'block';
-
-        // Hide loading state
-        buttonText.textContent = 'Search Rebates';
-        button.disabled = false;
-        loadingIndicator.classList.remove('show');
+        const results = await analyze();
+        window.rebatePrograms.displayResults(results);
       } catch (error) {
-        console.error('Error during search:', error);
-        buttonText.textContent = 'Search Failed';
-        button.disabled = false;
-        loadingIndicator.classList.remove('show');
-        alert('An error occurred during the search. Please try again.');
+        console.error('Error:', error);
+        container.innerHTML = '<p class="error-message">An error occurred while searching. Please try again.</p>';
+        container.style.display = 'block';
+      } finally {
+        window.rebatePrograms.hideLoadingSpinner();
       }
     });
   </script>

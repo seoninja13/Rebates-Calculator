@@ -944,3 +944,5 @@ export class GoogleSheetsCache {
         }
     }
 }
+
+export { GoogleSheetsCache } from './cache/GoogleSheetsCache.mjs';

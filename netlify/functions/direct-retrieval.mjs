@@ -16,14 +16,32 @@ let initialized = false;
  */
 export async function handler(event, context) {
     try {
-        // Parse request parameters
-        const { level, category, county } = JSON.parse(event.body);
+        // Parse request parameters with better error handling
+        let requestBody;
+        try {
+            requestBody = JSON.parse(event.body || '{}');
+        } catch (e) {
+            return {
+                statusCode: 400,
+                body: JSON.stringify({
+                    success: false,
+                    error: "Invalid JSON in request body",
+                    details: e.message
+                })
+            };
+        }
+
+        const { level, category, county } = requestBody;
 
         // Validate required parameters
         if (!level || !['Federal', 'State', 'County'].includes(level)) {
             return {
-                statusCode: 500,
-                body: JSON.stringify({ error: "Missing or invalid level (Federal/State/County)" })
+                statusCode: 400,
+                body: JSON.stringify({
+                    success: false,
+                    error: "Missing or invalid level (Federal/State/County)",
+                    details: `Received level: ${level}`
+                })
             };
         }
 
@@ -36,8 +54,12 @@ export async function handler(event, context) {
         } else {
             if (!county) {
                 return {
-                    statusCode: 500,
-                    body: JSON.stringify({ error: "County name required for County level" })
+                    statusCode: 400,
+                    body: JSON.stringify({
+                        success: false,
+                        error: "County name required for County level",
+                        details: "No county provided in request"
+                    })
                 };
             }
             query = `${county} County energy rebate programs california, ${county} County utility incentives california`;
