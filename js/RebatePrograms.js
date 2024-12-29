@@ -34,40 +34,82 @@ export class RebatePrograms {
         const description = (program.description || program.summary || program.collapsedSummary || '').toLowerCase();
         const content = title + ' ' + description;
 
-        console.log(`\nAnalyzing program: "${title}"\nDescription: "${description}"`);
-
-        // Solar category - must explicitly mention solar or photovoltaic
+        // Solar category
         if (content.includes('solar') || 
             content.includes('photovoltaic') || 
             content.includes('solar tax credit') ||
             content.includes('itc') && content.includes('solar')) {
-            console.log('Categorized as: solar (matched solar keywords)');
             return 'solar';
         } 
-        // Windows and Doors category
+        // EV Charger category
+        else if (content.includes('ev charg') || 
+                 content.includes('electric vehicle charg') ||
+                 content.includes('charging station') ||
+                 content.includes('chargepoint') ||
+                 (content.includes('electric') && content.includes('vehicle') && content.includes('charg'))) {
+            return 'ev-charger';
+        }
+        // Windows category
         else if (content.includes('window') || 
-                 content.includes('door') ||
-                 content.includes('home improvement') && (content.includes('window') || content.includes('door'))) {
-            console.log('Categorized as: windows-doors (matched windows/doors keywords)');
-            return 'windows-doors';
+                 content.includes('home improvement') && content.includes('window')) {
+            return 'windows';
         }
         // Heat pumps category
         else if (content.includes('heat pump') || 
                  content.includes('heehra') ||
                  content.includes('electrification') ||
                  (content.includes('heating') && content.includes('electr'))) {
-            console.log('Categorized as: heat-pumps (matched heat pump keywords)');
             return 'heat-pumps';
         }
         // HVAC category
         else if (content.includes('hvac') || 
                  content.includes('air condition') ||
                  (content.includes('heating') && content.includes('cooling'))) {
-            console.log('Categorized as: hvac (matched HVAC keywords)');
             return 'hvac';
         }
+        // Insulation category
+        else if (content.includes('insulation') ||
+                 content.includes('weatherization') && content.includes('insul')) {
+            return 'insulation';
+        }
+        // Appliances category
+        else if (content.includes('appliance') ||
+                 content.includes('refrigerator') ||
+                 content.includes('washer') ||
+                 content.includes('dryer')) {
+            return 'appliances';
+        }
+        // Water Heater category
+        else if (content.includes('water heat') ||
+                 content.includes('hot water') ||
+                 content.includes('tankless')) {
+            return 'water-heater';
+        }
+        // Lighting category
+        else if (content.includes('light') ||
+                 content.includes('led') ||
+                 content.includes('lighting')) {
+            return 'lighting';
+        }
+        // Weatherization category
+        else if (content.includes('weather') ||
+                 content.includes('weatherization') ||
+                 content.includes('weatherproof')) {
+            return 'weatherization';
+        }
+        // Roofing category
+        else if (content.includes('roof') ||
+                 content.includes('cool roof') ||
+                 content.includes('roofing')) {
+            return 'roofing';
+        }
+        // Battery Storage category
+        else if (content.includes('battery') ||
+                 content.includes('storage') ||
+                 content.includes('energy storage')) {
+            return 'battery';
+        }
         // Default to other
-        console.log('Categorized as: other (no specific category matches)');
         return 'other';
     }
 
@@ -76,7 +118,15 @@ export class RebatePrograms {
             'solar': 'Solar',
             'heat-pumps': 'Heat Pumps',
             'hvac': 'HVAC',
-            'windows-doors': 'Windows and Doors',
+            'windows': 'Windows',
+            'ev-charger': 'EV Charger',
+            'insulation': 'Insulation',
+            'appliances': 'Appliances',
+            'water-heater': 'Water Heater',
+            'lighting': 'Lighting',
+            'weatherization': 'Weatherization',
+            'roofing': 'Roofing',
+            'battery': 'Battery Storage',
             'other': 'Other Programs'
         };
         return formatMap[category] || category;
@@ -98,20 +148,13 @@ export class RebatePrograms {
         const baseTitle = program.title || program.programName;
         
         // Format the title based on level
-        let formattedTitle = '';
-        if (program.level === 'federal') {
+        let formattedTitle = baseTitle;
+        if (program.level === 'federal' && !baseTitle.toLowerCase().includes('federal')) {
             formattedTitle = 'Federal ' + baseTitle;
-        } else if (program.level === 'state') {
+        } else if (program.level === 'state' && !baseTitle.toLowerCase().includes('california') && !baseTitle.toLowerCase().includes('state')) {
             formattedTitle = 'California ' + baseTitle;
-        } else if (program.level === 'county' && program.county) {
-            // Only add county name if it's not already in the title
-            if (!baseTitle.includes(program.county)) {
-                formattedTitle = program.county + ' County ' + baseTitle;
-            } else {
-                formattedTitle = baseTitle;
-            }
-        } else {
-            formattedTitle = baseTitle;
+        } else if (program.level === 'county' && program.county && !baseTitle.toLowerCase().includes(program.county.toLowerCase())) {
+            formattedTitle = program.county + ' County ' + baseTitle;
         }
 
         // Clean up common formatting issues
@@ -178,10 +221,25 @@ export class RebatePrograms {
         // Clear any existing content
         this.resultsContainer.innerHTML = '';
 
-        // If no categories selected, don't display anything
+        // Get the warning message element
+        const warningMessage = document.getElementById('categoryWarning');
+
+        // If no categories selected, show warning and don't display anything
         if (this.activeCategories.size === 0) {
+            if (warningMessage) {
+                warningMessage.style.display = 'block';
+            }
             return;
+        } else {
+            if (warningMessage) {
+                warningMessage.style.display = 'none';
+            }
         }
+
+        // If no categories selected, don't display anything
+        // if (this.activeCategories.size === 0) {
+        //     return;
+        // }
 
         // Group programs by category
         const programsByCategory = {};
@@ -197,13 +255,12 @@ export class RebatePrograms {
             });
         });
 
-        // Create sections for selected categories with programs
-        Object.entries(programsByCategory).forEach(([category, levelPrograms]) => {
-            if (!this.activeCategories.has(category)) return;
-
+        // Create sections for each selected category
+        this.activeCategories.forEach(category => {
+            const levelPrograms = programsByCategory[category] || { federal: [], state: [], county: [] };
             const hasPrograms = Object.values(levelPrograms).some(programs => programs.length > 0);
-            if (!hasPrograms) return;
-
+            
+            // Create section for this category
             const section = document.createElement('div');
             section.className = 'program-section';
             section.setAttribute('data-category', category);
@@ -216,29 +273,36 @@ export class RebatePrograms {
             const content = document.createElement('div');
             content.className = 'program-content';
 
-            ['federal', 'state', 'county'].forEach(level => {
-                const programs = levelPrograms[level];
-                if (programs.length === 0) return;
+            if (hasPrograms) {
+                // Show programs if they exist
+                ['federal', 'state', 'county'].forEach(level => {
+                    const programs = levelPrograms[level];
+                    if (programs.length === 0) return;
 
-                const levelHeader = document.createElement('div');
-                levelHeader.className = 'level-indicator';
-                levelHeader.textContent = this.formatLevel(level);
-                content.appendChild(levelHeader);
+                    const levelHeader = document.createElement('div');
+                    levelHeader.className = 'level-indicator';
+                    levelHeader.textContent = this.formatLevel(level);
+                    content.appendChild(levelHeader);
 
-                programs.forEach(program => {
-                    const card = this.createProgramCard(program);
-                    content.appendChild(card);
+                    programs.forEach(program => {
+                        const card = this.createProgramCard(program);
+                        content.appendChild(card);
+                    });
                 });
-            });
+            } else {
+                // Show no results message if no programs for this category
+                const noResults = document.createElement('div');
+                noResults.className = 'no-results';
+                noResults.textContent = 'No rebate programs found in your area for this category';
+                content.appendChild(noResults);
+            }
 
             section.appendChild(content);
             this.resultsContainer.appendChild(section);
         });
 
-        // Show results container if we have content
-        if (this.resultsContainer.children.length > 0) {
-            this.resultsContainer.style.display = 'block';
-        }
+        // Show results container
+        this.resultsContainer.style.display = 'block';
     }
 
     formatLevel(level) {

@@ -26,15 +26,16 @@
     .hero {
       background-color: #4CAF50;
       color: white;
-      padding: 2rem;
+      padding: 1rem;
       text-align: center;
-      border-radius: 8px;
       margin-bottom: 2rem;
     }
 
     .hero h1 {
       margin: 0;
-      font-size: 2.5rem;
+      font-size: 2rem;
+      color: white;
+      font-weight: 600;
     }
 
     /* Blue Search Bar */
@@ -46,20 +47,26 @@
 
     .category-icons {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.5em;
+      row-gap: 1.25em;
+      width: 100%;
       color: white;
     }
 
     .category-icon {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.25rem;
       cursor: pointer;
       padding: 0.5rem;
       border-radius: 4px;
       transition: all 0.2s ease;
       border: 2px solid transparent;
+      height: 24px;
+      box-sizing: border-box;
+      width: 100%;
+      white-space: nowrap;
     }
 
     .category-icon:hover {
@@ -70,17 +77,46 @@
       background-color: rgba(255, 255, 255, 0.2);
       border-color: white;
       font-weight: 500;
+      height: auto;
+      min-height: 24px;
     }
 
     .category-icon i {
       font-size: 1.2rem;
       width: 1.5rem;
       text-align: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 768px) {
+      .category-icons {
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      }
+      
+      .category-icon {
+        padding: 0.4rem;
+        font-size: 0.9rem;
+      }
+      
+      .category-icon i {
+        font-size: 1rem;
+        width: 1.2rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .category-icons {
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      }
+      
+      .category-icon {
+        padding: 0.3rem;
+        font-size: 0.85rem;
+      }
     }
 
     /* Search Section */
     .search-section {
-      background-color: #3f87cb;
       padding: 1rem;
       border-radius: 8px;
       margin-bottom: 2rem;
@@ -172,7 +208,7 @@
 
     .program-section {
       background-color: #fff;
-      margin-bottom: 1rem;
+      margin-bottom: 15px;
     }
 
     .program-section h2 {
@@ -181,17 +217,20 @@
       margin: 0;
       padding: 1rem;
       font-size: 1.5rem;
+      margin-bottom: 8px;
+      color: #2E7D32;
     }
 
     .program-content {
-      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0rem;
     }
 
     .program-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.75rem 1rem;
       border-bottom: 1px solid #eee;
       font-size: 1rem;
     }
@@ -207,23 +246,26 @@
     }
 
     .program-amount {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
       text-align: right;
-      color: #2E7D32;
+      color: #4CAF50;
       white-space: nowrap;
     }
 
     .info-message {
       padding: 20px;
       text-align: center;
-      color: #666;
-      background: #f5f5f5;
+      color: #dc2626;
+      background: #fff5f5;
       border-radius: 8px;
       margin: 20px 0;
+      font-weight: 500;
     }
     .error-message {
       padding: 20px;
       text-align: center;
-      color: #666;
+      color: #dc2626;
       background: #fff5f5;
       border-radius: 8px;
       margin: 20px 0;
@@ -232,27 +274,46 @@
       display: inline-block;
     }
 
-    /* Loading Spinner */
-    #loadingSpinner {
+    /* Working Construction Worker */
+    .working-container {
       display: none;
       text-align: center;
       margin: 20px 0;
     }
     
-    .spinner-container {
-      display: none;
-      text-align: center;
-      padding: 40px 0;
+    .worker {
+      font-size: 46px;
+      animation: work 0.5s ease-in-out infinite;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+
+    .working-text {
+      color: #666;
+      font-size: 16px;
+    }
+
+    @keyframes work {
+      0%, 100% { transform: rotate(-10deg); }
+      50% { transform: rotate(10deg); }
+    }
+
+    /* Loading Spinner */
+    .loading-container {
+      display: inline-block;
+      margin: 20px 0;
+      position: relative;
+      width: 60px;
+      height: 60px;
     }
 
     .spinner {
-      width: 50px;
-      height: 50px;
       border: 5px solid #f3f3f3;
       border-top: 5px solid #4CAF50;
       border-radius: 50%;
+      width: 100%;
+      height: 100%;
       animation: spin 1s linear infinite;
-      margin: 0 auto;
     }
 
     @keyframes spin {
@@ -262,7 +323,7 @@
 
     /* Level Sections */
     .level-section {
-      margin-bottom: 2rem;
+      margin-bottom: 12px;
       padding: 1rem;
       background-color: #f8f9fa;
       border-radius: 8px;
@@ -270,9 +331,9 @@
 
     .level-header {
       color: #2c3e50;
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
+      font-weight: bold;
+      padding: 0rem 0 0.5rem 0;
+      margin-top: 1rem;
       border-bottom: 2px solid #3498db;
     }
 
@@ -323,7 +384,7 @@
     .program-content {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0rem;
     }
 
     .program-card {
@@ -348,7 +409,7 @@
     }
 
     .program-amount {
-      color: #2ecc71;
+      color: #4CAF50;
       font-weight: bold;
       margin-top: 0.5rem;
       padding-top: 0.5rem;
@@ -382,6 +443,30 @@
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+
+    .search-rebates {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+
+    .search-rebates:hover {
+      background-color: #4CAF50;
+      opacity: 0.9;
+    }
+
+    .warning-message {
+      color: #dc2626;
+      font-weight: 500;
+      margin: 1rem 0;
+      text-align: center;
     }
   </style>
 </head>
@@ -417,11 +502,11 @@
             Insulation
           </div>
           <div class="category-icon" data-category="windows">
-            <i class="fas fa-square"></i>
-            Windows
+            <i class="fas fa-door-open"></i>
+            Windows & Doors
           </div>
           <div class="category-icon" data-category="appliances">
-            <i class="fas fa-washing-machine"></i>
+            <i class="fas fa-tv"></i>
             Appliances
           </div>
           <div class="category-icon" data-category="water-heater">
@@ -511,15 +596,18 @@
             <option value="Yolo">Yolo</option>
             <option value="Yuba">Yuba</option>
           </select>
-          <button id="searchButton" class="search-button">
+          <button id="searchButton" class="search-rebates">
             <span class="button-text">Search Rebates</span>
           </button>
         </div>
+        <div id="categoryWarning" class="warning-message" style="display: none;">
+          Please select at least one category to search.
+        </div>
       </div>
 
-      <div id="loadingSpinner" class="loading-spinner" style="display: none;">
-        <div class="spinner"></div>
-        <p>Searching for rebate programs...</p>
+      <div id="loadingSpinner" class="working-container">
+        <div class="worker">👷‍♂️</div>
+        <div class="working-text">Wait, I am working...</div>
       </div>
 
       <!-- Results Container -->
