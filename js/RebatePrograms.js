@@ -36,39 +36,35 @@ export class RebatePrograms {
 
         console.log(`\nAnalyzing program: "${title}"\nDescription: "${description}"`);
 
-        // Solar category
+        // Solar category - must explicitly mention solar or photovoltaic
         if (content.includes('solar') || 
             content.includes('photovoltaic') || 
-            content.includes('itc') ||
-            (content.includes('tax credit') && content.includes('energy')) ||
-            content.includes('renewable energy')) {
+            content.includes('solar tax credit') ||
+            content.includes('itc') && content.includes('solar')) {
             console.log('Categorized as: solar (matched solar keywords)');
             return 'solar';
         } 
+        // Windows and Doors category
+        else if (content.includes('window') || 
+                 content.includes('door') ||
+                 content.includes('home improvement') && (content.includes('window') || content.includes('door'))) {
+            console.log('Categorized as: windows-doors (matched windows/doors keywords)');
+            return 'windows-doors';
+        }
         // Heat pumps category
         else if (content.includes('heat pump') || 
                  content.includes('heehra') ||
                  content.includes('electrification') ||
-                 (content.includes('heating') && content.includes('electr')) ||
-                 (content.includes('heating') && content.includes('upgrade') && !content.includes('hvac'))) {
+                 (content.includes('heating') && content.includes('electr'))) {
             console.log('Categorized as: heat-pumps (matched heat pump keywords)');
             return 'heat-pumps';
         }
         // HVAC category
         else if (content.includes('hvac') || 
                  content.includes('air condition') ||
-                 (content.includes('heating') && content.includes('cooling')) ||
-                 (content.includes('heating') && !content.includes('heat pump'))) {
+                 (content.includes('heating') && content.includes('cooling'))) {
             console.log('Categorized as: hvac (matched HVAC keywords)');
             return 'hvac';
-        }
-        // EV Chargers category
-        else if (content.includes('ev ') || 
-                 content.includes('electric vehicle') || 
-                 content.includes('charger') ||
-                 content.includes('charging')) {
-            console.log('Categorized as: ev-charger (matched EV keywords)');
-            return 'ev-charger';
         }
         // Default to other
         console.log('Categorized as: other (no specific category matches)');
@@ -79,8 +75,8 @@ export class RebatePrograms {
         const formatMap = {
             'solar': 'Solar',
             'heat-pumps': 'Heat Pumps',
-            'ev-charger': 'EV Chargers',
             'hvac': 'HVAC',
+            'windows-doors': 'Windows and Doors',
             'other': 'Other Programs'
         };
         return formatMap[category] || category;
@@ -88,22 +84,74 @@ export class RebatePrograms {
 
     createProgramCard(program) {
         const card = document.createElement('div');
-        card.className = 'program-card';
+        card.className = 'program-row';
 
-        const title = document.createElement('h3');
+        // Create left side with title
+        const leftSide = document.createElement('div');
+        leftSide.className = 'program-info';
+
+        // Title
+        const title = document.createElement('div');
         title.className = 'program-title';
-        title.textContent = program.title;
+        
+        // Get the base title from either title or programName
+        const baseTitle = program.title || program.programName;
+        
+        // Format the title based on level
+        let formattedTitle = '';
+        if (program.level === 'federal') {
+            formattedTitle = 'Federal ' + baseTitle;
+        } else if (program.level === 'state') {
+            formattedTitle = 'California ' + baseTitle;
+        } else if (program.level === 'county' && program.county) {
+            // Only add county name if it's not already in the title
+            if (!baseTitle.includes(program.county)) {
+                formattedTitle = program.county + ' County ' + baseTitle;
+            } else {
+                formattedTitle = baseTitle;
+            }
+        } else {
+            formattedTitle = baseTitle;
+        }
 
-        const description = document.createElement('p');
-        description.className = 'program-description';
-        description.textContent = program.summary || program.collapsedSummary || 'No description available';
+        // Clean up common formatting issues
+        formattedTitle = formattedTitle
+            .replace(/\s+/g, ' ')  // Remove extra spaces
+            .replace(/\b(ITC)\b/g, 'Tax Credit')  // Replace ITC with Tax Credit
+            .trim();
 
+        title.textContent = formattedTitle;
+        leftSide.appendChild(title);
+
+        // Format the amount and basis
         const amount = document.createElement('div');
         amount.className = 'program-amount';
-        amount.textContent = program.amount || 'Amount varies';
+        
+        let amountText = program.amount || 'Amount varies';
+        if (typeof amountText === 'string') {
+            // Handle percentage amounts
+            if (amountText.includes('%')) {
+                amountText = amountText.replace('Up to ', '') + ' of cost';
+            }
+            // Handle dollar amounts
+            else if (amountText.toLowerCase().includes('up to')) {
+                // Keep it as is, but ensure proper capitalization
+                amountText = 'Up to' + amountText.toLowerCase().split('up to')[1];
+            }
+            // Add dollar sign if missing
+            if (/^\d/.test(amountText) && !amountText.includes('$')) {
+                amountText = '$' + amountText;
+            }
+        }
 
-        card.appendChild(title);
-        card.appendChild(description);
+        // Add brief requirements if critical
+        if (program.costBasis) {
+            amountText += ` (${program.costBasis})`;
+        }
+
+        amount.textContent = amountText;
+
+        card.appendChild(leftSide);
         card.appendChild(amount);
 
         return card;

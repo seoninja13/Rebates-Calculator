@@ -191,8 +191,9 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 1rem;
+      padding: 0.75rem 1rem;
       border-bottom: 1px solid #eee;
+      font-size: 1rem;
     }
 
     .program-row:last-child {
@@ -200,13 +201,15 @@
     }
 
     .program-title {
-      font-size: 1rem;
+      flex: 1;
+      padding-right: 2rem;
       color: #333;
     }
 
     .program-amount {
-      font-size: 1rem;
-      color: #333;
+      text-align: right;
+      color: #2E7D32;
+      white-space: nowrap;
     }
 
     .info-message {
