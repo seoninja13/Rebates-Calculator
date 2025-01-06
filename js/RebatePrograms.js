@@ -9,13 +9,45 @@ export class RebatePrograms {
     }
 
     setupCategoryListeners() {
+        // Add listener for Select All button
+        const selectAllButton = document.querySelector('.select-all');
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => this.toggleAllCategories(selectAllButton));
+        }
+
+        // Add listeners for individual category icons
         const categoryIcons = document.querySelectorAll('.category-icon');
         categoryIcons.forEach(icon => {
             icon.addEventListener('click', () => {
                 const category = icon.getAttribute('data-category');
                 this.toggleCategory(category, icon);
+                this.updateSelectAllButtonState(selectAllButton);
             });
         });
+    }
+
+    toggleAllCategories(selectAllButton) {
+        const categoryIcons = document.querySelectorAll('.category-icon');
+        const isSelectAll = !selectAllButton.classList.contains('active');
+        
+        categoryIcons.forEach(icon => {
+            const category = icon.getAttribute('data-category');
+            if (isSelectAll) {
+                this.activeCategories.add(category);
+                icon.classList.add('active');
+            } else {
+                this.activeCategories.delete(category);
+                icon.classList.remove('active');
+            }
+        });
+
+        selectAllButton.classList.toggle('active', isSelectAll);
+    }
+
+    updateSelectAllButtonState(selectAllButton) {
+        const categoryIcons = document.querySelectorAll('.category-icon');
+        const allSelected = Array.from(categoryIcons).every(icon => icon.classList.contains('active'));
+        selectAllButton.classList.toggle('active', allSelected);
     }
 
     toggleCategory(category, icon) {
