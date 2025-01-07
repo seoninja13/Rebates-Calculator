@@ -45,6 +45,34 @@
       margin-bottom: 2rem;
     }
 
+    .select-all-container {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .select-all-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+      border: 2px solid transparent;
+    }
+
+    .select-all-button:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .select-all-button.active {
+      background-color: rgba(255, 255, 255, 0.2);
+      border-color: white;
+      font-weight: 500;
+    }
+
     .category-icons {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
@@ -486,6 +514,12 @@
 
       <!-- Blue Search Bar -->
       <div class="blue-search-bar">
+        <div class="select-all-container">
+          <div class="select-all-button">
+            <i class="fas fa-check-double"></i>
+            Select All
+          </div>
+        </div>
         <div class="category-icons">
           <div class="category-icon" data-category="solar">
             <i class="fas fa-sun"></i>

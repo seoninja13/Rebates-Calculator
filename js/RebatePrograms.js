@@ -6,6 +6,45 @@ export class RebatePrograms {
         this.resultsContainer = document.getElementById('resultsContainer');
         this.hasSearched = false;
         this.setupCategoryListeners();
+        this.setupSelectAllListener();
+    }
+
+    setupSelectAllListener() {
+        const selectAllButton = document.querySelector('.select-all-button');
+        if (selectAllButton) {
+            selectAllButton.addEventListener('click', () => {
+                this.selectAllCategories();
+            });
+        }
+    }
+
+    selectAllCategories() {
+        const allSelected = this.activeCategories.size === 12;
+        const categoryIcons = document.querySelectorAll('.category-icon');
+        
+        categoryIcons.forEach(icon => {
+            const category = icon.getAttribute('data-category');
+            if (allSelected) {
+                this.activeCategories.delete(category);
+                icon.classList.remove('active');
+            } else {
+                this.activeCategories.add(category);
+                icon.classList.add('active');
+            }
+        });
+
+        this.updateSelectAllButtonState();
+    }
+
+    updateSelectAllButtonState() {
+        const selectAllButton = document.querySelector('.select-all-button');
+        if (selectAllButton) {
+            if (this.activeCategories.size === 12) {
+                selectAllButton.classList.add('active');
+            } else {
+                selectAllButton.classList.remove('active');
+            }
+        }
     }
 
     setupCategoryListeners() {
