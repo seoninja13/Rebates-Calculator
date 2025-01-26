@@ -152,19 +152,20 @@ export class RebatePrograms {
             const levelPrograms = programsByCategory[category] || { federal: [], state: [], county: [] };
             const hasPrograms = Object.values(levelPrograms).some(programs => programs.length > 0);
             
-            const section = document.createElement('div');
-            section.className = 'program-section';
-            section.setAttribute('data-category', category);
-
-            const title = document.createElement('h2');
-            title.className = 'category-header';
-            title.textContent = this.formatCategory(category);
-            section.appendChild(title);
-
-            const content = document.createElement('div');
-            content.className = 'program-content';
-
+            // Only create and append section if there are programs
             if (hasPrograms) {
+                const section = document.createElement('div');
+                section.className = 'program-section';
+                section.setAttribute('data-category', category);
+
+                const title = document.createElement('h2');
+                title.className = 'category-header';
+                title.textContent = this.formatCategory(category);
+                section.appendChild(title);
+
+                const content = document.createElement('div');
+                content.className = 'program-content';
+
                 ['federal', 'state', 'county'].forEach(level => {
                     const programs = levelPrograms[level];
                     if (programs.length === 0) return;
@@ -179,15 +180,10 @@ export class RebatePrograms {
                         content.appendChild(card);
                     });
                 });
-            } else {
-                const noResults = document.createElement('div');
-                noResults.className = 'no-results';
-                noResults.textContent = 'No rebate programs found in your area for this category';
-                content.appendChild(noResults);
-            }
 
-            section.appendChild(content);
-            this.resultsContainer.appendChild(section);
+                section.appendChild(content);
+                this.resultsContainer.appendChild(section);
+            }
         });
 
         this.resultsContainer.style.display = 'block';
