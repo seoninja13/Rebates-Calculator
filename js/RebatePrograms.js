@@ -13,7 +13,23 @@ export class RebatePrograms {
         const selectAllButton = document.querySelector('.select-all-button');
         if (selectAllButton) {
             selectAllButton.addEventListener('click', () => {
-                this.selectAllCategories();
+                const categoryIcons = document.querySelectorAll('.category-icon');
+                const isSelectingAll = !selectAllButton.classList.contains('active');
+
+                // Toggle select all button state
+                selectAllButton.classList.toggle('active');
+
+                // Toggle all categories
+                categoryIcons.forEach(icon => {
+                    const category = icon.getAttribute('data-category');
+                    if (isSelectingAll) {
+                        this.activeCategories.add(category);
+                        icon.classList.add('active');
+                    } else {
+                        this.activeCategories.delete(category);
+                        icon.classList.remove('active');
+                    }
+                });
             });
         }
     }
